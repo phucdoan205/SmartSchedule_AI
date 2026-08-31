@@ -1,0 +1,14 @@
+{
+  "name": "smartschedule-ai-monorepo",
+  "version": "1.0.0",
+  "description": "SmartSchedule AI - Hệ Thống Quản Lý & Đặt Lịch Nha Khoa Đa Chi Nhánh",
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run start:dev --prefix backend",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

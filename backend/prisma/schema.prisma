@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  role      Role     @default(PATIENT)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+  auditLogs    AuditLog[]
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  STAFF
+  PATIENT
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  operatories OperatoryChair[]
+  equipments  Equipment[]
+  appointments Appointment[]
+}
+
+model OperatoryChair {
+  id        String   @id @default(uuid())
+  name      String
+  status    ChairStatus @default(AVAILABLE)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  appointments Appointment[]
+}
+
+enum ChairStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+}
+
+model Appointment {
+  id             String   @id @default(uuid())
+  patientId      String
+  patient        User     @relation(fields: [patientId], references: [id])
+  branchId       String
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  operatoryId    String?
+  operatory      OperatoryChair? @relation(fields: [operatoryId], references: [id])
+  startTime      DateTime
+  endTime        DateTime
+  status         AppointmentStatus @default(SCHEDULED)
+  symptoms       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+model Equipment {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  status      EquipmentStatus @default(ACTIVE)
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id])
+  lastMaintained DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum EquipmentStatus {
+  ACTIVE
+  INACTIVE
+  NEEDS_MAINTENANCE
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+}
