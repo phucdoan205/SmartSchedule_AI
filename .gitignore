@@ -52,11 +52,12 @@ ai-service/datasets/*.json
 backend/prisma/*.db
 backend/prisma/*.db-journal
 
-# Next/Vite
+# Next/Vite/TypeScript Build
 .next
 out
 build
 coverage
+*.tsbuildinfo
 
 # OSX
 .DS_Store
