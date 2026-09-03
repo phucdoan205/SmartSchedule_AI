@@ -78,7 +78,7 @@ export interface ServiceItem {
   category: string;
   price: number;
   durationMinutes: number;
-  status: 'Active' | 'Inactive';
+  status?: 'Active' | 'Inactive';
 }
 
 export interface FinanceReport {
@@ -106,5 +106,5 @@ export interface SystemAuditLog {
   module: string;
   ipAddress: string;
   timestamp: string;
-  status: 'Success' | 'Warning' | 'Error';
+  status: 'Success' | 'Warning' | 'Error' | 'Completed' | 'Failed';
 }

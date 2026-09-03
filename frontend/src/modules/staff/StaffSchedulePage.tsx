@@ -92,7 +92,7 @@ export const StaffSchedulePage: React.FC = () => {
                   className="p-2.5 rounded-xl border border-sky-100 bg-sky-50/50 hover:bg-sky-100/60 transition-colors text-xs space-y-1 cursor-pointer"
                 >
                   <p className="font-bold text-slate-800 text-[11px] truncate">
-                    {shift.doctorName}
+                    {shift.staffName}
                   </p>
                   <div className="flex items-center justify-between text-[10px] text-slate-500">
                     <span className="flex items-center gap-1">

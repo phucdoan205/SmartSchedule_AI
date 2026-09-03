@@ -24,6 +24,7 @@ export const ServicesPage: React.FC = () => {
       category,
       price: parseInt(price) || 500000,
       durationMinutes: parseInt(duration) || 30,
+      status: 'Active',
     };
     setServices([newService, ...services]);
     setIsModalOpen(false);

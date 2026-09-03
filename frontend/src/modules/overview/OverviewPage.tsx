@@ -11,10 +11,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { StatCard } from '../../components/common/StatCard';
-import { AiInsightCard } from '../../components/common/AiInsightCard';
 import { DataTable, type Column } from '../../components/common/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { MOCK_APPOINTMENTS, MOCK_AI_INSIGHTS, MOCK_DOCTORS } from '../../services/mockData';
+import { MOCK_APPOINTMENTS, MOCK_DOCTORS } from '../../services/mockData';
 import type { Appointment } from '../../types/admin';
 
 export const OverviewPage: React.FC = () => {
@@ -122,15 +121,76 @@ export const OverviewPage: React.FC = () => {
         />
       </div>
 
-      {/* AI Smart Schedule Alert */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {MOCK_AI_INSIGHTS.map((insight) => (
-          <AiInsightCard
-            key={insight.id}
-            insight={insight}
-            onApplyAction={() => navigate('/admin/ai-insights')}
-          />
-        ))}
+      {/* AI Insights Hub Summary Widgets (Khớp Ảnh 1) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+        {/* Widget 1: Dự báo giờ vắng & Khuyến nghị */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-sky-600" /> TỐI ƯU CÔNG SUẤT
+              </span>
+              <span className="text-[10px] text-slate-400 font-semibold">T3 vắng 78%</span>
+            </div>
+            <h4 className="font-extrabold text-slate-900 text-sm">Giảm 15% gói Răng sứ Katana</h4>
+            <p className="text-slate-500 text-[11px] leading-relaxed">
+              Khung giờ 09:00 - 12:00 Thứ Ba. Dự kiến tăng 45% tỷ lệ lấp đầy khung giờ vắng.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/ai-insights')}
+            className="w-full py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-colors flex items-center justify-center gap-1"
+          >
+            <span>Đến Trung Tâm AI</span> <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Widget 2: Rủi ro No-Show */}
+        <div className="bg-white p-5 rounded-3xl border border-rose-200/90 shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                RỦI RO NO-SHOW
+              </span>
+              <span className="text-[10px] text-rose-600 font-bold">78% Nguy cơ</span>
+            </div>
+            <h4 className="font-extrabold text-slate-900 text-sm">2 Ca hẹn nguy cơ hủy &gt; 75%</h4>
+            <p className="text-slate-500 text-[11px] leading-relaxed">
+              Đã tự động gửi yêu cầu cọc VietQR 2.000.000đ để bảo đảm lịch hẹn.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/ai-insights')}
+            className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition-colors flex items-center justify-center gap-1"
+          >
+            <span>Quản Lý Rủi Ro</span> <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Widget 3: Phân tích cảm xúc & Zalo CSKH */}
+        <div className="bg-white p-5 rounded-3xl border border-amber-200/90 shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                CẢM XÚC (4.8 / 5.0)
+              </span>
+              <span className="text-[10px] text-emerald-600 font-bold">91% Hài lòng</span>
+            </div>
+            <h4 className="font-extrabold text-slate-900 text-sm">Kịch bản Zalo xin lỗi KH</h4>
+            <p className="text-slate-500 text-[11px] leading-relaxed">
+              Đã tự động gửi voucher cạo vôi răng cho KH Trần Văn A giải quyết phản hồi chờ lâu.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/ai-insights')}
+            className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-200 transition-colors flex items-center justify-center gap-1"
+          >
+            <span>Xem Phân Tích Cảm Xúc</span> <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Main Tables & Doctor Quick Availability */}
