@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Users, FileText, Search, UserCheck, Plus, Receipt, Eye, Edit, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Receipt, Eye } from 'lucide-react';
 import { DataTable, type Column } from '../../components/common/DataTable';
 import { Modal } from '../../components/common/Modal';
 
@@ -38,6 +39,7 @@ const MOCK_PATIENTS: PatientRecord[] = [
 ];
 
 export const PatientsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<PatientRecord[]>(MOCK_PATIENTS);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -100,7 +102,11 @@ export const PatientsPage: React.FC = () => {
           >
             <Receipt className="w-3.5 h-3.5" /> Phiếu thu
           </button>
-          <button type="button" className="px-2.5 py-1 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg">
+          <button
+            type="button"
+            onClick={() => navigate(`/admin/patients/${row.id}`)}
+            className="px-2.5 py-1 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg"
+          >
             Xem EMR
           </button>
         </div>

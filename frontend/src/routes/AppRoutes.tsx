@@ -28,6 +28,7 @@ import { StaffSalaryPage } from '../modules/staff/StaffSalaryPage';
 import { LeaveRegisterPage } from '../modules/staff/LeaveRegisterPage';
 import { SmartSchedulePage } from '../modules/appointments/SmartSchedulePage';
 import { PatientsPage } from '../modules/patients/PatientsPage';
+import { PatientDetailPage } from '../modules/patients/PatientDetailPage';
 import { BranchesPage } from '../modules/branches/BranchesPage';
 import { ServicesPage } from '../modules/services/ServicesPage';
 import { FinancePage } from '../modules/finance/FinancePage';
@@ -86,6 +87,7 @@ export const AppRoutes: React.FC = () => {
           {/* Operation & Management Modules */}
           <Route path="appointments" element={<SmartSchedulePage />} />
           <Route path="patients" element={<PatientsPage />} />
+          <Route path="patients/:id" element={<PatientDetailPage />} />
           <Route path="branches" element={<BranchesPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="finance" element={<FinancePage />} />
