@@ -223,7 +223,7 @@ export const DoctorDetailPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all"
           >
             <Calendar className="w-3.5 h-3.5" />
-            Phân ca trực
+            Thêm ca trực
           </button>
         </div>
       </div>
@@ -487,7 +487,7 @@ export const DoctorDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Add shift button */}
+              {/* Add shift button
               <div className="flex justify-end">
                 <button
                   type="button"
@@ -497,7 +497,7 @@ export const DoctorDetailPage: React.FC = () => {
                   <Plus className="w-3.5 h-3.5" />
                   Thêm ca trực
                 </button>
-              </div>
+              </div> */}
             </div>
           )}
 
