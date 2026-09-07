@@ -6,18 +6,36 @@ import {
   CreditCard,
   Download,
   Edit,
+  Eye,
   FileText,
   Mail,
   MapPin,
+  Maximize2,
   MessageSquareText,
   MoreHorizontal,
   Phone,
   Receipt,
   Sparkles,
+  CalendarDays,
+  Clock,
+  TrendingUp,
+  FileDown,
+  Wallet,
+  QrCode,
+  Clock3,
+  Printer,
 } from 'lucide-react';
 import patientAvatar from '../../assets/bacsi.jpg';
+import xrayImg from '../../assets/x-quang.png';
 import { Modal } from '../../components/common/Modal';
 import { Tabs, type TabItem } from '../../components/common/Tabs';
+import { DentalChart } from '../../components/dental/DentalChart';
+import { XrayLibrary } from '../../components/dental/XrayLibrary';
+import { DicomViewerModal } from '../../components/dental/DicomViewerModal';
+import { AddDiagnosisModal } from '../../components/dental/AddDiagnosisModal';
+import { UploadXrayModal } from '../../components/dental/UploadXrayModal';
+import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
+import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 
 interface PatientDetail {
   id: string;
@@ -116,6 +134,17 @@ export const PatientDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isPreviewReceiptOpen, setIsPreviewReceiptOpen] = useState(false);
+  const [currentReceiptData, setCurrentReceiptData] = useState<ReceiptData | undefined>(undefined);
+  const [isDicomOpen, setIsDicomOpen] = useState(false);
+  const [selectedFilmForDicom, setSelectedFilmForDicom] = useState<{
+    title: string;
+    type: string;
+    date: string;
+  } | undefined>(undefined);
+  const [isDiagnosisOpen, setIsDiagnosisOpen] = useState(false);
+  const [selectedToothForDiagnosis, setSelectedToothForDiagnosis] = useState<number>(46);
+  const [isUploadXrayOpen, setIsUploadXrayOpen] = useState(false);
 
   const patient = useMemo(() => PATIENTS.find((item) => item.id === id) || PATIENTS[0], [id]);
   const paidPercent = Math.round((patient.paid / patient.totalCost) * 100);
@@ -238,17 +267,147 @@ export const PatientDetailPage: React.FC = () => {
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="inline-flex items-center gap-2 text-base font-extrabold text-slate-900"><FileText className="w-4 h-4 text-sky-600" /> Phim X-Quang Gần Đây</h2>
-                <button type="button" className="text-xs font-bold text-sky-700 hover:text-sky-900">Xem tất cả</button>
+                <h2 className="inline-flex items-center gap-2 text-base font-extrabold text-slate-900">
+                  <FileText className="w-4 h-4 text-sky-600" /> Phim X-Quang Gần Đây
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('dental')}
+                  className="text-xs font-bold text-sky-700 hover:text-sky-900 inline-flex items-center gap-1"
+                >
+                  Xem tất cả &gt;
+                </button>
               </div>
+
+              {/* Real X-Ray Cards using asset image */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {['CT Conebeam', 'Panorama', 'Răng 46'].map((label, index) => (
-                  <div key={label} className="h-28 rounded-xl border border-slate-200 bg-slate-900 p-3 text-white shadow-sm">
-                    <div className="h-full rounded-lg border border-slate-700 bg-[radial-gradient(circle_at_35%_40%,#e2e8f0_0,transparent_24%),linear-gradient(135deg,#0f172a,#334155)] opacity-90" />
-                    <p className="mt-2 text-[11px] font-bold text-slate-600">{label} • 0{index + 1}/09/2026</p>
+                {/* 1. Panorex */}
+                <div
+                  onClick={() => {
+                    setSelectedFilmForDicom({
+                      title: 'Phim Panorex Toàn Cảnh',
+                      type: 'Phim Panorama',
+                      date: '10/10/2026',
+                    });
+                    setIsDicomOpen(true);
+                  }}
+                  className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-2.5 hover:border-sky-300 hover:shadow-md transition-all duration-150"
+                >
+                  <div className="relative h-28 w-full overflow-hidden rounded-lg bg-slate-950 border border-slate-200">
+                    <img
+                      src={xrayImg}
+                      alt="Phim Panorex"
+                      className="h-full w-full object-cover opacity-90 transition-transform duration-200 group-hover:scale-105 group-hover:opacity-100"
+                    />
+                    <span className="absolute top-2 right-2 rounded-md bg-cyan-500 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs">
+                      Mới nhất
+                    </span>
+                    <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-sky-300 backdrop-blur-xs">
+                      <Eye className="w-2.5 h-2.5" /> 3D View
+                    </span>
                   </div>
-                ))}
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-900 group-hover:text-sky-700 transition-colors">
+                      Phim Panorex
+                    </h3>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between text-[11px] font-medium text-slate-500">
+                    <span>10/10/2026</span>
+                    <span className="font-bold text-sky-700">BS. Hùng</span>
+                  </div>
+                </div>
+
+                {/* 2. Phim Cận chóp Răng 46 */}
+                <div
+                  onClick={() => {
+                    setSelectedFilmForDicom({
+                      title: 'Phim Cận chóp kiểm tra răng 46',
+                      type: 'Periapical',
+                      date: '15/10/2026',
+                    });
+                    setIsDicomOpen(true);
+                  }}
+                  className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-2.5 hover:border-sky-300 hover:shadow-md transition-all duration-150"
+                >
+                  <div className="relative h-28 w-full overflow-hidden rounded-lg bg-slate-950 border border-slate-200">
+                    <img
+                      src={xrayImg}
+                      alt="Phim Cận chóp"
+                      className="h-full w-full object-cover scale-125 object-[38%_60%] opacity-90 transition-transform duration-200 group-hover:scale-135 group-hover:opacity-100"
+                    />
+                    <span className="absolute top-2 right-2 rounded-md bg-teal-500 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs">
+                      Đã phân tích
+                    </span>
+                    <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-teal-300 backdrop-blur-xs">
+                      <Eye className="w-2.5 h-2.5" /> Khảo sát
+                    </span>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-900 group-hover:text-sky-700 transition-colors">
+                      Phim Cận chóp
+                    </h3>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between text-[11px] font-medium text-slate-500">
+                    <span>15/10/2026</span>
+                    <span className="font-bold text-teal-700">Răng 46</span>
+                  </div>
+                </div>
+
+                {/* 3. CT Cone Beam 3D */}
+                <div
+                  onClick={() => {
+                    setSelectedFilmForDicom({
+                      title: 'Khảo sát mật độ xương hàm dưới vùng răng 46',
+                      type: 'CT Cone Beam 3D',
+                      date: '05/10/2026',
+                    });
+                    setIsDicomOpen(true);
+                  }}
+                  className="group cursor-pointer rounded-xl border border-slate-200 bg-slate-900 p-2.5 hover:border-sky-400 hover:shadow-md transition-all duration-150 text-white"
+                >
+                  <div className="relative h-28 w-full overflow-hidden rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center">
+                    <img
+                      src={xrayImg}
+                      alt="CT Cone Beam"
+                      className="h-full w-full object-cover opacity-60 transition-transform duration-200 group-hover:scale-110 group-hover:opacity-80"
+                    />
+                    <div className="absolute inset-0 bg-radial from-transparent to-slate-950/80 pointer-events-none" />
+                    <div className="absolute flex flex-col items-center justify-center text-center">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/20 border border-sky-400/40 text-sky-400 shadow-lg group-hover:scale-110 transition-transform">
+                        <Maximize2 className="w-5 h-5" />
+                      </div>
+                      <span className="mt-1 text-[10px] font-black tracking-wider text-sky-300 uppercase">
+                        3D DICOM
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <h3 className="text-xs font-black text-white group-hover:text-sky-300 transition-colors">
+                      CT Cone Beam
+                    </h3>
+                  </div>
+                  <div className="mt-0.5 flex items-center justify-between text-[11px] font-medium text-slate-400">
+                    <span>05/10/2026</span>
+                    <span className="font-bold text-slate-300">Tiền phẫu</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Action Button: Mở trình xem phim 3D chuyên sâu */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFilmForDicom({
+                    title: 'Khảo sát mật độ xương hàm dưới vùng răng 46',
+                    type: 'CT Cone Beam 3D',
+                    date: '10/10/2026',
+                  });
+                  setIsDicomOpen(true);
+                }}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-700 py-2.5 text-xs font-extrabold text-white hover:bg-sky-800 transition-colors shadow-xs"
+              >
+                <Maximize2 className="w-4 h-4" /> Mở trình xem phim 3D chuyên sâu
+              </button>
             </section>
           </div>
 
@@ -283,8 +442,26 @@ export const PatientDetailPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsReceiptOpen(true)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100"
+                onClick={() => {
+                  setCurrentReceiptData({
+                    patientName: patient.name,
+                    patientId: patient.id,
+                    amount: patient.currentDebt || 13000000,
+                    description: `Thanh toán công nợ điều trị - ${patient.treatment}`,
+                    paymentMethod: 'VietQR',
+                    collector: 'Dr. Lê Văn Hùng',
+                    isEvatEnabled: true,
+                    customerType: 'Cá nhân',
+                    taxCode: '',
+                    buyerName: patient.name,
+                    buyerAddress: patient.address,
+                    buyerEmail: patient.email,
+                    vatRate: '0% VAT - Dịch vụ y tế',
+                    sendZns: true,
+                  });
+                  setIsReceiptOpen(true);
+                }}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer active:scale-98"
               >
                 <Receipt className="w-4 h-4" /> Lập phiếu thu mới
               </button>
@@ -294,37 +471,435 @@ export const PatientDetailPage: React.FC = () => {
       )}
 
       {activeTab === 'dental' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-extrabold text-slate-900">Sơ đồ răng & Phim X-quang</h2>
-          <div className="grid grid-cols-8 gap-2 text-center text-xs font-black text-slate-700">
-            {Array.from({ length: 32 }, (_, index) => (
-              <div key={index} className={`rounded-xl border p-3 ${index === 21 ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-slate-200 bg-slate-50'}`}>{index + 1}</div>
-            ))}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
+          {/* Left Column: Sơ đồ răng giải phẫu 32 răng */}
+          <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+            <DentalChart
+              patientName={patient.name}
+              patientId={patient.id}
+              onAddDiagnosis={(toothNum) => {
+                setSelectedToothForDiagnosis(toothNum || 46);
+                setIsDiagnosisOpen(true);
+              }}
+            />
           </div>
-        </section>
+
+          {/* Right Column: Thư viện Phim X-quang */}
+          <div className="lg:col-span-5 xl:col-span-5 space-y-4">
+            <XrayLibrary
+              onOpenDicomViewer={(film) => {
+                if (film) {
+                  setSelectedFilmForDicom({
+                    title: film.title,
+                    type: film.type,
+                    date: film.date,
+                  });
+                }
+                setIsDicomOpen(true);
+              }}
+              onOpenUploadModal={() => setIsUploadXrayOpen(true)}
+            />
+          </div>
+        </div>
       )}
 
       {activeTab === 'history' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-extrabold text-slate-900">Lịch sử cuộc hẹn</h2>
-          <div className="space-y-3">
-            {timeline.slice(0, 3).map((item) => (
-              <div key={item.title} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs">
-                <div><p className="font-extrabold text-slate-900">{item.title}</p><p className="mt-1 font-medium text-slate-500">{item.description}</p></div>
-                <span className="font-bold text-slate-500">{item.date}</span>
+        <section className="space-y-5">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                <CalendarDays className="h-6 w-6" />
               </div>
-            ))}
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Tổng số lần đến khám</p>
+                <p className="mt-1 text-xl font-black text-slate-900">6 lượt</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Đúng giờ</p>
+                <p className="mt-1 text-xl font-black text-slate-900">100%</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 rounded-2xl border border-teal-100 bg-teal-50 p-5 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-teal-800 uppercase tracking-wide">Điểm uy tín AI</p>
+                <p className="mt-1 text-xl font-black text-teal-900">97%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* Filters */}
+            <div className="flex items-center gap-2 border-b border-slate-100 p-4">
+              <button className="rounded-full bg-slate-800 px-4 py-2 text-[13px] font-bold text-white shadow-sm hover:bg-slate-700 transition-colors">Tất cả trạng thái</button>
+              <button className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">Sắp tới (1)</button>
+              <button className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">Đã hoàn tất (4)</button>
+              <button className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">Đã dời lịch (1)</button>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-5 py-4">Mã hẹn</th>
+                    <th className="px-5 py-4">Ngày & Giờ khám</th>
+                    <th className="px-5 py-4">Dịch vụ điều trị</th>
+                    <th className="px-5 py-4">Bác sĩ & Ghế khám</th>
+                    <th className="px-5 py-4">Tiền cọc VietQR</th>
+                    <th className="px-5 py-4">Trạng thái</th>
+                    <th className="px-5 py-4 text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 font-bold text-slate-900">#LH-2026-901</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-rose-600">14:30</div>
+                      <div className="text-[11px] font-semibold text-slate-500">Hôm nay</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Cắt chỉ & Tái khám</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-slate-900">BS. Lê Văn Hùng</div>
+                      <div className="text-[11px] font-medium text-slate-500">Ghế 03</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Đã cọc 500k</td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-bold text-sky-700">Đã xác nhận</span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal className="h-5 w-5" /></button>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 font-bold text-slate-900">#LH-2026-842</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-slate-900">09:00</div>
+                      <div className="text-[11px] font-semibold text-slate-500">15/10/2026</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Phẫu thuật Implant</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-slate-900">BS. Lê Văn Hùng</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Đã thanh toán đủ</td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Đã hoàn thành</span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal className="h-5 w-5" /></button>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 font-bold text-slate-900">#LH-2026-790</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-slate-900">08:30</div>
+                      <div className="text-[11px] font-semibold text-slate-500">10/10/2026</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Khám tổng quát & CT 3D</td>
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-slate-900">BS. Lê Văn Hùng</div>
+                    </td>
+                    <td className="px-5 py-4 font-semibold text-slate-700">Miễn phí</td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Đã hoàn thành</span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal className="h-5 w-5" /></button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="border-t border-slate-100 p-4">
+              <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                <FileDown className="h-4 w-4" /> Xuất lịch sử khám (Excel/PDF)
+              </button>
+            </div>
           </div>
         </section>
       )}
 
       {activeTab === 'billing' && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-extrabold text-slate-900">Thanh toán & Công nợ</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs font-bold text-slate-500">Tổng điều trị</p><p className="mt-1 text-xl font-black text-slate-900">{formatCurrency(patient.totalCost)}</p></div>
-            <div className="rounded-xl bg-emerald-50 p-4"><p className="text-xs font-bold text-emerald-700">Đã thanh toán</p><p className="mt-1 text-xl font-black text-emerald-700">{formatCurrency(patient.paid)}</p></div>
-            <div className="rounded-xl bg-rose-50 p-4"><p className="text-xs font-bold text-rose-700">Còn nợ</p><p className="mt-1 text-xl font-black text-rose-700">{formatCurrency(patient.currentDebt)}</p></div>
+        <section className="space-y-5">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm relative overflow-hidden">
+              <div className="absolute right-4 top-4 text-slate-100"><Receipt className="h-16 w-16" /></div>
+              <div className="relative">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-500">Tổng chi phí điều trị gói</p>
+                  <button className="text-slate-400 hover:text-slate-600"><Receipt className="h-4 w-4" /></button>
+                </div>
+                <p className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(patient.totalCost)}</p>
+              </div>
+            </div>
+            
+            <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500">Đã thu (Cọc VietQR + Đợt 1)</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                  <TrendingUp className="h-3 w-3" /> 73%
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-black text-emerald-600">{formatCurrency(patient.paid)}</p>
+            </div>
+
+            <div className="rounded-2xl border border-orange-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-500">Công nợ còn lại phải thu</p>
+                <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                  Thu khi lắp mão sứ hoàn tất
+                </span>
+              </div>
+              <p className="mt-2 text-2xl font-black text-orange-500">{formatCurrency(patient.currentDebt)}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+            {/* Left Column: Transactions */}
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 p-5">
+                <h3 className="text-base font-extrabold text-slate-900">Danh sách phiếu thu & Lịch sử giao dịch</h3>
+                <button className="text-xs font-bold text-sky-600 hover:text-sky-700">Xem tất cả</button>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-5 py-4">Mã HĐ / Ngày</th>
+                      <th className="px-5 py-4">Nội dung</th>
+                      <th className="px-5 py-4 text-right">Số tiền</th>
+                      <th className="px-5 py-4 text-center">Hình thức / Trạng thái</th>
+                      <th className="px-5 py-4 text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-slate-900">#HĐ-8901</div>
+                        <div className="text-[11px] font-medium text-slate-500">10/10/2026</div>
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">Cọc giữ chỗ qua VietQR</td>
+                      <td className="px-5 py-4 text-right font-black text-slate-900">500.000đ</td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+                            <QrCode className="h-3.5 w-3.5" /> Chuyển khoản VietQR
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            Đã quyết toán
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentReceiptData({
+                              patientName: patient.name,
+                              patientId: patient.id,
+                              amount: 500000,
+                              description: 'Cọc giữ chỗ qua VietQR',
+                              paymentMethod: 'VietQR',
+                              collector: 'Dr. Lê Văn Hùng',
+                              isEvatEnabled: true,
+                              customerType: 'Cá nhân',
+                              taxCode: '',
+                              buyerName: patient.name,
+                              buyerAddress: patient.address,
+                              buyerEmail: patient.email,
+                              vatRate: '0% VAT - Dịch vụ y tế',
+                              sendZns: true,
+                            });
+                            setIsPreviewReceiptOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" /> Bill K80
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-slate-900">#HĐ-8955</div>
+                        <div className="text-[11px] font-medium text-slate-500">15/10/2026</div>
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">Thanh toán Đợt 1 (Phẫu thuật cấy trụ)</td>
+                      <td className="px-5 py-4 text-right font-black text-slate-900">34.500.000đ</td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600">
+                            <CreditCard className="h-3.5 w-3.5" /> Quẹt thẻ POS
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            Đã quyết toán
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentReceiptData({
+                              patientName: patient.name,
+                              patientId: patient.id,
+                              amount: 34500000,
+                              description: 'Thanh toán Đợt 1 (Phẫu thuật cấy trụ)',
+                              paymentMethod: 'Quẹt thẻ POS',
+                              collector: 'Dr. Lê Văn Hùng',
+                              isEvatEnabled: true,
+                              customerType: 'Cá nhân',
+                              taxCode: '',
+                              buyerName: patient.name,
+                              buyerAddress: patient.address,
+                              buyerEmail: patient.email,
+                              vatRate: '0% VAT - Dịch vụ y tế',
+                              sendZns: true,
+                            });
+                            setIsPreviewReceiptOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" /> Bill K80
+                        </button>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-slate-900">#HĐ-9102</div>
+                        <div className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-500">
+                          <Clock3 className="h-3 w-3" /> Dự kiến 01/2027
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">Thanh toán Đợt 2 (Lắp mão sứ Cercon)</td>
+                      <td className="px-5 py-4 text-right font-black text-slate-900">13.000.000đ</td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[11px] font-semibold text-slate-500">Chờ xử lý</span>
+                          <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                            Chưa thanh toán
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentReceiptData({
+                              patientName: patient.name,
+                              patientId: patient.id,
+                              amount: 13000000,
+                              description: 'Thanh toán Đợt 2 (Lắp mão sứ Cercon)',
+                              paymentMethod: 'VietQR',
+                              collector: 'Dr. Lê Văn Hùng',
+                              isEvatEnabled: true,
+                              customerType: 'Cá nhân',
+                              taxCode: '',
+                              buyerName: patient.name,
+                              buyerAddress: patient.address,
+                              buyerEmail: patient.email,
+                              vatRate: '0% VAT - Dịch vụ y tế',
+                              sendZns: true,
+                            });
+                            setIsReceiptOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors cursor-pointer"
+                        >
+                          <Receipt className="w-3.5 h-3.5" /> Thu tiền
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Right Column: Collect Payment */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm self-start">
+              <h3 className="mb-4 text-base font-extrabold text-slate-900">Thu tiền đợt thanh toán tiếp theo</h3>
+              
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700">Số tiền thu</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      defaultValue="13.000.000" 
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-right font-black text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">đ</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-slate-700">Hình thức thanh toán</label>
+                  
+                  <label className="flex cursor-pointer items-center justify-between rounded-xl border-2 border-sky-500 bg-sky-50 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full border-4 border-sky-500 bg-white"></div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">Chuyển khoản VietQR</p>
+                        <p className="text-[11px] font-semibold text-sky-700">Tạo mã động</p>
+                      </div>
+                    </div>
+                    <QrCode className="h-5 w-5 text-sky-600" />
+                  </label>
+
+                  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300">
+                    <div className="flex items-center gap-3">
+                      <div className="h-4 w-4 rounded-full border-2 border-slate-300 bg-white"></div>
+                      <p className="text-sm font-bold text-slate-700">Tiền mặt</p>
+                    </div>
+                    <Wallet className="h-5 w-5 text-slate-400" />
+                  </label>
+
+                  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300">
+                    <div className="flex items-center gap-3">
+                      <div className="h-4 w-4 rounded-full border-2 border-slate-300 bg-white"></div>
+                      <p className="text-sm font-bold text-slate-700">Quẹt thẻ POS</p>
+                    </div>
+                    <CreditCard className="h-5 w-5 text-slate-400" />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentReceiptData({
+                      patientName: patient.name,
+                      patientId: patient.id,
+                      amount: 13000000,
+                      description: 'Thanh toán Đợt 2 - Niềng răng Invisalign',
+                      paymentMethod: 'VietQR',
+                      collector: 'Dr. Lê Văn Hùng',
+                      isEvatEnabled: true,
+                      customerType: 'Cá nhân',
+                      taxCode: '',
+                      buyerName: patient.name,
+                      buyerAddress: patient.address,
+                      buyerEmail: patient.email,
+                      vatRate: '0% VAT - Dịch vụ y tế',
+                      sendZns: true,
+                    });
+                    setIsReceiptOpen(true);
+                  }}
+                  className="mt-2 w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                >
+                  <Receipt className="h-4 w-4" /> Tạo phiếu thu & Xuất hóa đơn VAT
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -340,16 +915,61 @@ export const PatientDetailPage: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isReceiptOpen} onClose={() => setIsReceiptOpen(false)} title="Lập phiếu thu bệnh nhân" subtitle="Thanh toán công nợ điều trị Implant" maxWidth="lg">
-        <div className="space-y-4 text-xs">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="font-extrabold text-slate-900">{patient.name} • {patient.id}</p>
-            <p className="mt-1 font-medium text-slate-500">Công nợ hiện tại: {formatCurrency(patient.currentDebt)}</p>
-          </div>
-          <label className="space-y-1 font-bold text-slate-700">Số tiền thu<input defaultValue={formatCurrency(patient.currentDebt)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-black text-emerald-700" /></label>
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => setIsReceiptOpen(false)} className="px-4 py-2 font-bold text-slate-600">Hủy</button><button type="button" onClick={() => setIsReceiptOpen(false)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white"><CreditCard className="w-4 h-4" /> Xác nhận thu</button></div>
-        </div>
-      </Modal>
+      {/* Modal Lập Phiếu Thu & Xuất Hóa Đơn VAT */}
+      <CreateReceiptModal
+        isOpen={isReceiptOpen}
+        onClose={() => setIsReceiptOpen(false)}
+        patientName={patient.name}
+        patientId={patient.id}
+        defaultAmount={currentReceiptData?.amount || 13000000}
+        defaultDescription={currentReceiptData?.description || 'Thanh toán Đợt 2 - Niềng răng Invisalign'}
+        onOpenPreview={(data) => {
+          setCurrentReceiptData(data);
+          setIsReceiptOpen(false);
+          setIsPreviewReceiptOpen(true);
+        }}
+        onConfirmSuccess={(data) => {
+          console.log('Thanh toán thành công:', data);
+        }}
+      />
+
+      {/* Modal Xem Trước Phiếu Thu Nhiệt K80 */}
+      <ReceiptPreviewModal
+        isOpen={isPreviewReceiptOpen}
+        onClose={() => setIsPreviewReceiptOpen(false)}
+        onBackToEdit={() => {
+          setIsPreviewReceiptOpen(false);
+          setIsReceiptOpen(true);
+        }}
+        receiptData={currentReceiptData}
+      />
+
+      {/* DICOM 3D Viewer Modal */}
+      <DicomViewerModal
+        isOpen={isDicomOpen}
+        onClose={() => setIsDicomOpen(false)}
+        initialFilmTitle={selectedFilmForDicom?.title}
+        initialFilmType={selectedFilmForDicom?.type}
+        initialDate={selectedFilmForDicom?.date}
+        patientName={patient.name}
+        patientId={patient.id}
+      />
+
+      {/* Add Diagnosis Modal */}
+      <AddDiagnosisModal
+        isOpen={isDiagnosisOpen}
+        onClose={() => setIsDiagnosisOpen(false)}
+        defaultToothNumber={selectedToothForDiagnosis}
+        onSave={(toothNum, condition, note) => {
+          console.log('Saved diagnosis:', toothNum, condition, note);
+        }}
+      />
+
+      {/* Upload X-Ray Modal */}
+      <UploadXrayModal
+        isOpen={isUploadXrayOpen}
+        onClose={() => setIsUploadXrayOpen(false)}
+      />
     </div>
   );
 };

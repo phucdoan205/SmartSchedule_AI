@@ -19,6 +19,8 @@ export interface DoctorStaff {
   salaryBase: number;
   allowance: number;
   commission: number;
+  commissionRate?: number;
+  initials?: string;
 }
 
 export interface ShiftSchedule {

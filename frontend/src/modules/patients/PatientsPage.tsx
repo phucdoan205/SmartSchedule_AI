@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Receipt, Eye } from 'lucide-react';
+import { Plus, Receipt } from 'lucide-react';
 import { DataTable, type Column } from '../../components/common/DataTable';
 import { Modal } from '../../components/common/Modal';
+import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
+import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 
 interface PatientRecord {
   id: string;
@@ -52,8 +54,8 @@ export const PatientsPage: React.FC = () => {
   const [dob, setDob] = useState('');
 
   // Receipt form
-  const [receiptPatient, setReceiptPatient] = useState('Nguyễn Văn An');
-  const [serviceFee, setServiceFee] = useState('1.500.000');
+  const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<PatientRecord | null>(null);
+  const [currentReceiptData, setCurrentReceiptData] = useState<ReceiptData | undefined>(undefined);
 
   const handleCreatePatient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,10 +97,26 @@ export const PatientsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setReceiptPatient(row.name);
+              setSelectedPatientForReceipt(row);
+              setCurrentReceiptData({
+                patientName: row.name,
+                patientId: row.id,
+                amount: 13000000,
+                description: 'Thanh toán Đợt 2 - Niềng răng Invisalign',
+                paymentMethod: 'VietQR',
+                collector: 'Dr. Lê Văn Hùng',
+                isEvatEnabled: true,
+                customerType: 'Cá nhân',
+                taxCode: '',
+                buyerName: row.name,
+                buyerAddress: 'Quận 1, TP. HCM',
+                buyerEmail: 'nguyenvanan.58@email.com',
+                vatRate: '0% VAT - Dịch vụ y tế',
+                sendZns: true,
+              });
               setIsReceiptModalOpen(true);
             }}
-            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center gap-1"
+            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
           >
             <Receipt className="w-3.5 h-3.5" /> Phiếu thu
           </button>
@@ -201,83 +219,34 @@ export const PatientsPage: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal Lập phiếu thu */}
-      <Modal
+      {/* Modal Lập phiếu thu & Hóa đơn e-VAT */}
+      <CreateReceiptModal
         isOpen={isReceiptModalOpen}
         onClose={() => setIsReceiptModalOpen(false)}
-        title="Lập Phiếu Thu Bệnh Nhân"
-        subtitle="Thu tiền dịch vụ khám, nhổ răng, trám răng hoặc thanh toán công nợ"
-      >
-        <div className="space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Bệnh Nhân Tên:</label>
-            <input
-              type="text"
-              value={receiptPatient}
-              onChange={(e) => setReceiptPatient(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 font-bold"
-            />
-          </div>
+        patientName={selectedPatientForReceipt?.name || 'Nguyễn Văn An'}
+        patientId={selectedPatientForReceipt?.id || '#BN-2026-104'}
+        defaultAmount={13000000}
+        defaultDescription="Thanh toán Đợt 2 - Niềng răng Invisalign"
+        onOpenPreview={(data) => {
+          setCurrentReceiptData(data);
+          setIsReceiptModalOpen(false);
+          setIsPreviewReceiptOpen(true);
+        }}
+        onConfirmSuccess={(data) => {
+          console.log('Thanh toán thành công:', data);
+        }}
+      />
 
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Số Tiền Thu (VNĐ):</label>
-            <input
-              type="text"
-              value={serviceFee}
-              onChange={(e) => setServiceFee(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 font-bold text-emerald-600"
-            />
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
-            <button type="button" onClick={() => setIsReceiptModalOpen(false)} className="px-4 py-2 font-semibold text-slate-600">
-              Hủy
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsReceiptModalOpen(false);
-                setIsPreviewReceiptOpen(true);
-              }}
-              className="px-4 py-2 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center gap-1"
-            >
-              <Eye className="w-3.5 h-3.5" /> Xem Trước Phiếu Thu
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Xem trước phiếu thu */}
-      <Modal
+      {/* Modal Xem trước phiếu thu nhiệt K80 */}
+      <ReceiptPreviewModal
         isOpen={isPreviewReceiptOpen}
         onClose={() => setIsPreviewReceiptOpen(false)}
-        title="Xem Trước Phiếu Thu Viện Phí Điện Tử"
-        subtitle="Hóa đơn thanh toán hợp lệ ký số bảo mật AI SmartSchedule"
-      >
-        <div className="space-y-4 text-xs">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <div className="flex justify-between font-bold text-slate-800">
-              <span>Bệnh nhân: {receiptPatient}</span>
-              <span className="text-sky-600">Mã hóa đơn: HD-2026-0903</span>
-            </div>
-            <p className="text-slate-500">Dịch vụ: Khám Răng Hàm Mặt Chuyên Sâu + Chụp X-Quang</p>
-            <div className="border-t border-slate-200 pt-2 flex justify-between font-extrabold text-sm text-emerald-600">
-              <span>TỔNG TIỀN THANH TOÁN:</span>
-              <span>{serviceFee} VNĐ</span>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setIsPreviewReceiptOpen(false)}
-              className="px-4 py-2 font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl"
-            >
-              Xác Nhận In & Lưu Phiếu Thu
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onBackToEdit={() => {
+          setIsPreviewReceiptOpen(false);
+          setIsReceiptModalOpen(true);
+        }}
+        receiptData={currentReceiptData}
+      />
     </div>
   );
 };

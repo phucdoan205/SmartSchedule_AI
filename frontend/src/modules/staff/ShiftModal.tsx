@@ -7,10 +7,22 @@ interface ShiftModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave?: (shiftData: any) => void;
+  initialStaffId?: string;
 }
 
-export const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, onSave }) => {
-  const [staffId, setStaffId] = useState(MOCK_DOCTORS[0].id);
+export const ShiftModal: React.FC<ShiftModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialStaffId,
+}) => {
+  const [staffId, setStaffId] = useState(initialStaffId || MOCK_DOCTORS[0].id);
+
+  React.useEffect(() => {
+    if (initialStaffId) {
+      setStaffId(initialStaffId);
+    }
+  }, [initialStaffId]);
   const [date, setDate] = useState('2026-09-04');
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('12:00');
