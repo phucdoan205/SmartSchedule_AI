@@ -125,14 +125,6 @@ export const PatientsPage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setIsReceiptModalOpen(true)}
-            className="px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-xl transition-colors flex items-center gap-1.5"
-          >
-            <Receipt className="w-4 h-4" /> Lập phiếu thu
-          </button>
-
-          <button
-            type="button"
             onClick={() => setIsPatientModalOpen(true)}
             className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition-colors flex items-center gap-1.5"
           >
