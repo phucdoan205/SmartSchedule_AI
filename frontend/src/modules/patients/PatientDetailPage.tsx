@@ -36,6 +36,7 @@ import { AddDiagnosisModal } from '../../components/dental/AddDiagnosisModal';
 import { UploadXrayModal } from '../../components/dental/UploadXrayModal';
 import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
+import { PatientEditModal } from './PatientEditModal';
 
 interface PatientDetail {
   id: string;
@@ -145,6 +146,7 @@ export const PatientDetailPage: React.FC = () => {
   const [isDiagnosisOpen, setIsDiagnosisOpen] = useState(false);
   const [selectedToothForDiagnosis, setSelectedToothForDiagnosis] = useState<number>(46);
   const [isUploadXrayOpen, setIsUploadXrayOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const patient = useMemo(() => PATIENTS.find((item) => item.id === id) || PATIENTS[0], [id]);
   const paidPercent = Math.round((patient.paid / patient.totalCost) * 100);
@@ -175,7 +177,11 @@ export const PatientDetailPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" type="button">
+          <button
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            type="button"
+            onClick={() => setIsEditOpen(true)}
+          >
             <Edit className="w-3.5 h-3.5" /> Chỉnh sửa thông tin
           </button>
           <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" type="button">
@@ -969,6 +975,13 @@ export const PatientDetailPage: React.FC = () => {
       <UploadXrayModal
         isOpen={isUploadXrayOpen}
         onClose={() => setIsUploadXrayOpen(false)}
+      />
+
+      {/* Patient Edit Modal */}
+      <PatientEditModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        patient={patient}
       />
     </div>
   );

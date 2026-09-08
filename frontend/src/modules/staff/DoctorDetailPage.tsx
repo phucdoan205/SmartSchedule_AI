@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { MOCK_DOCTORS, MOCK_SERVICES } from '../../services/mockData';
 import { ShiftModal } from './ShiftModal';
+import { DoctorEditModal } from './DoctorEditModal';
 
 // ─── Mock data for tabs ─────────────────────────────────────────────────────
 const WEEK_DAYS = [
@@ -169,6 +170,7 @@ export const DoctorDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'services' | 'schedule' | 'history' | 'reviews'>('services');
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [historySearch, setHistorySearch] = useState('');
   const [showWebToggle, setShowWebToggle] = useState(true);
@@ -212,6 +214,7 @@ export const DoctorDetailPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setIsEditModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-all shadow-xs"
           >
             <Edit className="w-3.5 h-3.5" />
@@ -763,6 +766,13 @@ export const DoctorDetailPage: React.FC = () => {
         isOpen={isShiftModalOpen}
         onClose={() => setIsShiftModalOpen(false)}
         initialStaffId={doctor.id}
+      />
+
+      {/* Doctor Edit Modal */}
+      <DoctorEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        doctor={doctor}
       />
     </div>
   );
