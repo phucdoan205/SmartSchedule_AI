@@ -109,7 +109,7 @@ export const SettingsPage: React.FC = () => {
             onClick={() => setIsAddRoleModalOpen(true)}
             className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 font-bold text-xs text-slate-800 rounded-xl shadow-2xs transition-all flex items-center gap-1.5"
           >
-            <Plus className="w-4 h-4 text-slate-600" /> + Thêm chức vụ
+            <Plus className="w-4 h-4 text-slate-600" />Thêm chức vụ
           </button>
 
           <button
