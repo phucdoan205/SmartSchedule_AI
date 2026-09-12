@@ -209,9 +209,9 @@ export const DoctorDetailPage: React.FC = () => {
       </nav>
 
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setIsEditModalOpen(true)}
@@ -231,9 +231,9 @@ export const DoctorDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* ── Left Sidebar ─────────────────────────────────────────────── */}
-        <div className="w-64 shrink-0 space-y-4">
+        <div className="w-full lg:w-64 shrink-0 space-y-4">
           {/* Profile Card */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-5 flex flex-col items-center text-center">
             <div className="relative mb-3">
@@ -302,13 +302,13 @@ export const DoctorDetailPage: React.FC = () => {
         <div className="flex-1 min-w-0">
           {/* Tabs */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xs mb-4 overflow-hidden">
-            <div className="flex border-b border-slate-100">
+            <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 px-4 py-3.5 text-xs font-bold transition-all relative whitespace-nowrap ${
+                  className={`flex-1 min-w-[120px] px-4 py-3.5 text-xs font-bold transition-all relative whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'text-sky-600 bg-sky-50/50'
                       : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -351,15 +351,15 @@ export const DoctorDetailPage: React.FC = () => {
                   const prices = [6000000, 7000000, 8000000, 5500000];
                   return (
                     <div key={srv.id || i} className="grid grid-cols-3 items-center py-3.5 px-1 hover:bg-slate-50/50 rounded-xl transition-colors">
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">{icons[i] || '🦷'}</span>
-                        <span className="text-sm font-semibold text-slate-800">{srv.name}</span>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="text-base shrink-0">{icons[i] || '🦷'}</span>
+                        <span className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{srv.name}</span>
                       </div>
                       <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        {durations[i] || srv.durationMinutes}p
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{durations[i] || srv.durationMinutes}p</span>
                       </div>
-                      <div className="text-right text-sm font-bold text-slate-800">
+                      <div className="text-right text-xs sm:text-sm font-bold text-slate-800">
                         {fmtVND(prices[i] || srv.price)}
                       </div>
                     </div>
@@ -372,12 +372,12 @@ export const DoctorDetailPage: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">
                   Khung giờ làm việc tiêu chuẩn
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {['T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d) => (
                     <span key={d} className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">{d}</span>
                   ))}
                   <span className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-400">CN: OFF</span>
-                  <span className="ml-2 px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200">
+                  <span className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200">
                     08:00 - 17:30
                   </span>
                 </div>
@@ -389,7 +389,7 @@ export const DoctorDetailPage: React.FC = () => {
           {activeTab === 'schedule' && (
             <div className="space-y-4">
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { label: 'Tổng ca trực tuần này', value: '9 ca', icon: Calendar, color: 'text-sky-600' },
                   { label: 'Tổng giờ làm việc', value: '40.5 giờ', icon: Clock, color: 'text-emerald-600' },
@@ -410,17 +410,17 @@ export const DoctorDetailPage: React.FC = () => {
               {/* Weekly calendar */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
                 {/* Calendar header */}
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <button type="button" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="text-sm font-bold text-slate-800">Tuần: 17/08/2026 – 23/08/2026</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">Tuần: 17/08/2026 – 23/08/2026</span>
                     <button type="button" className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
                       <Printer className="w-3.5 h-3.5" />
                       In lịch
@@ -508,7 +508,7 @@ export const DoctorDetailPage: React.FC = () => {
           {activeTab === 'history' && (
             <div className="space-y-4">
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { label: 'Tổng ca đã thực hiện', value: '128 ca', color: 'text-sky-600', bg: 'bg-sky-50', icon: Calendar },
                   { label: 'Tỷ lệ thành công', value: '99.2%', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
@@ -526,41 +526,43 @@ export const DoctorDetailPage: React.FC = () => {
 
               {/* Filters */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4">
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  {[
-                    { id: 'all', label: 'Tất cả ca khám' },
-                    { id: 'cercon', label: 'Bọc răng sứ Cercon/Emax' },
-                    { id: 'veneer', label: 'Mặt dán Veneer' },
-                    { id: 'revisit', label: 'Tái khám định kỳ' },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setHistoryFilter(f.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        historyFilter === f.id
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                  <div className="ml-auto relative flex items-center">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { id: 'all', label: 'Tất cả ca khám' },
+                      { id: 'cercon', label: 'Bọc răng sứ Cercon/Emax' },
+                      { id: 'veneer', label: 'Mặt dán Veneer' },
+                      { id: 'revisit', label: 'Tái khám định kỳ' },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setHistoryFilter(f.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          historyFilter === f.id
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative flex items-center w-full md:w-auto">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Tìm kiếm ca, bệnh nhân..."
                       value={historySearch}
                       onChange={(e) => setHistorySearch(e.target.value)}
-                      className="pl-8.5 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 w-52 transition-all"
+                      className="pl-8.5 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 w-full md:w-52 transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-xs min-w-[640px]">
                     <thead>
                       <tr className="border-y border-slate-100 bg-slate-50/60">
                         {['Mã ca / Ngày', 'Bệnh nhân & SĐT', 'Dịch vụ kỹ thuật', 'Thời lượng', 'Doanh thu', 'Hoa hồng (15%)'].map((h) => (
@@ -592,9 +594,9 @@ export const DoctorDetailPage: React.FC = () => {
                 </div>
 
                 {/* Table footer */}
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100">
                   <p className="text-xs text-slate-400 font-medium">Hiện thị 1-3 trong 128 ca điều trị</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
@@ -623,9 +625,9 @@ export const DoctorDetailPage: React.FC = () => {
             <div className="space-y-4">
               {/* Rating summary */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-5">
-                <div className="flex items-start gap-8">
+                <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-8">
                   {/* Overall score */}
-                  <div className="text-center shrink-0">
+                  <div className="text-center shrink-0 w-full lg:w-auto">
                     <p className="text-5xl font-black text-slate-900">4.9</p>
                     <div className="flex items-center justify-center gap-0.5 mt-2">
                       {[1, 2, 3, 4, 5].map((s) => (
@@ -637,7 +639,7 @@ export const DoctorDetailPage: React.FC = () => {
                   </div>
 
                   {/* Star distribution */}
-                  <div className="flex-1 space-y-2">
+                  <div className="w-full flex-1 space-y-2">
                     {starDist.map(({ star, pct, count }) => (
                       <div key={star} className="flex items-center gap-3">
                         <span className="w-3 text-[11px] font-bold text-slate-600 text-right shrink-0">{star}</span>
@@ -654,7 +656,7 @@ export const DoctorDetailPage: React.FC = () => {
                   </div>
 
                   {/* Notable tags */}
-                  <div className="shrink-0 w-40 space-y-2">
+                  <div className="w-full lg:w-44 space-y-2">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Điểm nổi bật</p>
                     {[
                       { label: 'Tay nghề nhẹ nhàng', count: 88 },
@@ -676,7 +678,7 @@ export const DoctorDetailPage: React.FC = () => {
 
               {/* Reviews list */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-slate-800">Đánh giá gần đây</h3>
                   <div className="flex items-center gap-2">
                     <select className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-sky-400 bg-white">
@@ -718,7 +720,7 @@ export const DoctorDetailPage: React.FC = () => {
                           <p className="text-xs font-semibold text-sky-600 mt-1.5">Dịch vụ: {review.service}</p>
                           <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed">"{review.comment}"</p>
 
-                          <div className="flex items-center justify-between mt-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
                             <div className="flex items-center gap-3">
                               {review.verified && (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
@@ -727,12 +729,12 @@ export const DoctorDetailPage: React.FC = () => {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                               <button type="button" className="text-[11px] text-sky-600 hover:text-sky-700 font-semibold transition-colors">
                                 Phản hồi đánh giá
                               </button>
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] text-slate-500 font-medium">Hiển thị đánh giá này trên Website</span>
+                                <span className="text-[11px] text-slate-500 font-medium">Hiển thị trên Web</span>
                                 <button
                                   type="button"
                                   onClick={() => setShowWebToggle(!showWebToggle)}

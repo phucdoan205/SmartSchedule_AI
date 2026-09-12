@@ -5,18 +5,41 @@ import { Header } from './Header';
 
 export const AdminLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  // Mobile: sidebar ẩn, dùng drawer overlay
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans antialiased text-slate-800">
-      {/* Sidebar Navigation */}
-      <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
+    <div className="h-screen bg-slate-50 flex overflow-hidden font-sans antialiased text-slate-800">
 
-      {/* Main Container */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+      {/* ── Mobile backdrop overlay ── */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
-        {/* Dynamic Page Content */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto space-y-6">
+      {/* ── Sidebar ── */}
+      {/* Desktop: luôn hiển thị cố định bên trái, không cuộn theo trang. Mobile: drawer từ trái */}
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 lg:static lg:z-auto lg:h-screen lg:shrink-0
+          transition-transform duration-300 ease-in-out
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        <Sidebar
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed(!collapsed)}
+          onClose={() => setMobileOpen(false)}
+        />
+      </div>
+
+      {/* ── Main Container ── */}
+      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
+        <Header onToggleSidebar={() => setMobileOpen(!mobileOpen)} />
+
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto w-full max-w-7xl mx-auto space-y-4 md:space-y-6">
           <Outlet />
         </main>
       </div>

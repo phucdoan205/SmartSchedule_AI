@@ -35,8 +35,8 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Breadcrumb Navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-semibold">
           <button
             type="button"
             onClick={onBack}
@@ -50,7 +50,7 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={onOpenStaffAllocation}

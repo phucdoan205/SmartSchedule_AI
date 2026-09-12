@@ -27,14 +27,14 @@ export const UserLookupPage: React.FC = () => {
         <span className="text-xs font-bold text-sky-600 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
           TRA CỨU TRỰC TUYẾN
         </span>
-        <h1 className="text-3xl font-extrabold text-slate-900">Tra Cứu Lịch Hẹn Khám Bệnh</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Tra Cứu Lịch Hẹn Khám Bệnh</h1>
         <p className="text-xs text-slate-500">
           Nhập số điện thoại đã đăng ký hoặc mã đặt lịch (VD: APT-1001) để xem trạng thái cuộc hẹn
         </p>
       </div>
 
       {/* Search Input Box */}
-      <form onSubmit={handleSearch} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex gap-3 text-xs">
+      <form onSubmit={handleSearch} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 text-xs">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input

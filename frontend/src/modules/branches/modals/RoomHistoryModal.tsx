@@ -31,7 +31,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-5xl w-full p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[95vh] overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-5xl w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
               <h3 className="text-lg font-extrabold text-slate-900">
                 Nhật Ký &amp; Lịch Sử Hoạt Động: {room.name} ({room.floor?.split('(')[0] || 'Tầng 1'})
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+              <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span>📍 {branchName}</span>
                 <span>|</span>
                 <span className="flex items-center gap-1">
@@ -61,7 +61,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
         </div>
 
         {/* 3 Top KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
           {/* Card 1: Tổng số ca */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
@@ -92,7 +92,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
           </div>
 
           {/* Card 3: Lần bảo trì & khử trùng gần nhất */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2 sm:col-span-2 md:col-span-1">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
               LẦN BẢO TRÌ &amp; KHỬ TRÙNG GẦN NHẤT
             </span>
@@ -104,11 +104,11 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
         </div>
 
         {/* Tabs Bar */}
-        <div className="flex items-center gap-6 border-b border-slate-200 text-xs font-extrabold">
+        <div className="flex items-center gap-4 sm:gap-6 border-b border-slate-200 text-xs font-extrabold overflow-x-auto no-scrollbar py-1">
           <button
             type="button"
             onClick={() => setActiveTab('appointments')}
-            className={`pb-3 border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 border-b-2 transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'appointments'
                 ? 'border-sky-600 text-sky-600'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -119,7 +119,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('maintenance')}
-            className={`pb-3 border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 border-b-2 transition-all flex items-center gap-2 whitespace-nowrap shrink-0 ${
               activeTab === 'maintenance'
                 ? 'border-sky-600 text-sky-600'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -131,8 +131,8 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
 
         {/* TAB 1: LỊCH SỬ CA KHÁM & BỆNH NHÂN */}
         {activeTab === 'appointments' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead>
                 <tr className="border-b border-slate-200/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <th className="py-3 px-3">THỜI GIAN / NGÀY</th>
@@ -289,8 +289,8 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
             </div>
 
             {/* Table Maintenance */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead>
                   <tr className="border-b border-slate-200/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                     <th className="py-3 px-3">THỜI GIAN / NGÀY</th>
@@ -372,18 +372,18 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
           <button
             type="button"
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-1.5"
+            className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Xuất nhật ký (Excel/PDF)
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               type="button"
-              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-1.5"
+              className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Tạo lịch bảo trì định kỳ
             </button>
@@ -391,7 +391,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors"
+              className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors text-center"
             >
               ĐÓNG
             </button>

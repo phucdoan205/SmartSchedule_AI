@@ -391,7 +391,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
         </div>
 
         {/* UPPER ARCH (18..11 | 21..28) */}
-        <div className="my-2 overflow-x-auto py-1">
+        <div className="my-2 overflow-x-auto no-scrollbar py-1">
           <div className="flex items-center justify-between gap-0.5 sm:gap-1.5 w-full min-w-[540px]">
             {/* Quadrant 1 (Right): 18 down to 11 */}
             <div className="flex items-center justify-between gap-0.5 sm:gap-1 flex-1">
@@ -417,7 +417,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
         </div>
 
         {/* LOWER ARCH (48..41 | 31..38) */}
-        <div className="my-2 overflow-x-auto py-1">
+        <div className="my-2 overflow-x-auto no-scrollbar py-1">
           <div className="flex items-center justify-between gap-0.5 sm:gap-1.5 w-full min-w-[540px]">
             {/* Quadrant 4 (Right): 48 down to 41 */}
             <div className="flex items-center justify-between gap-0.5 sm:gap-1 flex-1">
@@ -536,7 +536,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
             </div>
 
             {selectedTooth.doctor && (
-              <div className="text-right text-[11px] text-slate-500 shrink-0">
+              <div className="text-left sm:text-right text-[11px] text-slate-500 shrink-0">
                 <p className="font-bold text-slate-700">{selectedTooth.doctor}</p>
                 <p>{selectedTooth.date}</p>
               </div>

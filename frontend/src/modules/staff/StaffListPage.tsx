@@ -106,7 +106,7 @@ export const StaffListPage: React.FC = () => {
       </div>
 
       {/* 3 KPI Summary Cards matching Image 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
         {/* Card 1: Tổng số nhân sự */}
         <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-xs transition-all">
           <div className="flex justify-between items-start">

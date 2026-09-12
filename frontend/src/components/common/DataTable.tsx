@@ -75,8 +75,8 @@ export function DataTable<T extends { id?: string | number }>({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="overflow-x-auto no-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               {columns.map((col, idx) => (
@@ -109,7 +109,7 @@ export function DataTable<T extends { id?: string | number }>({
       </div>
 
       {/* Pagination Footer */}
-      <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+      <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
         <div>
           Hiển thị <span className="font-semibold text-slate-700">{filteredData.length > 0 ? startIndex + 1 : 0}</span> đến{' '}
           <span className="font-semibold text-slate-700">

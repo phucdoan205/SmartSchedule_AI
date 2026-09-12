@@ -87,13 +87,13 @@ export const XrayLibrary: React.FC<XrayLibraryProps> = ({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pb-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
           {filterTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setFilter(tab.id)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all duration-150 ${
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all duration-150 whitespace-nowrap shrink-0 ${
                 filter === tab.id
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
@@ -110,10 +110,10 @@ export const XrayLibrary: React.FC<XrayLibraryProps> = ({
             <div
               key={film.id}
               onClick={() => onOpenDicomViewer(film)}
-              className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 hover:border-sky-300 hover:shadow-md transition-all duration-150 flex gap-3.5"
+              className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 hover:border-sky-300 hover:shadow-md transition-all duration-150 flex flex-col sm:flex-row gap-3.5"
             >
               {/* Thumbnail with simulated monitor/viewer bezel */}
-              <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-950 shadow-inner">
+              <div className="relative h-28 sm:h-20 w-full sm:w-28 shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-950 shadow-inner">
                 <img
                   src={film.thumbnail}
                   alt={film.title}

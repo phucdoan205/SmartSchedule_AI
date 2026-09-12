@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
-import logoImg from '../../assets/logo.png';
+import { useNavigate } from 'react-router-dom';
+import { Lock, Eye, EyeOff, CheckCircle2, ArrowRight, LogIn } from 'lucide-react';
+import { AuthLayout } from './AuthLayout';
 
 export const ResetPasswordPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
-
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -16,89 +15,108 @@ export const ResetPasswordPage: React.FC = () => {
     setSuccess(true);
   };
 
+  const inputCls = `
+    w-full pl-10 pr-11 py-3 rounded-xl text-sm font-medium
+    bg-white/10 border border-white/20 text-white placeholder-white/35
+    focus:outline-none focus:border-teal-400/60 focus:bg-white/15
+    transition-all duration-200
+  `;
+
+  if (success) {
+    return (
+      <AuthLayout>
+        <div className="text-center py-2 space-y-4">
+          {/* Success icon */}
+          <div className="w-16 h-16 bg-emerald-400/15 border border-emerald-400/30 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-9 h-9 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xl font-extrabold text-white">Đổi Mật Khẩu Thành Công!</p>
+            <p className="text-sm text-white/50 mt-1">
+              Bạn có thể đăng nhập ngay bằng mật khẩu mới vừa thiết lập.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/auth/login')}
+            className="
+              w-full py-3.5 rounded-xl font-extrabold text-sm text-white mt-2
+              bg-gradient-to-r from-teal-500 to-emerald-500
+              hover:from-teal-400 hover:to-emerald-400
+              shadow-lg shadow-teal-500/25
+              transition-all duration-200 active:scale-[0.98]
+              flex items-center justify-center gap-2
+            "
+          >
+            <LogIn className="w-4 h-4" />
+            Đăng Nhập Ngay
+          </button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      <div className="max-w-md w-full relative z-10 space-y-6">
-        <div className="text-center space-y-2">
-          <NavLink to="/" className="inline-flex items-center gap-3">
-            <img src={logoImg} alt="SmartSchedule Logo" className="w-12 h-12 object-contain bg-white/10 p-1.5 rounded-2xl border border-white/20 shadow-md" />
-            <div className="text-left">
-              <h1 className="text-lg font-extrabold text-white tracking-wide">Răng Hàm Mặt</h1>
-              <span className="text-[10px] font-bold text-sky-400 bg-sky-950 px-2 py-0.5 rounded border border-sky-800">
-                SMARTSCHEDULE AI
-              </span>
-            </div>
-          </NavLink>
-          <h2 className="text-xl font-extrabold text-white">Thiết Lập Mật Khẩu Mới</h2>
-          <p className="text-xs text-slate-400">Vui lòng nhập mật khẩu mới có độ dài từ 6 ký tự trở lên</p>
+    <AuthLayout
+      title="Thiết Lập Mật Khẩu Mới"
+      description="Vui lòng nhập mật khẩu mới có độ dài từ 6 ký tự trở lên"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* New password */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">Mật khẩu mới</label>
+          <div className="relative">
+            <Lock className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
-        <div className="bg-slate-900/80 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-5">
-          {!success ? (
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">Mật khẩu mới:</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                  />
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-slate-500 hover:text-slate-300 absolute right-3 top-1/2 -translate-y-1/2"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-300 mb-1">Xác nhận mật khẩu mới:</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                  />
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-gradient-to-r from-sky-500 to-teal-400 hover:from-sky-600 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 mt-2"
-              >
-                <span>Cập Nhật Mật Khẩu</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
-            <div className="text-center py-4 space-y-4 text-xs">
-              <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <p className="font-extrabold text-white text-base">Đổi Mật Khẩu Thành Công!</p>
-              <p className="text-slate-400 text-[11px]">Bạn có thể đăng nhập ngay bằng mật khẩu mới vừa thiết lập.</p>
-              <button
-                type="button"
-                onClick={() => navigate('/auth/login')}
-                className="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs rounded-xl shadow-md"
-              >
-                Đăng Nhập Ngay
-              </button>
-            </div>
-          )}
+        {/* Confirm password */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">Xác nhận mật khẩu mới</label>
+          <div className="relative">
+            <Lock className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputCls}
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <button
+          type="submit"
+          className="
+            w-full py-3.5 mt-1 rounded-xl font-extrabold text-sm text-white
+            bg-gradient-to-r from-teal-500 to-emerald-500
+            hover:from-teal-400 hover:to-emerald-400
+            shadow-lg shadow-teal-500/25 hover:shadow-teal-400/30
+            transition-all duration-200 active:scale-[0.98]
+            flex items-center justify-center gap-2
+          "
+        >
+          <span>Cập Nhật Mật Khẩu</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </form>
+    </AuthLayout>
   );
 };

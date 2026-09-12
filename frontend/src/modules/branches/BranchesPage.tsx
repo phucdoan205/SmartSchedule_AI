@@ -266,7 +266,7 @@ export const BranchesPage: React.FC = () => {
           </div>
 
           {/* Top 3 Summary KPI Cards (Khớp Ảnh "giao diện trang quản lí chi nhánh.png") */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 text-xs">
             {/* Card 1: TỔNG SỐ CƠ SỞ */}
             <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-start gap-4">
               <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0">
@@ -311,7 +311,7 @@ export const BranchesPage: React.FC = () => {
           </div>
 
           {/* Branch Cards Grid (Mỗi chi nhánh đều có đủ 3 button & ảnh thực tế từ folder assets) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-xs">
             {branches.map((b) => {
               const isUpcoming = b.status === 'Upcoming';
 

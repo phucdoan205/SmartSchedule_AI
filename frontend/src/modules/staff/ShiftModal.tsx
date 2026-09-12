@@ -15,6 +15,7 @@ import {
   Plus,
   Minus,
 } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 import { MOCK_DOCTORS, MOCK_BRANCHES } from '../../services/mockData';
 
 export interface ShiftData {
@@ -154,6 +155,8 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
       onSave(newShift);
     }
 
+    toast(`Đã lưu thành công ca trực ${selectedOption?.label || 'mới'} cho ${selectedDoctor.name}!`);
+
     if (!andAddAnother) {
       onClose();
     } else {
@@ -185,7 +188,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
           style={{ animation: 'modalSlideIn 0.2s cubic-bezier(0.34,1.56,0.64,1)' }}
         >
           {/* Header */}
-          <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-white">
+          <div className="flex items-start justify-between px-4 sm:px-6 py-4 border-b border-slate-100 shrink-0 bg-white">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100">
                 <Calendar className="w-5 h-5" />
@@ -209,7 +212,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
           </div>
 
           {/* Body: 2 Columns */}
-          <div className="overflow-y-auto flex-1 px-6 py-5">
+          <div className="overflow-y-auto no-scrollbar flex-1 px-4 sm:px-6 py-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* ── LEFT COLUMN ── */}
               <div className="space-y-4">
@@ -288,7 +291,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-2">
                     Lựa chọn Ca trực
                   </label>
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {SHIFT_OPTIONS.map((opt) => {
                       const isSelected = shiftType === opt.type;
                       return (
@@ -458,27 +461,27 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0 bg-white">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer text-center"
             >
               Hủy bỏ
             </button>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => handleSaveShift(true)}
-                className="px-4 py-2 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 text-xs font-bold transition-all cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-sky-300 text-sky-700 bg-white hover:bg-sky-50 text-xs font-bold transition-all cursor-pointer text-center"
               >
                 Lưu &amp; Thêm ca khác
               </button>
               <button
                 type="button"
                 onClick={() => handleSaveShift(false)}
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>LƯU CA TRỰC NÀY</span>

@@ -21,6 +21,7 @@ import {
   X,
   RotateCcw,
 } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 import { MOCK_DOCTORS } from '../../services/mockData';
 import { LeaveRequestModal, type LeaveRequestData } from './LeaveRequestModal';
 
@@ -180,11 +181,11 @@ export const LeaveRegisterPage: React.FC = () => {
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickStartDate || !quickEndDate) {
-      alert('Vui lòng chọn ngày bắt đầu và ngày kết thúc nghỉ phép!');
+      toast('Vui lòng chọn ngày bắt đầu và ngày kết thúc nghỉ phép!', 'error');
       return;
     }
     if (!quickReason.trim()) {
-      alert('Vui lòng nhập lý do nghỉ phép!');
+      toast('Vui lòng nhập lý do nghỉ phép!', 'error');
       return;
     }
 
@@ -293,7 +294,7 @@ export const LeaveRegisterPage: React.FC = () => {
       </div>
 
       {/* ─── 3 KPI Stat Cards ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* 1. Số ngày phép năm */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
@@ -354,7 +355,7 @@ export const LeaveRegisterPage: React.FC = () => {
       </div>
 
       {/* ─── Main Content Grid: 2 Columns (40% Left / 60% Right) ──────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
         {/* ════ LEFT COLUMN: Tạo đơn xin nghỉ nhanh (5 cols) ════ */}
         <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-2xs p-5">
           <div className="flex items-center gap-2 pb-3.5 border-b border-slate-100 mb-4">

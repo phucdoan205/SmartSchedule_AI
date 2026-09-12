@@ -58,7 +58,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[95vh] overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
@@ -185,7 +185,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
               {/* Vị trí lắp đặt */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Vị trí lắp đặt (Tầng / Khu vực)</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <select
                     value={floor}
                     onChange={(e) => setFloor(e.target.value)}
@@ -211,7 +211,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
               {/* Trạng thái khởi tạo */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5">Trạng thái khởi tạo ban đầu</label>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -328,12 +328,12 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-sky-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-sky-100">
                   <span className="font-bold text-slate-700">Thời gian nghỉ khử trùng giữa 2 ca</span>
                   <select
                     value={sterilizeInterval}
                     onChange={(e) => setSterilizeInterval(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none w-full sm:w-auto"
                   >
                     <option value="15 phút">15 phút</option>
                     <option value="20 phút">20 phút</option>
@@ -345,27 +345,27 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-center"
             >
               Hủy bỏ
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors text-center"
               >
                 Lưu nháp
               </button>
 
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4" /> XÁC NHẬN KÍCH HOẠT PHÒNG KHÁM
               </button>

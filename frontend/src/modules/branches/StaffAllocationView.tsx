@@ -192,11 +192,11 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
         {/* CỘT TRÁI (2/3): DANH SÁCH NHÂN SỰ & TABS */}
         <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 space-y-4">
           {/* Tabs filter */}
-          <div className="flex items-center gap-6 border-b border-slate-100 text-xs font-extrabold">
+          <div className="flex items-center gap-4 sm:gap-6 border-b border-slate-100 text-xs font-extrabold overflow-x-auto no-scrollbar py-1">
             <button
               type="button"
               onClick={() => setActiveTab('all')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${
                 activeTab === 'all'
                   ? 'border-sky-600 text-sky-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -207,7 +207,7 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('doctor')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${
                 activeTab === 'doctor'
                   ? 'border-sky-600 text-sky-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -218,7 +218,7 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('nurse')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${
                 activeTab === 'nurse'
                   ? 'border-sky-600 text-sky-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -229,7 +229,7 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('reception')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all whitespace-nowrap ${
                 activeTab === 'reception'
                   ? 'border-sky-600 text-sky-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -241,7 +241,7 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
 
           {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[540px]">
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   <th className="py-3 px-3">NHÂN SỰ</th>

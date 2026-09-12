@@ -10,6 +10,7 @@ import {
   User,
   ExternalLink,
 } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 
 export interface ReceiptData {
   patientName: string;
@@ -99,6 +100,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
     if (onConfirmSuccess) {
       onConfirmSuccess(currentReceiptData);
     }
+    toast(`Đã xác nhận thu ${amount.toLocaleString('vi-VN')} VNĐ và phát hành hóa đơn thành công!`);
     onClose();
   };
 
@@ -184,7 +186,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             </div>
 
             {/* Payment Method & Collector in 2 cols */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-700">Phương thức</label>
                 <div className="relative flex items-center">
@@ -291,7 +293,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               }`}
             >
               {/* Customer Type & Tax ID */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-slate-700">Loại khách hàng</label>
                   <div className="relative">
@@ -403,20 +405,20 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-100 bg-white flex flex-wrap items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 border-t border-slate-100 bg-white flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors"
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors text-center"
           >
             Hủy bỏ
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={handlePreview}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 rounded-xl transition-all shadow-2xs active:scale-98"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-300 rounded-xl transition-all shadow-2xs active:scale-98 text-center"
             >
               <Printer className="w-4 h-4 text-sky-600" />
               <span>In phiếu thu nhiệt</span>
@@ -425,7 +427,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             <button
               type="button"
               onClick={handleConfirm}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-sm tracking-wide uppercase active:scale-98"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-sm tracking-wide uppercase active:scale-98 text-center"
             >
               XÁC NHẬN THU TIỀN & PHÁT HÀNH HÓA ĐƠN VAT
             </button>

@@ -31,7 +31,6 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
     { path: '/pricing', label: 'Bảng giá dịch vụ' },
     { path: '/ai-consultation', label: 'AI tư vấn phác đồ', highlight: true },
     { path: '/lookup', label: 'Tra cứu lịch hẹn' },
-    { path: '/profile', label: 'Hồ sơ cá nhân' },
   ];
 
   return (
@@ -90,7 +89,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
               className="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-teal-500 hover:from-sky-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
               <Calendar className="w-4 h-4" />
-              <span>Đặt Lịch Ngay (AI)</span>
+              <span>Đặt Lịch Ngay</span>
             </button>
           </div>
 
@@ -146,7 +145,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800 pt-12 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 mb-8">
           {/* Col 1 */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">

@@ -52,7 +52,7 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 text-xs">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 text-xs max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-3.5">
           <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
         </div>
 
         {/* 3 Summary Cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
               TỔNG TIỀN QR
@@ -102,8 +102,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto border border-slate-100 rounded-2xl">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto no-scrollbar border border-slate-100 rounded-2xl">
+          <table className="w-full text-left text-xs min-w-[560px]">
             <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               <tr>
                 <th className="py-2.5 px-3">MÃ GD</th>
@@ -137,10 +137,10 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
           <button
             type="button"
-            className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center gap-1.5"
+            className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" /> Tải biên bản đối soát
           </button>
@@ -148,7 +148,7 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            className="w-full sm:w-auto px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
           >
             <Check className="w-4 h-4" /> Đóng
           </button>

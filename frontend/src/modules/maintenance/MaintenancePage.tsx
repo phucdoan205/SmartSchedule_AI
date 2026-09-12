@@ -130,7 +130,7 @@ export const MaintenancePage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* Tổng thiết bị */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
           <div className="flex items-start justify-between mb-3">

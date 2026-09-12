@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import type { ToothCondition } from './DentalChart';
 import { PlusCircle, Sparkles } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 
 interface AddDiagnosisModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const AddDiagnosisModal: React.FC<AddDiagnosisModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(selectedNumber, condition, note);
+    toast(`Đã lưu chẩn đoán & chỉ định cho Răng #${selectedNumber} thành công!`);
     onClose();
   };
 
@@ -134,17 +136,17 @@ export const AddDiagnosisModal: React.FC<AddDiagnosisModalProps> = ({
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 font-bold text-slate-600 hover:text-slate-900"
+            className="w-full sm:w-auto px-4 py-2 font-bold text-slate-600 hover:text-slate-900 text-center"
           >
             Hủy
           </button>
           <button
             type="submit"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2 font-extrabold text-white hover:bg-slate-800 shadow-sm"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2 font-extrabold text-white hover:bg-slate-800 shadow-sm"
           >
             <PlusCircle className="w-4 h-4" /> Lưu chẩn đoán
           </button>

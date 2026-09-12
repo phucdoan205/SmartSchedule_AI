@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { UploadCloud, CheckCircle2, Sparkles } from 'lucide-react';
 
+import { toast } from '../../context/ToastContext';
+
 interface UploadXrayModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +29,7 @@ export const UploadXrayModal: React.FC<UploadXrayModalProps> = ({
       setIsDone(true);
       setTimeout(() => {
         setIsDone(false);
+        toast(`Đã tải lên thành công phim chụp X-quang (${filmType}) và phân tích AI!`);
         onClose();
         if (onSuccess) onSuccess();
       }, 1000);
@@ -103,23 +106,23 @@ export const UploadXrayModal: React.FC<UploadXrayModalProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 font-bold text-slate-600 hover:text-slate-900"
+            className="w-full sm:w-auto px-4 py-2 font-bold text-slate-600 hover:text-slate-900 text-center"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={isUploading || isDone}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2 font-extrabold text-white hover:bg-slate-800 shadow-sm disabled:opacity-50"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-5 py-2 font-extrabold text-white hover:bg-slate-800 shadow-sm disabled:opacity-50"
           >
             {isUploading ? (
               <span>Đang tải lên & Phân tích AI...</span>
             ) : isDone ? (
-              <span className="flex items-center gap-1 text-emerald-300">
+              <span className="flex items-center justify-center gap-1 text-emerald-300">
                 <CheckCircle2 className="w-4 h-4" /> Hoàn tất
               </span>
             ) : (

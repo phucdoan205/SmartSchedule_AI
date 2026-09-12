@@ -198,7 +198,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
             {/* CỘT PHẢI */}
             <div className="space-y-4">
               {/* Đơn giá niêm yết & Tiền cọc */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Đơn giá niêm yết (VND) <span className="text-rose-500">*</span>
@@ -358,27 +358,27 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors shadow-xs"
+              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors shadow-xs text-center"
             >
               Hủy bỏ
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-white border border-sky-500 hover:bg-sky-50 text-sky-600 font-bold rounded-xl transition-colors"
+                className="px-4 py-2.5 bg-white border border-sky-500 hover:bg-sky-50 text-sky-600 font-bold rounded-xl transition-colors text-center"
               >
                 Lưu nháp
               </button>
 
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <Check className="w-4 h-4" /> LƯU &amp; CÔNG BỐ DỊCH VỤ
               </button>

@@ -204,7 +204,7 @@ export const MaintenanceNotificationsPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
           <div className="flex items-start justify-between mb-3">
             <div className="p-2 bg-sky-50 rounded-xl"><Calendar className="w-4 h-4 text-sky-600" /></div>

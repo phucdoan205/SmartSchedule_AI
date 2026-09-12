@@ -72,17 +72,17 @@ export const RatingModal: React.FC<RatingModalProps> = ({
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
             <button
               type="button"
               onClick={handleCloseModal}
-              className="px-4 py-2 font-semibold text-slate-600 rounded-xl"
+              className="w-full sm:w-auto px-4 py-2 font-semibold text-slate-600 rounded-xl text-center"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs flex items-center gap-1.5"
+              className="w-full sm:w-auto px-5 py-2 font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-xs flex items-center justify-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" /> Gửi Đánh Giá
             </button>

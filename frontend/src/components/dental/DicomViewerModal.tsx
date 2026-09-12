@@ -281,7 +281,7 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({
               </div>
 
               {/* Top-Right: Equipment & Exposure Specs */}
-              <div className="absolute top-4 right-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 text-right space-y-1 shadow-lg">
+              <div className="hidden sm:block absolute top-4 right-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 text-right space-y-1 shadow-lg">
                 <p className="font-sans font-bold text-white text-xs">Vatech Pax-i3D Smart</p>
                 <p>90.0 kVp • 10.0 mA</p>
                 <p>Exposure: 14.5 sec • Voxel: 0.2 mm</p>
@@ -289,19 +289,19 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({
               </div>
 
               {/* Bottom-Left: Anatomical Landmark indicators */}
-              <div className="absolute bottom-4 left-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-300 flex items-center gap-3">
+              <div className="hidden sm:flex absolute bottom-4 left-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-300 items-center gap-3">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-teal-400" />
                   Mật độ xương D2
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-full bg-sky-400" />
-                  Khoảng cách ống TK răng dưới: 4.2mm
+                  Khoảng cách ống TK: 4.2mm
                 </span>
               </div>
 
               {/* Bottom-Right: Quick Scale */}
-              <div className="absolute bottom-4 right-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-slate-800 text-[10px] font-mono text-slate-400 flex items-center gap-2">
+              <div className="hidden sm:flex absolute bottom-4 right-4 pointer-events-none bg-slate-900/80 backdrop-blur-sm px-3 py-2 rounded-xl border border-slate-800 text-[10px] font-mono text-slate-400 items-center gap-2">
                 <div className="w-16 h-1 border-b-2 border-l-2 border-r-2 border-white" />
                 <span>20 mm</span>
               </div>
@@ -310,14 +310,14 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800/80 bg-slate-900/90 px-5 py-3 text-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-slate-800/80 bg-slate-900/90 px-4 sm:px-5 py-3 text-xs">
           <div className="flex items-center gap-2 text-slate-400">
-            <span className="font-medium text-slate-300">{initialFilmTitle}</span>
+            <span className="font-medium text-slate-300 truncate">{initialFilmTitle}</span>
             <span>•</span>
-            <span>Chụp bởi: BS. CKII Lê Văn Hùng</span>
+            <span className="truncate">BS. CKII Lê Văn Hùng</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               type="button"
               onClick={() => {
@@ -326,14 +326,14 @@ export const DicomViewerModal: React.FC<DicomViewerModalProps> = ({
                 link.download = `DICOM_${patientId}_${initialDate.replace(/\//g, '-')}.png`;
                 link.click();
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors text-center"
             >
               <Download className="w-3.5 h-3.5" /> Tải file DICOM (DCM/PNG)
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl bg-sky-600 px-4 py-1.5 font-bold text-white hover:bg-sky-500 transition-colors"
+              className="rounded-xl bg-sky-600 px-4 py-1.5 font-bold text-white hover:bg-sky-500 transition-colors text-center"
             >
               Hoàn tất xem
             </button>

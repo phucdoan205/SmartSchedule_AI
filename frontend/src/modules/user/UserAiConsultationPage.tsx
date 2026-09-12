@@ -58,7 +58,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold">
           <Sparkles className="w-4 h-4 text-indigo-600" /> Trợ Lý Trí Tuệ Nhân Tạo AI SmartSchedule
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900">AI Tư Vấn Triệu Chứng & Đề Xuất Phác Đồ</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">AI Tư Vấn Triệu Chứng & Đề Xuất Phác Đồ</h1>
         <p className="text-xs text-slate-500">
           Nhập tình trạng sức khỏe răng miệng để AI phân tích và tự động ghép nối với bác sĩ có chuyên môn phù hợp nhất
         </p>
@@ -76,7 +76,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           </div>
         </div>
 
-        <form onSubmit={handleAnalyzeSymptom} className="flex gap-2">
+        <form onSubmit={handleAnalyzeSymptom} className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             value={symptomInput}

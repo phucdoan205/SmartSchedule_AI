@@ -99,7 +99,7 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
         <button
           type="button"
           onClick={onOpenAddRoom}
-          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+          className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 shrink-0"
         >
           <Plus className="w-4 h-4" /> Thêm phòng khám mới
         </button>
@@ -117,14 +117,14 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 sm:gap-6 flex-wrap font-bold">
-          <span className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap font-bold text-[11px] sm:text-xs">
+          <span className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
             <span className="w-2 h-2 rounded-full bg-emerald-500" /> 6 Đang hoạt động
           </span>
-          <span className="flex items-center gap-2 text-sky-700 bg-sky-50 px-3.5 py-1.5 rounded-full border border-sky-200">
+          <span className="flex items-center gap-2 text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-200">
             <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" /> 1 Đang khám
           </span>
-          <span className="flex items-center gap-2 text-amber-800 bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-200">
+          <span className="flex items-center gap-2 text-amber-800 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
             <span className="w-2 h-2 rounded-full bg-amber-500" /> 1 Bảo trì / Khử trùng
           </span>
         </div>

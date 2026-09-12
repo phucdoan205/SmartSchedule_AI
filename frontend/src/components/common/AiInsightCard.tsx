@@ -46,7 +46,7 @@ export const AiInsightCard: React.FC<AiInsightCardProps> = ({ insight, onApplyAc
         {insight.description}
       </p>
 
-      <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between relative z-10 text-xs">
+      <div className="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 relative z-10 text-xs">
         <span className="text-[11px] text-slate-400 flex items-center gap-1">
           <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
           {insight.category}

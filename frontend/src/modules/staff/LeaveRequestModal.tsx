@@ -14,6 +14,7 @@ import {
   Clock,
   ShieldAlert,
 } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 import { MOCK_DOCTORS } from '../../services/mockData';
 
 export interface LeaveRequestData {
@@ -82,7 +83,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
 
   const handleSubmitForm = (isDraft = false) => {
     if (!isDraft && !reason.trim()) {
-      alert('Vui lòng nhập lý do chi tiết để ban giám đốc xem xét phê duyệt!');
+      toast('Vui lòng nhập lý do chi tiết để ban giám đốc xem xét phê duyệt!', 'error');
       return;
     }
 
@@ -106,6 +107,11 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     };
 
     onSubmit(data);
+    toast(
+      isDraft
+        ? 'Đã lưu bản nháp đơn xin nghỉ phép thành công!'
+        : 'Đã gửi đơn xin nghỉ phép lên ban giám đốc thành công!'
+    );
     onClose();
   };
 
@@ -239,7 +245,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   </label>
 
                   {/* Dates: Từ ngày - Đến ngày */}
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
                       <span className="block text-[11px] font-medium text-slate-500 mb-1">
                         Từ ngày
@@ -270,7 +276,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   </div>
 
                   {/* Shifts: Ca bắt đầu - Ca kết thúc */}
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
                       <select
                         value={startShift}
@@ -421,20 +427,20 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0 bg-white">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 shrink-0 bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer text-center"
             >
               HỦY BỎ
             </button>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => handleSubmitForm(true)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer text-center"
               >
                 LƯU BẢN NHÁP
               </button>
@@ -442,7 +448,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleSubmitForm(false)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>GỬI ĐƠN PHÊ DUYỆT</span>

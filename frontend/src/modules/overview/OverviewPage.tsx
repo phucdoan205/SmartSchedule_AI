@@ -63,7 +63,7 @@ export const OverviewPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner Header */}
-      <div className="bg-gradient-to-r from-sky-700 via-sky-600 to-teal-600 rounded-3xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+      <div className="bg-gradient-to-r from-sky-700 via-sky-600 to-teal-600 rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-white/5 skew-x-12 transform pointer-events-none" />
 
         <div className="relative z-10 max-w-2xl space-y-2">
@@ -122,7 +122,7 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* AI Insights Hub Summary Widgets (Khớp Ảnh 1) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 text-xs">
         {/* Widget 1: Dự báo giờ vắng & Khuyến nghị */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-3 flex flex-col justify-between">
           <div className="space-y-2">
@@ -194,7 +194,7 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* Main Tables & Doctor Quick Availability */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left 2 Cols: Recent Appointments */}
         <div className="lg:col-span-2 space-y-4">
           <DataTable

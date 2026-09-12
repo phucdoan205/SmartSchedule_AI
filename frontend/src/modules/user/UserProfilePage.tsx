@@ -62,7 +62,7 @@ export const UserProfilePage: React.FC = () => {
           <p className="text-[11px] text-slate-400">Email: nguyenvanan@gmail.com • Địa chỉ: Quận 1, TP.HCM</p>
         </div>
 
-        <div className="flex gap-4 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 text-center text-xs">
+        <div className="flex justify-center gap-6 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 text-center text-xs w-full md:w-auto">
           <div>
             <p className="text-lg font-extrabold text-sky-600">8 ca</p>
             <p className="text-[10px] text-slate-400">Đã khám thành công</p>
@@ -86,15 +86,15 @@ export const UserProfilePage: React.FC = () => {
 
           <div className="space-y-4">
             {medicalHistory.map((item) => (
-              <div key={item.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-3">
+              <div key={item.id} className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className="text-xs font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded border border-sky-200">
                       {item.id}
                     </span>
                     <h4 className="text-sm font-bold text-slate-900">{item.service}</h4>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <StatusBadge status={item.status as any} />
                     <button
                       type="button"

@@ -467,9 +467,9 @@ export const StaffSchedulePage: React.FC = () => {
       {/* ─── Filter & Legend Bar ─────────────────────────────────────────── */}
       <div className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Left: Search & Dept Filter */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 w-full md:w-auto">
           {/* Search Input */}
-          <div className="relative min-w-[220px]">
+          <div className="relative w-full sm:w-auto sm:min-w-[220px]">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
@@ -484,7 +484,7 @@ export const StaffSchedulePage: React.FC = () => {
           <select
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-400 cursor-pointer"
+            className="w-full sm:w-auto px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-400 cursor-pointer"
           >
             <option value="all">Tất cả khoa phòng</option>
             <option value="Implant">Khoa Implant</option>

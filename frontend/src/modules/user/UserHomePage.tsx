@@ -24,17 +24,17 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-16 pb-16">
+    <div className="space-y-10 sm:space-y-16 pb-10 sm:pb-16">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-b from-sky-900 via-slate-900 to-slate-900 text-white pt-12 pb-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+      <section className="relative bg-gradient-to-b from-sky-900 via-slate-900 to-slate-900 text-white pt-8 sm:pt-12 pb-12 sm:pb-20 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center relative z-10">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-xs font-bold animate-pulse">
               <Sparkles className="w-4 h-4 text-sky-400" />
               <span>Ứng Dụng Thuật Toán AI Đặt Lịch Khám Đột Phá</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
               Khám Răng Hàm Mặt <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-300">Đúng Giờ Hẹn 100%</span> Cùng SmartSchedule AI
             </h1>
 
@@ -42,27 +42,27 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
               Hệ thống quản lý đặt lịch thông minh giúp loại bỏ hoàn toàn thời gian chờ đợi tại phòng khám, tự động gợi ý bác sĩ giỏi nhất theo từng triệu chứng.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={onOpenBookingWizard}
-                className="px-6 py-3.5 bg-gradient-to-r from-sky-500 to-teal-400 hover:from-sky-600 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-sky-500/30 transition-all flex items-center gap-2.5 hover:scale-105"
+                className="px-5 py-3 sm:px-6 sm:py-3.5 bg-gradient-to-r from-sky-500 to-teal-400 hover:from-sky-600 hover:to-teal-500 text-white font-extrabold text-sm rounded-2xl shadow-lg shadow-sky-500/30 transition-all flex items-center justify-center gap-2.5 hover:scale-105"
               >
                 <Calendar className="w-5 h-5" />
-                <span>Trải Nghiệm Đặt Lịch AI (30 Giây)</span>
+                <span>Đặt Lịch AI (30 Giây)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/ai-consultation')}
-                className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-2xl border border-white/20 transition-all flex items-center gap-2"
+                className="px-5 py-3 sm:px-6 sm:py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-2xl border border-white/20 transition-all flex items-center justify-center gap-2"
               >
                 <Sparkles className="w-4 h-4 text-indigo-300" />
                 <span>AI Tư Vấn Triệu Chứng</span>
               </button>
             </div>
 
-            <div className="pt-6 grid grid-cols-3 gap-4 border-t border-slate-800 text-xs">
+            <div className="pt-4 sm:pt-6 grid grid-cols-3 gap-3 sm:gap-4 border-t border-slate-800 text-xs">
               <div>
                 <p className="text-xl font-extrabold text-teal-400">99.4%</p>
                 <p className="text-slate-400 text-[11px]">Đúng khung giờ hẹn</p>
@@ -78,14 +78,14 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
             </div>
           </div>
 
-          {/* Right Hero Graphic */}
-          <div className="relative">
+          {/* Right Hero Graphic — ẩn trên mobile rất nhỏ */}
+          <div className="relative hidden sm:block">
             <div className="relative rounded-3xl overflow-hidden border border-slate-700/60 shadow-2xl bg-gradient-to-tr from-slate-800 to-sky-950 p-2">
-              <img src={heroImg} alt="SmartSchedule Clinic" className="w-full h-80 sm:h-96 object-cover rounded-2xl" />
-              <div className="absolute bottom-6 left-6 right-6 bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-700/80 flex items-center justify-between text-xs">
+              <img src={heroImg} alt="SmartSchedule Clinic" className="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-2xl" />
+              <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 bg-slate-900/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-slate-700/80 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold">
-                    <CheckCircle2 className="w-6 h-6" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold shrink-0">
+                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
                   <div>
                     <p className="font-bold text-white">Xác Nhận Tức Thì Sau 5s</p>
@@ -107,7 +107,7 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           <h2 className="text-2xl font-extrabold text-slate-900">Ưu Thế Đột Phá Khám Chữa Bệnh Thông Minh</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all space-y-3">
             <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
               <Clock className="w-6 h-6" />
@@ -157,7 +157,7 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {MOCK_SERVICES.map((s) => (
             <div key={s.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 transition-all flex flex-col justify-between space-y-4">
               <div className="space-y-2">
@@ -199,7 +199,7 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {MOCK_DOCTORS.slice(0, 4).map((d) => (
               <div key={d.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-center space-y-3">
                 <img src={d.avatar} alt={d.name} className="w-24 h-24 rounded-full object-cover mx-auto border-2 border-sky-400 p-0.5 shadow-sm" />
@@ -225,7 +225,7 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
 
       {/* Callout AI Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="bg-gradient-to-r from-sky-900 to-indigo-900 rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bg-gradient-to-r from-sky-900 to-indigo-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6 text-center md:text-left">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-sky-300 text-xs font-bold">
               <Sparkles className="w-4 h-4 text-amber-300" /> Tính Năng AI Tư Vấn 24/7

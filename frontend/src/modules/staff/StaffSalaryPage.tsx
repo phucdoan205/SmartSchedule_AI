@@ -330,7 +330,7 @@ export const StaffSalaryPage: React.FC = () => {
       </div>
 
       {/* ─── 3 KPI Statistic Cards ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* 1. Tổng quỹ lương tháng này */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">

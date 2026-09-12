@@ -68,15 +68,15 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-slate-100">
+        <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center shrink-0">
               <CalendarCheck className="w-5 h-5 text-sky-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Lên Lịch Bảo Dưỡng & Kiểm Định Thiết Bị Mới</h2>
+              <h2 className="text-base font-bold text-slate-900">Lên Lịch Bảo Dưỡng &amp; Kiểm Định Thiết Bị Mới</h2>
               <p className="text-xs text-slate-500 mt-0.5">Thiết lập kế hoạch bảo trì định kỳ, khử trùng buồng máy hoặc sửa chữa đột xuất cho trang thiết bị y tế toàn viện</p>
             </div>
           </div>
@@ -85,9 +85,9 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5">
           {/* Row 1: Chi nhánh + Ngày thực hiện */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Chi nhánh thực hiện <span className="text-red-500">*</span></label>
               <div className="relative">
@@ -110,7 +110,7 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
           </div>
 
           {/* Row 2: Khung giờ + Chu kỳ lặp lại */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Khung giờ <span className="text-red-500">*</span></label>
               <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
           {/* Mức độ ưu tiên */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-2">Mức độ ưu tiên</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setPriority('normal')} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${priority === 'normal' ? 'bg-slate-800 text-white border-slate-800' : 'text-slate-600 border-slate-200 bg-white hover:bg-slate-50'}`}>Bình thường</button>
               <button type="button" onClick={() => setPriority('high')} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${priority === 'high' ? 'bg-sky-600 text-white border-sky-600' : 'text-slate-600 border-slate-200 bg-white hover:bg-slate-50'}`}>Ưu tiên cao</button>
               <button type="button" onClick={() => setPriority('urgent')} className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${priority === 'urgent' ? 'bg-red-600 text-white border-red-600' : 'text-red-600 border-red-200 bg-red-50 hover:bg-red-100'}`}>Khẩn cấp (Khóa máy ngay)</button>
@@ -222,11 +222,11 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
-          <button type="button" onClick={onClose} className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors">Hủy bỏ</button>
-          <div className="flex gap-2">
-            <button type="button" className="px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors">Lưu bản nháp</button>
-            <button type="button" onClick={handleConfirm} className="px-5 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-700 rounded-xl shadow-md transition-colors flex items-center gap-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+          <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors text-center">Hủy bỏ</button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button type="button" className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl transition-colors text-center">Lưu bản nháp</button>
+            <button type="button" onClick={handleConfirm} className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-700 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2">
               <CalendarCheck className="w-4 h-4" />
               XÁC NHẬN LÊN LỊCH BẢO DƯỠNG
             </button>

@@ -1,140 +1,152 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
-import logoImg from '../../assets/logo.png';
+import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { AuthLayout } from './AuthLayout';
 
 export const RegisterPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const navigate = useNavigate();
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // Navigate to OTP verification page
     navigate('/auth/verify-otp');
   };
 
+  const inputCls = `
+    w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium
+    bg-white/10 border border-white/20 text-white placeholder-white/35
+    focus:outline-none focus:border-teal-400/60 focus:bg-white/15
+    transition-all duration-200
+  `;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      <div className="max-w-md w-full relative z-10 space-y-6">
-        {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <NavLink to="/" className="inline-flex items-center gap-3">
-            <img src={logoImg} alt="SmartSchedule Logo" className="w-12 h-12 object-contain bg-white/10 p-1.5 rounded-2xl border border-white/20 shadow-md" />
-            <div className="text-left">
-              <h1 className="text-lg font-extrabold text-white tracking-wide">Răng Hàm Mặt</h1>
-              <span className="text-[10px] font-bold text-sky-400 bg-sky-950 px-2 py-0.5 rounded border border-sky-800">
-                SMARTSCHEDULE AI
-              </span>
-            </div>
-          </NavLink>
-          <h2 className="text-xl font-extrabold text-white">Đăng Ký Tài Khoản Bệnh Nhân</h2>
-          <p className="text-xs text-slate-400">Tạo tài khoản để theo dõi lịch sử điều trị & nhận lịch khám AI</p>
-        </div>
+    <AuthLayout
+      title="Đăng Ký Tài Khoản"
+      description="Tạo hồ sơ bệnh nhân để theo dõi lịch sử điều trị & đặt lịch AI"
+    >
+      <form onSubmit={handleRegister} className="space-y-4">
 
-        {/* Form Box */}
-        <div className="bg-slate-900/80 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-5">
-          <form onSubmit={handleRegister} className="space-y-4 text-xs">
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">Họ và tên bệnh nhân:</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="VD: Nguyễn Văn An"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                />
-                <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">Số điện thoại liên hệ:</label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="VD: 0912.345.678"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                />
-                <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">Địa chỉ Email (Tùy chọn):</label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="VD: nguyenvanan@gmail.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                />
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">Tạo mật khẩu:</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-medium"
-                />
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-slate-500 hover:text-slate-300 absolute right-3 top-1/2 -translate-y-1/2"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 cursor-pointer text-slate-400 text-[11px] pt-1">
-              <input
-                type="checkbox"
-                required
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="rounded bg-slate-950 border-slate-700 text-sky-600 focus:ring-0"
-              />
-              <span>Tôi đồng ý với điều khoản dịch vụ & chính sách bảo mật EMR</span>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-gradient-to-r from-sky-500 to-teal-400 hover:from-sky-600 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              <span>Đăng Ký & Nhận Mã OTP</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
-            Đã có tài khoản?{' '}
-            <NavLink to="/auth/login" className="text-sky-400 hover:text-sky-300 font-bold underline">
-              Đăng nhập ngay
-            </NavLink>
+        {/* Họ tên */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">Họ và tên bệnh nhân</label>
+          <div className="relative">
+            <User className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="VD: Nguyễn Văn An"
+              className={inputCls}
+            />
           </div>
         </div>
+
+        {/* Số điện thoại */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">Số điện thoại liên hệ</label>
+          <div className="relative">
+            <Phone className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="VD: 0912.345.678"
+              className={inputCls}
+            />
+          </div>
+        </div>
+
+        {/* Email */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">
+            Email{' '}
+            <span className="text-white/40 font-normal text-xs">(tuỳ chọn)</span>
+          </label>
+          <div className="relative">
+            <Mail className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="VD: nguyenvanan@gmail.com"
+              className={inputCls}
+            />
+          </div>
+        </div>
+
+        {/* Mật khẩu */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-semibold text-white/80">Tạo mật khẩu</label>
+          <div className="relative">
+            <Lock className="w-4 h-4 text-teal-300/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={`${inputCls} pr-11`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Điều khoản */}
+        <label className="flex items-start gap-2.5 cursor-pointer select-none pt-0.5">
+          <input
+            type="checkbox"
+            required
+            checked={agreeTerms}
+            onChange={(e) => setAgreeTerms(e.target.checked)}
+            className="w-4 h-4 mt-0.5 rounded bg-white/10 border border-white/30 text-teal-500 focus:ring-0 focus:ring-offset-0 shrink-0"
+          />
+          <span className="text-xs text-white/55 font-medium leading-relaxed">
+            Tôi đồng ý với{' '}
+            <span className="text-teal-300 underline underline-offset-2">điều khoản dịch vụ</span>
+            {' '}& chính sách bảo mật hồ sơ EMR
+          </span>
+        </label>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          className="
+            w-full py-3.5 rounded-xl font-extrabold text-sm text-white mt-1
+            bg-gradient-to-r from-teal-500 to-emerald-500
+            hover:from-teal-400 hover:to-emerald-400
+            shadow-lg shadow-teal-500/25 hover:shadow-teal-400/30
+            transition-all duration-200 active:scale-[0.98]
+            flex items-center justify-center gap-2
+          "
+        >
+          <span>Đăng Ký & Nhận Mã OTP</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </form>
+
+      <div className="pt-1 border-t border-white/10 text-center text-xs text-white/45">
+        Đã có tài khoản?{' '}
+        <NavLink
+          to="/auth/login"
+          className="text-teal-300 hover:text-teal-200 font-bold underline underline-offset-2 transition-colors"
+        >
+          Đăng nhập ngay
+        </NavLink>
       </div>
-    </div>
+    </AuthLayout>
   );
 };

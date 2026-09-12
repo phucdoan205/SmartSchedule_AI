@@ -167,7 +167,7 @@ export const ServicesPage: React.FC = () => {
 
       {/* Filter Tabs Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-0">
-        <div className="flex items-center gap-6 text-xs font-extrabold overflow-x-auto">
+        <div className="flex items-center gap-6 text-xs font-extrabold overflow-x-auto no-scrollbar py-1">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -266,7 +266,7 @@ export const ServicesPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-6 self-end sm:self-center">
+                      <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                         {/* Doctor Avatars */}
                         <div className="flex items-center -space-x-2">
                           {service.doctors.map((docName, idx) => {

@@ -18,6 +18,7 @@ import { DataTable, type Column } from '../../components/common/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import type { Appointment } from '../../types/admin';
 import { Modal } from '../../components/common/Modal';
+import { toast } from '../../context/ToastContext';
 
 export const SmartSchedulePage: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
@@ -98,10 +99,17 @@ export const SmartSchedulePage: React.FC = () => {
 
   const handleDrop = (targetStatus: string) => {
     if (!draggedId) return;
+    const apt = appointments.find((a) => a.id === draggedId);
+    const targetCol = kanbanColumns.find((c) => c.key === targetStatus);
+
     setAppointments((prev) =>
-      prev.map((apt) => (apt.id === draggedId ? { ...apt, status: targetStatus as any } : apt))
+      prev.map((item) => (item.id === draggedId ? { ...item, status: targetStatus as any } : item))
     );
     setDraggedId(null);
+
+    if (apt && targetCol) {
+      toast(`Đã chuyển lịch hẹn của ${apt.patientName} sang ${targetCol.title}!`);
+    }
   };
 
   const handleCreateAppointment = (e: React.FormEvent) => {
@@ -122,6 +130,7 @@ export const SmartSchedulePage: React.FC = () => {
     };
     setAppointments([newApt, ...appointments]);
     setIsModalOpen(false);
+    toast(`Đã tạo thành công lịch hẹn mới cho bệnh nhân ${patientName}!`);
   };
 
   return (
@@ -179,7 +188,8 @@ export const SmartSchedulePage: React.FC = () => {
 
       {/* Main View Display */}
       {viewMode === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="overflow-x-auto -mx-1 px-1 pb-2">
+        <div className="grid grid-cols-5 gap-3 min-w-[800px] md:min-w-0 md:grid-cols-5">
           {kanbanColumns.map((col) => {
             const colAppointments = appointments.filter((a) => a.status === col.key);
             return (
@@ -239,6 +249,7 @@ export const SmartSchedulePage: React.FC = () => {
               </div>
             );
           })}
+        </div>
         </div>
       ) : (
         <DataTable

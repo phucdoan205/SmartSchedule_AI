@@ -76,3 +76,51 @@
 .ai-glow {
   animation: pulseGlow 3s infinite ease-in-out;
 }
+
+/* ── Responsive Utilities ── */
+
+/* Hide scrollbar but keep scrollable — used in tabs, kanban */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE / Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+/* Prevent text selection during drag on kanban */
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Mobile safe area for fixed elements (iPhone notch) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Improved touch targets on mobile (min 44px) */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 36px;
+  }
+}
+
+/* Toast slide-down animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

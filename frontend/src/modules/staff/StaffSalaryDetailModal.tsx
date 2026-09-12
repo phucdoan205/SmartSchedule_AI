@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import { toast } from '../../context/ToastContext';
 
 export interface StaffSalaryDetailModalProps {
   isOpen: boolean;
@@ -134,10 +135,17 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
   const workHours = staff.workHours || 184;
 
   const handleToggleApprove = () => {
-    setIsApproved((prev) => !prev);
+    const nextApproved = !isApproved;
+    setIsApproved(nextApproved);
     if (onApproveToggle) {
       onApproveToggle(staff.id);
     }
+    toast(
+      nextApproved
+        ? `Đã duyệt bảng lương tháng cho ${staff.name}!`
+        : `Đã hủy duyệt bảng lương của ${staff.name}.`,
+      nextApproved ? 'success' : 'info'
+    );
   };
 
   return (
@@ -160,45 +168,45 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
           onClick={(e) => e.stopPropagation()}
           style={{ animation: 'modalSlideIn 0.22s cubic-bezier(0.34,1.56,0.64,1)' }}
         >
-          {/* ─── Top Header ─────────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-center justify-between px-6 py-4 border-b border-slate-100 bg-white gap-3 shrink-0">
+          {/* ─── Header ─────────────────────────────────────────────── */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 shrink-0 bg-white">
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900">
-                Bảng kê lương &amp; Hoa hồng dịch vụ
+              <h2 className="text-base font-extrabold text-slate-900">
+                Chi Tiết Bảng Lương &amp; Báo Cáo Hoa Hồng
               </h2>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-1">
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium mt-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 <span>Kỳ lương:</span>
-                <div className="relative inline-block">
+                <div className="relative inline-flex items-center">
                   <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="appearance-none font-bold text-sky-600 hover:text-sky-700 bg-transparent pr-4 cursor-pointer focus:outline-none"
+                    className="appearance-none font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 pr-6 rounded-lg border border-sky-200 text-xs focus:outline-none cursor-pointer"
                   >
-                    <option>Tháng 08/2026</option>
-                    <option>Tháng 07/2026</option>
-                    <option>Tháng 06/2026</option>
+                    <option value="Tháng 08/2026">Tháng 08/2026 (Hiện tại)</option>
+                    <option value="Tháng 07/2026">Tháng 07/2026</option>
+                    <option value="Tháng 06/2026">Tháng 06/2026</option>
                   </select>
-                  <ChevronDown className="w-3 h-3 text-sky-600 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-3.5 h-3.5 text-sky-600 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => alert('Đang xuất phiếu lương định dạng PDF...')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200/90 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                onClick={() => toast('Đang xuất phiếu lương định dạng PDF thành công!')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200/90 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5 text-slate-500" />
-                <span>Xuất phiếu lương (PDF)</span>
+                <span>Xuất phiếu (PDF)</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleToggleApprove}
-                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer ${
                   isApproved
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-slate-900 hover:bg-slate-800 text-white'
@@ -211,7 +219,7 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors ml-1"
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors ml-auto sm:ml-1"
                 title="Đóng"
               >
                 <X className="w-5 h-5" />
@@ -328,7 +336,7 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-xs border-collapse min-w-[700px]">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-400 font-extrabold text-[11px] uppercase tracking-wider">
                       <th className="py-3 px-4">NGÀY</th>
@@ -443,9 +451,9 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
           </div>
 
           {/* ─── Dark Navy Fixed Bottom Bar (As in Reference Image) ── */}
-          <div className="bg-slate-900 text-white px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+          <div className="bg-slate-900 text-white px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shrink-0">
             {/* Left Metrics */}
-            <div className="flex flex-wrap items-center gap-6 text-xs">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
               <div>
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                   TỔNG CA THỰC HIỆN
@@ -487,12 +495,12 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
             </div>
 
             {/* Right Total Net Income */}
-            <div className="bg-slate-800/90 border border-slate-700 px-5 py-2.5 rounded-xl flex items-center gap-3">
-              <div className="text-right">
+            <div className="bg-slate-800/90 border border-slate-700 px-4 sm:px-5 py-2.5 rounded-xl flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <div className="text-left sm:text-right">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   TỔNG THỰC LĨNH DỰ KIẾN
                 </div>
-                <div className="text-xl font-black text-sky-400 mt-0.5">
+                <div className="text-lg sm:text-xl font-black text-sky-400 mt-0.5">
                   {totalIncome.toLocaleString('vi-VN')} VNĐ
                 </div>
               </div>

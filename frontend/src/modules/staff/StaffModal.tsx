@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { User, Phone, Mail, Award, Building, Save } from 'lucide-react';
 import doctorImg1 from '../../assets/bacsi.jpg';
+import { toast } from '../../context/ToastContext';
 
 interface StaffModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         commission: 0,
       });
     }
+    toast(`Đã thêm nhân sự mới: ${name} thành công!`);
     onClose();
   };
 
@@ -51,27 +53,27 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
       subtitle="Nhập đầy đủ thông tin để tạo hồ sơ bác sĩ hoặc cán bộ y tế vào hệ thống"
       maxWidth="lg"
       footer={
-        <>
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors text-center"
           >
             Hủy bỏ
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
           >
             <Save className="w-3.5 h-3.5" />
             Tạo Hồ Sơ Nhân Sự
           </button>
-        </>
+        </div>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
               <User className="w-3.5 h-3.5 text-sky-600" /> Họ & Tên bác sĩ / nhân sự:
@@ -104,7 +106,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
               <Award className="w-3.5 h-3.5 text-sky-600" /> Chuyên khoa:
@@ -135,7 +137,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
               <Phone className="w-3.5 h-3.5 text-sky-600" /> Số điện thoại:

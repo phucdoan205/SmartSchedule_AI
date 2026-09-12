@@ -407,7 +407,7 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
                 </div>
 
                 {/* Số lượng bản in & Checkboxes */}
-                <div className="grid grid-cols-2 gap-4 pt-1 items-start">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 items-start">
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold text-slate-600">Số lượng bản in</label>
                     <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
@@ -500,21 +500,21 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-100 bg-white flex flex-wrap items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-3.5 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBackToEdit}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-100"
+            className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer py-1.5 px-2 rounded-lg hover:bg-slate-100 text-center"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Quay lại chỉnh sửa</span>
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={handleDownloadPdf}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-300 rounded-xl transition-all shadow-2xs active:scale-98 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-300 rounded-xl transition-all shadow-2xs active:scale-98 cursor-pointer"
             >
               <FileDown className="w-4 h-4 text-teal-600" />
               <span>Tải file PDF</span>
@@ -524,7 +524,7 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
               type="button"
               onClick={handlePrint}
               disabled={isPrinting}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-sm tracking-wide uppercase disabled:opacity-50 active:scale-98 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-xs font-extrabold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-sm tracking-wide uppercase disabled:opacity-50 active:scale-98 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>{isPrinting ? 'ĐANG IN...' : 'IN PHIẾU THU NGAY (ENTER)'}</span>

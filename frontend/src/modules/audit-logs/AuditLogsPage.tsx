@@ -4,6 +4,7 @@ import { DataTable, type Column } from '../../components/common/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Tabs, type TabItem } from '../../components/common/Tabs';
 import type { SystemAuditLog } from '../../types/admin';
+import { toast } from '../../context/ToastContext';
 
 export const AuditLogsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -132,7 +133,7 @@ export const AuditLogsPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => alert('Đã xuất file log nhật ký hệ thống (.CSV)!')}
+          onClick={() => toast('Đã xuất file nhật ký hệ thống (.CSV) thành công!')}
           className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 font-bold text-xs text-slate-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
         >
           <Download className="w-4 h-4 text-sky-600" /> Xuất File Nhật Ký Log
