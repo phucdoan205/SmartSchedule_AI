@@ -14,8 +14,10 @@ import {
   ChevronRight,
   Search,
   CheckCircle2,
+  LogOut,
 } from 'lucide-react';
 import logoImg from '../../assets/logo.png';
+import { useAuth } from '../../context/AuthContext';
 
 interface UserLayoutProps {
   onOpenBookingWizard?: () => void;
@@ -24,6 +26,8 @@ interface UserLayoutProps {
 export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const navLinks = [
     { path: '/', label: 'Trang chủ', end: true },
@@ -73,15 +77,47 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/auth/login')}
-              className="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5"
-            >
-              <User className="w-4 h-4 text-sky-600" />
-              <span>Đăng Nhập</span>
-            </button>
+          <div className="hidden sm:flex items-center gap-2.5">
+            {isAuthenticated ? (
+              <>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
+                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1.5"
+                    title="Vào trang quản trị"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>Quản trị</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5 max-w-[150px]"
+                >
+                  <User className="w-4 h-4 text-sky-600 shrink-0" />
+                  <span className="truncate">{user?.fullName || 'Hồ sơ'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  title="Đăng xuất"
+                  className="p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate('/auth/login')}
+                className="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5"
+              >
+                <User className="w-4 h-4 text-sky-600" />
+                <span>Đăng Nhập</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -122,14 +158,62 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
               </NavLink>
             ))}
 
-            <div className="pt-3 border-t border-slate-100">
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              {isAuthenticated ? (
+                <>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        navigate('/admin');
+                      }}
+                      className="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-indigo-200"
+                    >
+                      <ShieldCheck className="w-4 h-4" /> Bảng Quản trị
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    className="w-full py-2.5 bg-sky-50 text-sky-800 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-sky-200"
+                  >
+                    <User className="w-4 h-4" /> {user?.fullName || 'Hồ sơ cá nhân'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full py-2.5 bg-rose-50 text-rose-600 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-rose-200"
+                  >
+                    <LogOut className="w-4 h-4" /> Đăng xuất
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/auth/login');
+                  }}
+                  className="w-full py-2.5 bg-sky-50 text-sky-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-sky-200"
+                >
+                  <User className="w-4 h-4" /> Đăng Nhập
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onOpenBookingWizard?.();
                 }}
-                className="w-full py-3 bg-sky-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2"
+                className="w-full py-3 bg-gradient-to-r from-sky-600 to-teal-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm"
               >
                 <Calendar className="w-4 h-4" /> Đặt Lịch Ngay (AI)
               </button>

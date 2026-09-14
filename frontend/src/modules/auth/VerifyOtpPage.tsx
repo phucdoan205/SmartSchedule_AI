@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowLeft, RefreshCw } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowRight, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
+import { authApi } from '../../services/api';
 
 export const VerifyOtpPage: React.FC = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const email = (location.state as any)?.email || '';
 
   const handleChange = (index: number, value: string) => {
     if (value.length > 1) value = value[value.length - 1];
@@ -23,18 +31,72 @@ export const VerifyOtpPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleResend = async () => {
+    if (!email) {
+      navigate('/auth/forgot-password');
+      return;
+    }
+    try {
+      setIsResending(true);
+      setErrorMessage(null);
+      setResendStatus(null);
+      const res = await authApi.forgotPassword(email);
+      setResendStatus(res.message || 'Mã OTP mới đã được gửi lại vào email của bạn');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Không thể gửi lại mã OTP';
+      setErrorMessage(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/auth/reset-password');
+    const otpStr = otp.join('').trim();
+    if (otpStr.length < 6) {
+      setErrorMessage('Vui lòng nhập đủ 6 chữ số mã OTP');
+      return;
+    }
+    if (!email) {
+      navigate('/auth/forgot-password');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+      await authApi.verifyOtp(email, otpStr);
+      navigate('/auth/reset-password', {
+        state: { email, otp: otpStr },
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Mã OTP không chính xác hoặc đã hết hạn';
+      setErrorMessage(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <AuthLayout
       title="Xác Thực Mã OTP"
-      description="Mã OTP 6 chữ số đã được gửi tới số điện thoại 0912.***.678"
+      description={`Mã OTP 6 chữ số đã được gửi qua Gmail đến ${email || 'hộp thư của bạn'}`}
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Alert Messages */}
+      {errorMessage && (
+        <div className="mb-4 p-3.5 bg-rose-500/20 border border-rose-400/40 rounded-xl text-xs text-rose-200 font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
+      {resendStatus && (
+        <div className="mb-4 p-3 bg-teal-500/20 border border-teal-400/40 rounded-xl text-xs text-teal-200 font-semibold">
+          {resendStatus}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* OTP Inputs */}
         <div className="flex justify-center gap-2 sm:gap-3">
           {otp.map((digit, idx) => (
@@ -60,29 +122,37 @@ export const VerifyOtpPage: React.FC = () => {
         </div>
 
         {/* Resend */}
-        <div className="text-center text-xs text-white/45">
+        <div className="text-center text-xs text-white/50">
           Không nhận được mã?{' '}
           <button
             type="button"
-            className="text-teal-300 hover:text-teal-200 font-bold underline underline-offset-2 inline-flex items-center gap-1 transition-colors"
+            disabled={isResending}
+            onClick={handleResend}
+            className="text-teal-300 hover:text-teal-200 font-bold underline underline-offset-2 inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className="w-3 h-3" /> Gửi lại OTP (60s)
+            <RefreshCw className={`w-3 h-3 ${isResending ? 'animate-spin' : ''}`} />
+            <span>{isResending ? 'Đang gửi...' : 'Gửi lại mã OTP'}</span>
           </button>
         </div>
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="
             w-full py-3.5 rounded-xl font-extrabold text-sm text-white
             bg-gradient-to-r from-teal-500 to-emerald-500
             hover:from-teal-400 hover:to-emerald-400
             shadow-lg shadow-teal-500/25 hover:shadow-teal-400/30
             transition-all duration-200 active:scale-[0.98]
-            flex items-center justify-center gap-2
+            flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50
           "
         >
-          <span>Xác Nhận OTP</span>
-          <ArrowRight className="w-4 h-4" />
+          {isSubmitting ? <span>Đang xác thực...</span> : (
+            <>
+              <span>Xác Nhận OTP</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </button>
       </form>
 

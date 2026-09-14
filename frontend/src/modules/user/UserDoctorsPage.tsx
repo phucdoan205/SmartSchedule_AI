@@ -1,17 +1,39 @@
-import React, { useState } from 'react';
-import { Search, Filter, Star, Calendar, MapPin } from 'lucide-react';
-import { MOCK_DOCTORS, MOCK_BRANCHES } from '../../services/mockData';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Star, Calendar, MapPin, Stethoscope } from 'lucide-react';
+import { staffApi, branchesApi } from '../../services/api';
 
 interface UserDoctorsPageProps {
   onOpenBookingWizard?: (doctorId?: string) => void;
 }
 
 export const UserDoctorsPage: React.FC<UserDoctorsPageProps> = ({ onOpenBookingWizard }) => {
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('All');
   const [selectedSpecialty, setSelectedSpecialty] = useState('All');
 
-  const filteredDoctors = MOCK_DOCTORS.filter((d) => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const [docs, brs] = await Promise.all([
+          staffApi.getDoctors(),
+          branchesApi.getAll(),
+        ]);
+        setDoctors(docs);
+        setBranches(brs);
+      } catch (err) {
+        console.error('Lỗi khi tải bác sĩ:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const filteredDoctors = doctors.filter((d) => {
     const matchesSearch =
       d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.specialty.toLowerCase().includes(searchTerm.toLowerCase());
@@ -57,7 +79,7 @@ export const UserDoctorsPage: React.FC<UserDoctorsPageProps> = ({ onOpenBookingW
               className="bg-transparent focus:outline-none font-semibold text-slate-700 w-full"
             >
               <option value="All">Tất cả chi nhánh</option>
-              {MOCK_BRANCHES.map((b) => (
+              {branches.map((b) => (
                 <option key={b.id} value={b.name}>{b.name}</option>
               ))}
             </select>
@@ -70,63 +92,92 @@ export const UserDoctorsPage: React.FC<UserDoctorsPageProps> = ({ onOpenBookingW
               className="bg-transparent focus:outline-none font-semibold text-slate-700 w-full"
             >
               <option value="All">Tất cả chuyên khoa</option>
-              <option value="Răng Hàm Mặt">Răng Hàm Mặt</option>
-              <option value="Tim Mạch">Tim Mạch</option>
-              <option value="Nhi Khoa">Nhi Khoa</option>
-              <option value="Da Liễu">Da Liễu</option>
+              <option value="Implant">Cấy ghép Implant</option>
+              <option value="Phục hình">Phục hình Răng sứ</option>
+              <option value="Thẩm mỹ">Thẩm mỹ Nha khoa</option>
+              <option value="Chỉnh nha">Chỉnh nha & Niềng răng</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Doctor Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-        {filteredDoctors.map((d) => (
-          <div
-            key={d.id}
-            className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <img
-                  src={d.avatar}
-                  alt={d.name}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-sky-500 p-0.5 shadow-sm shrink-0"
-                />
-                <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">{d.name}</h3>
-                  <p className="text-xs font-semibold text-sky-600 mt-0.5">{d.specialty}</p>
-                  <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-1">
-                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">{d.branch}</span>
-                  </p>
+      {isLoading ? (
+        <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200 text-xs">
+          <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          Đang tải danh sách bác sĩ...
+        </div>
+      ) : filteredDoctors.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200 text-xs">
+          Không tìm thấy bác sĩ nào phù hợp với bộ lọc.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          {filteredDoctors.map((d) => (
+            <div
+              key={d.id}
+              className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-sky-500 p-0.5 shadow-sm shrink-0 bg-slate-100 flex items-center justify-center">
+                    {d.avatar ? (
+                      <img
+                        src={d.avatar}
+                        alt={d.name}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <Stethoscope className="w-7 h-7 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">{d.name}</h3>
+                    <p className="text-xs font-semibold text-sky-600 mt-0.5">{d.specialty}</p>
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{d.branch}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 border-t border-slate-100 pt-3 text-[11px]">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Đánh giá chuyên môn:</span>
+                    <div className="flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {d.rating} ({d.totalAppointments || 0} ca)
+                    </div>
+                  </div>
+
+                  {d.experienceYears && (
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>Kinh nghiệm điều trị:</span>
+                      <span className="font-bold text-slate-800">{d.experienceYears} năm</span>
+                    </div>
+                  )}
+
+                  {d.licenseNumber && (
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span>Chứng chỉ hành nghề:</span>
+                      <span className="font-mono text-slate-700 text-[10px]">{d.licenseNumber}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl space-y-2 text-[11px] text-slate-600 border border-slate-100">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0">Ca khám thành công:</span>
-                  <span className="font-bold text-slate-800">{d.totalAppointments}+ ca</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="shrink-0">Đánh giá bệnh nhân:</span>
-                  <span className="font-bold text-amber-600 flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {d.rating} / 5.0
-                  </span>
-                </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenBookingWizard?.(d.id)}
+                  className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Calendar className="w-3.5 h-3.5" /> Đặt Lịch Với Bác Sĩ
+                </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => onOpenBookingWizard?.(d.id)}
-              className="w-full py-2.5 bg-gradient-to-r from-sky-600 to-teal-500 hover:from-sky-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5"
-            >
-              <Calendar className="w-4 h-4" /> Đặt Lịch Với Bác Sĩ
-            </button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

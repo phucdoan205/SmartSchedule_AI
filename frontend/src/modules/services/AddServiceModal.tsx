@@ -9,6 +9,7 @@ import {
   Check,
 } from 'lucide-react';
 import { MOCK_DOCTORS } from '../../services/mockData';
+import { uploadApi } from '../../services/api';
 
 interface AddServiceModalProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   const [price, setPrice] = useState('6.000.000đ');
   const [deposit, setDeposit] = useState('500.000đ');
   const [duration, setDuration] = useState('60 phút');
+  const [imageUrl, setImageUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Selected Doctors tags
   const [selectedDoctors, setSelectedDoctors] = useState<string[]>([
@@ -59,13 +63,29 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
     setDoctorSelectVal('');
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploading(true);
+      const res = await uploadApi.uploadImage(file, 'services');
+      if (res && res.url) {
+        setImageUrl(res.url);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải ảnh lên Cloudinary:', err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onAddService) {
       onAddService({
         id: `srv-${Date.now()}`,
         code: `DV-${Math.floor(100 + Math.random() * 900)}`,
-        name: serviceName || 'Sứ toàn phần Cercon HT (Đức)',
+        name: serviceName || 'Dịch vụ nha khoa',
         category,
         price: parseInt(price.replace(/\D/g, '')) || 6000000,
         deposit: parseInt(deposit.replace(/\D/g, '')) || 500000,
@@ -76,6 +96,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
         status: 'Active',
         aiRecommended: aiRecommendation,
         isPublic: publicDisplay,
+        imageUrl,
       });
     }
     onClose();
@@ -179,18 +200,39 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
               {/* Ảnh minh họa dịch vụ (Upload Dropzone) */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Ảnh minh họa dịch vụ</label>
-                <div className="p-5 bg-white border-2 border-dashed border-slate-200 hover:border-sky-400 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 cursor-pointer transition-colors group">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-50 group-hover:bg-sky-50 text-slate-500 group-hover:text-sky-600 flex items-center justify-center transition-colors">
-                    <UploadCloud className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-700 text-xs group-hover:text-sky-600 transition-colors">
-                      Kéo thả ảnh vào đây hoặc click để tải lên
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      PNG, JPG, tối đa 5MB. Tỷ lệ 4:3 (Khuyến nghị 800×600px)
-                    </p>
-                  </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-4 bg-white border-2 border-dashed border-slate-200 hover:border-sky-400 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 cursor-pointer transition-colors group overflow-hidden"
+                >
+                  {imageUrl ? (
+                    <div className="relative w-full h-32 rounded-xl overflow-hidden group/img">
+                      <img src={imageUrl} alt="Service preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">
+                        Nhấn để thay đổi ảnh
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-2xl bg-slate-50 group-hover:bg-sky-50 text-slate-500 group-hover:text-sky-600 flex items-center justify-center transition-colors">
+                        <UploadCloud className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-700 text-xs group-hover:text-sky-600 transition-colors">
+                          {isUploading ? 'Đang tải ảnh lên Cloudinary...' : 'Kéo thả ảnh vào đây hoặc click để tải lên'}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          PNG, JPG, tối đa 5MB (Tự động tải lên Cloudinary)
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

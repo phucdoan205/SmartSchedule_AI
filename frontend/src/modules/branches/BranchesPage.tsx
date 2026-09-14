@@ -25,6 +25,7 @@ import { RoomHistoryModal } from './modals/RoomHistoryModal';
 import branch1Img from '../../assets/cơ sở 1.jpg';
 import branch2Img from '../../assets/cơ sở 2.jpg';
 import branch3Img from '../../assets/cơ sở 3.jpg';
+import { branchesApi } from '../../services/api';
 
 export const BranchesPage: React.FC = () => {
   // Navigation State
@@ -44,50 +45,37 @@ export const BranchesPage: React.FC = () => {
   const [selectedRoom, setSelectedRoom] = useState<RoomItem | null>(null);
 
   // Branches Data
-  const [branches, setBranches] = useState([
-    {
-      id: 'b-bienhoa',
-      name: 'Chi nhánh Biên Hòa',
-      subtitle: '(Trụ sở chính)',
-      address: '123 Đường ABC, Phường Tam Hiệp, TP. Biên Hòa, Đồng Nai',
-      phone: '0236 6555 555',
-      email: 'bienhoa@vietanhduc.vn',
-      status: 'Active',
-      statusLabel: 'ĐANG HOẠT ĐỘNG',
-      roomCount: 8,
-      doctorCount: 16,
-      performance: 92,
-      image: branch1Img,
-    },
-    {
-      id: 'b-quan1',
-      name: 'Chi nhánh Quận 1 - TP. Hồ Chí Minh',
-      subtitle: '',
-      address: '45 Đường Lê Duẩn, Phường Bến Nghé, Quận 1, TP. HCM',
-      phone: '028 3822 1111',
-      email: 'quan1@vietanhduc.vn',
-      status: 'Active',
-      statusLabel: 'ĐANG HOẠT ĐỘNG',
-      roomCount: 6,
-      doctorCount: 12,
-      performance: 84,
-      image: branch2Img,
-    },
-    {
-      id: 'b-longthanh',
-      name: 'Chi nhánh Long Thành (Đồng Nai)',
-      subtitle: '',
-      address: 'Đang cập nhật địa chỉ chính thức...',
-      phone: '0251 3888 999',
-      email: 'longthanh@vietanhduc.vn',
-      status: 'Upcoming',
-      statusLabel: 'SẮP KHAI TRƯƠNG (10/2026)',
-      roomCount: 4,
-      doctorCount: 6,
-      performance: 0,
-      image: branch3Img,
-    },
-  ]);
+  const [branches, setBranches] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const data = await branchesApi.getAll();
+        if (data && data.length > 0) {
+          setBranches(
+            data.map((b: any, idx: number) => ({
+              id: b.id,
+              name: b.name,
+              subtitle: idx === 0 ? '(Trụ sở chính)' : '',
+              address: b.address,
+              phone: b.phone,
+              email: `${b.code.toLowerCase()}@vietanhduc.vn`,
+              status: b.isActive ? 'Active' : 'Inactive',
+              statusLabel: b.isActive ? 'ĐANG HOẠT ĐỘNG' : 'TẠM NGƯNG',
+              roomCount: b.roomCount || 6,
+              doctorCount: b.doctorCount || 10,
+              performance: 92,
+              image: b.imageUrl || (idx === 0 ? branch1Img : idx === 1 ? branch2Img : branch3Img),
+            })),
+          );
+          setSelectedBranchId(data[0].id);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải chi nhánh:', err);
+      }
+    };
+    fetchBranches();
+  }, []);
 
   // Rooms Data State
   const [rooms, setRooms] = useState<RoomItem[]>([
@@ -133,7 +121,22 @@ export const BranchesPage: React.FC = () => {
     },
   ]);
 
-  const currentBranch = branches.find((b) => b.id === selectedBranchId) || branches[0];
+  const defaultBranch = {
+    id: 'b-default',
+    name: 'Chi nhánh',
+    subtitle: '',
+    address: 'Đang tải thông tin...',
+    phone: '',
+    email: '',
+    status: 'Active',
+    statusLabel: 'ĐANG HOẠT ĐỘNG',
+    roomCount: 0,
+    doctorCount: 0,
+    performance: 0,
+    image: branch1Img,
+  };
+
+  const currentBranch = branches.find((b) => b.id === selectedBranchId) || branches[0] || defaultBranch;
 
   // Actions for Navigation
   const handleOpenDetail = (branchId: string) => {
@@ -228,12 +231,12 @@ export const BranchesPage: React.FC = () => {
           </button>
           {activeView === 'detail' && (
             <span className="px-3 py-1.5 bg-sky-50 text-sky-700 font-extrabold rounded-xl border border-sky-200">
-              🔍 Đang xem chi tiết: {currentBranch.name}
+              🔍 Đang xem chi tiết: {currentBranch?.name || ''}
             </span>
           )}
           {activeView === 'staff_allocation' && (
             <span className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-extrabold rounded-xl border border-indigo-200">
-              👥 Đang phân bổ nhân sự: {currentBranch.name}
+              👥 Đang phân bổ nhân sự: {currentBranch?.name || ''}
             </span>
           )}
         </div>
@@ -499,21 +502,21 @@ export const BranchesPage: React.FC = () => {
       <AddStaffModal
         isOpen={isAddStaffOpen}
         onClose={() => setIsAddStaffOpen(false)}
-        branchName={currentBranch.name}
+        branchName={currentBranch?.name || ''}
       />
 
       {/* 4. Modal: Điều Chuyển Bác Sĩ & Nhân Sự */}
       <TransferStaffModal
         isOpen={isTransferStaffOpen}
         onClose={() => setIsTransferStaffOpen(false)}
-        fromBranchName={currentBranch.name}
+        fromBranchName={currentBranch?.name || ''}
       />
 
       {/* 5. Modal: Thêm & Thiết Lập Phòng Khám Mới */}
       <AddRoomModal
         isOpen={isAddRoomOpen}
         onClose={() => setIsAddRoomOpen(false)}
-        branchName={currentBranch.name}
+        branchName={currentBranch?.name || ''}
         onAddRoom={handleAddNewRoom}
       />
 
@@ -522,7 +525,7 @@ export const BranchesPage: React.FC = () => {
         isOpen={isChangeDoctorOpen}
         onClose={() => setIsChangeDoctorOpen(false)}
         room={selectedRoom}
-        branchName={currentBranch.name}
+        branchName={currentBranch?.name || ''}
         onConfirmChange={(newDoc) => {
           if (selectedRoom) {
             setRooms((prev) =>

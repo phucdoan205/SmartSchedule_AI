@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { ProtectedRoute } from '../components/common/ProtectedRoute';
 
 // User Portal Modules & Layout
 import { UserLayout } from '../components/layout/UserLayout';
@@ -59,7 +60,14 @@ export const AppRoutes: React.FC = () => {
           <Route path="pricing" element={<UserPricingPage onOpenBookingWizard={(srvId) => handleOpenBookingWizard(undefined, srvId)} />} />
           <Route path="ai-consultation" element={<UserAiConsultationPage onOpenBookingWizard={(docId) => handleOpenBookingWizard(docId)} />} />
           <Route path="lookup" element={<UserLookupPage />} />
-          <Route path="profile" element={<UserProfilePage />} />
+          <Route
+            path="profile"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         {/* Auth Section */}
@@ -72,8 +80,15 @@ export const AppRoutes: React.FC = () => {
           <Route path="reset-password" element={<ResetPasswordPage />} />
         </Route>
 
-        {/* Admin Portal Section */}
-        <Route path="/admin" element={<AdminLayout />}>
+        {/* Admin Portal Section - Strictly Protected */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/admin/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
 

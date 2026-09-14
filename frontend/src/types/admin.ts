@@ -71,6 +71,7 @@ export interface Branch {
   doctorCount: number;
   roomCount: number;
   status: 'Active' | 'Maintenance' | 'Inactive';
+  imageUrl?: string;
 }
 
 export interface ServiceItem {
@@ -79,8 +80,12 @@ export interface ServiceItem {
   name: string;
   category: string;
   price: number;
+  deposit?: number;
+  warranty?: string;
   durationMinutes: number;
   status?: 'Active' | 'Inactive';
+  imageUrl?: string;
+  isAiRecommended?: boolean;
 }
 
 export interface FinanceReport {

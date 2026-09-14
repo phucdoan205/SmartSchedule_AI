@@ -24,6 +24,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import logoImg from '../../assets/logo.png';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -40,6 +41,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { user, logout, isAdmin } = useAuth();
+
+  const displayName = user?.fullName || 'Quản trị viên Hệ thống';
+  const displayEmail = user?.email || 'admin@smartschedule.ai';
+  const initials = (user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'AD').toUpperCase();
 
   // Đóng popup khi bấm ra bất kỳ vị trí nào bên ngoài
   useEffect(() => {
@@ -217,11 +223,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-sky-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                AD
+                {initials}
               </div>
               <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-white truncate">Bs. Nguyễn Quản Lý</p>
-                <p className="text-[10px] text-slate-400 truncate">admin@smartschedule.ai</p>
+                <p className="text-xs font-bold text-white truncate">{displayName}</p>
+                <p className="text-[10px] text-slate-400 truncate">{displayEmail}</p>
               </div>
             </div>
             <ChevronRight
@@ -236,9 +242,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="w-10 h-10 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center transition-colors shadow-xs"
-              title="Bs. Nguyễn Quản Lý - admin@smartschedule.ai"
+              title={`${displayName} - ${displayEmail}`}
             >
-              AD
+              {initials}
             </button>
           </div>
         )}
@@ -257,8 +263,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {/* Header thông tin tài khoản đồng bộ */}
             <div className="px-4 py-2.5 border-b border-slate-100">
-              <p className="font-bold text-slate-900 truncate">Bs. Nguyễn Quản Lý</p>
-              <p className="text-[10px] text-slate-400 truncate font-medium">Quản trị viên • admin@smartschedule.ai</p>
+              <p className="font-bold text-slate-900 truncate">{displayName}</p>
+              <p className="text-[10px] text-slate-400 truncate font-medium">
+                {isAdmin ? 'Quản trị viên' : 'Nhân viên'} • {displayEmail}
+              </p>
             </div>
 
             {/* Các tùy chọn menu */}
@@ -294,6 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={() => {
                 setShowProfileMenu(false);
+                logout();
                 navigate('/auth/login');
               }}
               className="w-full flex items-center gap-2.5 px-4 py-2 text-rose-600 hover:bg-rose-50 font-semibold text-left transition-colors"

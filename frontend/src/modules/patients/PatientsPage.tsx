@@ -6,6 +6,8 @@ import { Modal } from '../../components/common/Modal';
 import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 
+import { patientsApi } from '../../services/api';
+
 interface PatientRecord {
   id: string;
   name: string;
@@ -17,32 +19,10 @@ interface PatientRecord {
   status: string;
 }
 
-const MOCK_PATIENTS: PatientRecord[] = [
-  {
-    id: 'BN-8801',
-    name: 'Nguyễn Văn An',
-    phone: '0912.345.678',
-    gender: 'Nam',
-    dob: '1985-04-12',
-    lastDoctor: 'TS.BS. Nguyễn Minh Anh',
-    totalVisits: 5,
-    status: 'Active',
-  },
-  {
-    id: 'BN-8802',
-    name: 'Trần Thị Mai',
-    phone: '0988.777.666',
-    gender: 'Nữ',
-    dob: '1992-08-25',
-    lastDoctor: 'BS. CKII. Tran Thi Thu Huong',
-    totalVisits: 3,
-    status: 'Active',
-  },
-];
-
 export const PatientsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [patients, setPatients] = useState<PatientRecord[]>(MOCK_PATIENTS);
+  const [patients, setPatients] = useState<PatientRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isPreviewReceiptOpen, setIsPreviewReceiptOpen] = useState(false);
@@ -57,20 +37,50 @@ export const PatientsPage: React.FC = () => {
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<PatientRecord | null>(null);
   const [currentReceiptData, setCurrentReceiptData] = useState<ReceiptData | undefined>(undefined);
 
-  const handleCreatePatient = (e: React.FormEvent) => {
+  const loadPatients = async () => {
+    try {
+      setIsLoading(true);
+      const data = await patientsApi.getAll();
+      setPatients(
+        data.map((p: any) => ({
+          id: p.patientCode || p.id,
+          name: p.fullName,
+          phone: p.phone,
+          gender: p.gender,
+          dob: p.birthYear ? `${p.birthYear}-01-01` : '1990-01-01',
+          lastDoctor: 'BS. Chuyên Khoa',
+          totalVisits: p._count?.appointments || 1,
+          status: 'Active',
+        })),
+      );
+    } catch (err) {
+      console.error('Lỗi khi tải bệnh nhân:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const handleCreatePatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newP: PatientRecord = {
-      id: `BN-${Math.floor(8800 + Math.random() * 100)}`,
-      name,
-      phone,
-      gender,
-      dob: dob || '1990-01-01',
-      lastDoctor: 'TS.BS. Nguyễn Minh Anh',
-      totalVisits: 1,
-      status: 'Active',
-    };
-    setPatients([newP, ...patients]);
-    setIsPatientModalOpen(false);
+    try {
+      const birthYear = dob ? parseInt(dob.split('-')[0], 10) : 1990;
+      await patientsApi.create({
+        fullName: name,
+        phone,
+        gender,
+        birthYear,
+      });
+      setIsPatientModalOpen(false);
+      setName('');
+      setPhone('');
+      await loadPatients();
+    } catch (err) {
+      console.error('Lỗi khi tạo bệnh nhân:', err);
+    }
   };
 
   const columns: Column<PatientRecord>[] = [

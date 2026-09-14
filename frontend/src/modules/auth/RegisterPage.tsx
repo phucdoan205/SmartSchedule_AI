@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { User, Phone, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
+import { authApi } from '../../services/api';
 
 export const RegisterPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -10,12 +11,35 @@ export const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/auth/verify-otp');
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!agreeTerms) {
+      setErrorMessage('Vui lòng tích chọn đồng ý với điều khoản dịch vụ');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const res = await authApi.register({ fullName, phone, email, password });
+      setSuccessMessage(res.message || 'Đăng ký tài khoản thành công! Đang chuyển đến trang đăng nhập...');
+      setTimeout(() => {
+        navigate('/auth/login', { state: { registeredPhone: phone } });
+      }, 1500);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Đăng ký thất bại. Vui lòng kiểm tra lại.';
+      setErrorMessage(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const inputCls = `
@@ -30,6 +54,21 @@ export const RegisterPage: React.FC = () => {
       title="Đăng Ký Tài Khoản"
       description="Tạo hồ sơ bệnh nhân để theo dõi lịch sử điều trị & đặt lịch AI"
     >
+      {/* Alert Messages */}
+      {errorMessage && (
+        <div className="mb-4 p-3.5 bg-rose-500/20 border border-rose-400/40 rounded-xl text-xs text-rose-200 font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-4 p-3.5 bg-emerald-500/20 border border-emerald-400/40 rounded-xl text-xs text-emerald-200 font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       <form onSubmit={handleRegister} className="space-y-4">
 
         {/* Họ tên */}
@@ -124,17 +163,24 @@ export const RegisterPage: React.FC = () => {
         {/* Submit */}
         <button
           type="submit"
+          disabled={isSubmitting}
           className="
             w-full py-3.5 rounded-xl font-extrabold text-sm text-white mt-1
             bg-gradient-to-r from-teal-500 to-emerald-500
             hover:from-teal-400 hover:to-emerald-400
             shadow-lg shadow-teal-500/25 hover:shadow-teal-400/30
             transition-all duration-200 active:scale-[0.98]
-            flex items-center justify-center gap-2
+            flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50
           "
         >
-          <span>Đăng Ký & Nhận Mã OTP</span>
-          <ArrowRight className="w-4 h-4" />
+          {isSubmitting ? (
+            <span>Đang tạo tài khoản...</span>
+          ) : (
+            <>
+              <span>Đăng Ký Tài Khoản</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </button>
       </form>
 
