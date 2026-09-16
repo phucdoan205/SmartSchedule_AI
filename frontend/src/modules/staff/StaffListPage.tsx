@@ -16,9 +16,11 @@ import { MOCK_DOCTORS } from '../../services/mockData';
 import type { DoctorStaff } from '../../types/admin';
 import { ShiftModal } from './ShiftModal';
 import { StaffModal } from './StaffModal';
+import { rolePermissionStore, type SystemRoleItem } from '../../services/rolePermissionStore';
 
 export const StaffListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [roles, setRoles] = useState<SystemRoleItem[]>(() => rolePermissionStore.getRoles());
   const [doctorsList, setDoctorsList] = useState<DoctorStaff[]>(MOCK_DOCTORS);
   const [roleFilter, setRoleFilter] = useState('All');
   const [branchFilter, setBranchFilter] = useState('Chi nhánh Biên Hòa');
@@ -28,14 +30,27 @@ export const StaffListPage: React.FC = () => {
   const [selectedStaffIdForShift, setSelectedStaffIdForShift] = useState<string | undefined>(undefined);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
 
+  // Subscribe to role updates
+  React.useEffect(() => {
+    const unsubscribe = rolePermissionStore.subscribe(() => {
+      setRoles(rolePermissionStore.getRoles());
+    });
+    return unsubscribe;
+  }, []);
+
   // Filter staff list
   const filteredDoctors = useMemo(() => {
     return doctorsList.filter((doc) => {
       // Role filter
       if (roleFilter !== 'All') {
-        if (roleFilter === 'Doctor' && doc.role !== 'Doctor') return false;
-        if (roleFilter === 'Nurse' && doc.role !== 'Nurse') return false;
-        if (roleFilter === 'Receptionist' && doc.role !== 'Receptionist') return false;
+        const queryRole = roleFilter.toLowerCase();
+        const docRole = (doc.role || '').toLowerCase();
+        const docSpecialty = (doc.specialty || '').toLowerCase();
+        const matches =
+          docRole.includes(queryRole) ||
+          queryRole.includes(docRole) ||
+          docSpecialty.includes(queryRole);
+        if (!matches) return false;
       }
       // Branch filter
       if (branchFilter !== 'All' && doc.branch !== branchFilter) {
@@ -184,9 +199,11 @@ export const StaffListPage: React.FC = () => {
               className="appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 pr-8 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer shadow-2xs transition-all"
             >
               <option value="All">Tất cả chức danh</option>
-              <option value="Doctor">Bác sĩ chuyên khoa</option>
-              <option value="Nurse">Phụ tá / Điều dưỡng</option>
-              <option value="Receptionist">Lễ tân</option>
+              {roles.map((r) => (
+                <option key={r.code} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

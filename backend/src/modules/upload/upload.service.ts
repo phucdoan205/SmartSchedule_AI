@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { PrismaService } from '../../common/prisma/prisma.service.js';
 
 export interface MulterFile {
   fieldname: string;
@@ -30,7 +31,7 @@ export type UploadCategoryType = keyof typeof UPLOAD_CATEGORIES | string;
 
 @Injectable()
 export class UploadService {
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dolpobdpw',
       api_key: process.env.CLOUDINARY_API_KEY || '529424352781198',
@@ -81,6 +82,58 @@ export class UploadService {
 
       uploadStream.end(file.buffer);
     });
+  }
+
+  async uploadAvatar(
+    file: MulterFile,
+    userId: string,
+  ): Promise<{ url: string; public_id: string }> {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Vui lòng cung cấp tệp ảnh hợp lệ');
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Chỉ chấp nhận ảnh JPG, PNG, WEBP hoặc GIF');
+    }
+
+    // Validate size (max 2 MB)
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException('Ảnh đại diện tối đa 2 MB');
+    }
+
+    const folder = 'smartschedule_ai/avatars';
+
+    const result = await new Promise<{ url: string; public_id: string }>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: 'image',
+          transformation: [
+            { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+            { quality: 'auto', fetch_format: 'auto' },
+          ],
+          public_id: `avatar_${userId}_${Date.now()}`,
+          overwrite: true,
+        },
+        (error, res: UploadApiResponse | undefined) => {
+          if (error || !res) {
+            return reject(new BadRequestException(error?.message || 'Tải ảnh lên Cloudinary thất bại'));
+          }
+          resolve({ url: res.secure_url, public_id: res.public_id });
+        },
+      );
+      uploadStream.end(file.buffer);
+    });
+
+    // Save Cloudinary URL to database
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: result.url },
+    });
+
+    return result;
   }
 
   async uploadFilePath(

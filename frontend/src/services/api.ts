@@ -43,6 +43,23 @@ export const authApi = {
     const res = await apiClient.post('/auth/google', data);
     return res.data;
   },
+  getMe: async () => {
+    const res = await apiClient.get('/auth/me');
+    return res.data;
+  },
+  updateProfile: async (data: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    avatarUrl?: string;
+    birthYear?: number;
+    gender?: string;
+    address?: string;
+    medicalAlerts?: string;
+  }) => {
+    const res = await apiClient.patch('/auth/profile', data);
+    return res.data;
+  },
 };
 
 // Services API
@@ -235,6 +252,22 @@ export const uploadApi = {
       },
     });
     return res.data.data;
+  },
+};
+
+// Roles & RBAC Matrix API
+export const rolesApi = {
+  getAll: async () => {
+    const res = await apiClient.get('/roles');
+    return res.data;
+  },
+  createRole: async (data: { name: string; description?: string }) => {
+    const res = await apiClient.post('/roles', data);
+    return res.data;
+  },
+  saveMatrix: async (matrix: Record<string, string[]>) => {
+    const res = await apiClient.put('/roles/matrix', { matrix });
+    return res.data;
   },
 };
 

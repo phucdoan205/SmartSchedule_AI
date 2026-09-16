@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -23,8 +23,9 @@ import {
   ShieldCheck,
   LogOut,
 } from 'lucide-react';
-import logoImg from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
+import logoImg from '../../assets/logo.png';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -47,6 +48,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const displayEmail = user?.email || 'admin@smartschedule.ai';
   const initials = (user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'AD').toUpperCase();
 
+  // Determine current user's role code
+  const getUserRoleCode = () => {
+    if (!user || !user.roles || user.roles.length === 0) return 'owner';
+    const roles = user.roles;
+    if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
+    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa')) return 'doctor';
+    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
+    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên')) return 'nurse';
+    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên xét nghiệm')) return 'technician';
+    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh')) return 'manager';
+    return roles[0];
+  };
+
+  const userRoleCode = getUserRoleCode();
+
+  // Listen to rolePermissionStore updates for real-time sidebar re-rendering
+  const [, setStoreVersion] = useState(0);
+  useEffect(() => {
+    const unsubscribe = rolePermissionStore.subscribe(() => {
+      setStoreVersion((v) => v + 1);
+    });
+    return unsubscribe;
+  }, []);
+
   // Đóng popup khi bấm ra bất kỳ vị trí nào bên ngoài
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -61,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showProfileMenu]);
+
   const menuGroups = [
     {
       groupTitle: 'VẬN HÀNH CHÍNH',
@@ -98,6 +124,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
   ];
+
+  // Filter groups according to current role permissions
+  const filteredMenuGroups = useMemo(() => {
+    return menuGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path)
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [userRoleCode, menuGroups]);
 
   return (
     <aside
@@ -153,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation List */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-5">
-        {menuGroups.map((group, idx) => (
+        {filteredMenuGroups.map((group, idx) => (
           <div key={idx}>
             {!collapsed && (
               <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -222,8 +260,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             `}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-sky-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                {initials}
+              <div className="w-8 h-8 rounded-lg bg-sky-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform overflow-hidden">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
               </div>
               <div className="text-left min-w-0">
                 <p className="text-xs font-bold text-white truncate">{displayName}</p>
@@ -241,10 +283,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="w-10 h-10 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center transition-colors shadow-xs"
+              className="w-10 h-10 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center justify-center transition-colors shadow-xs overflow-hidden"
               title={`${displayName} - ${displayEmail}`}
             >
-              {initials}
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
             </button>
           </div>
         )}
@@ -275,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="button"
                 onClick={() => {
                   setShowProfileMenu(false);
-                  navigate('/admin/settings');
+                  navigate('/admin/profile');
                 }}
                 className="w-full flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-sky-600 font-medium text-left transition-colors"
               >
@@ -303,9 +349,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => {
                 setShowProfileMenu(false);
                 logout();
-                navigate('/auth/login');
               }}
-              className="w-full flex items-center gap-2.5 px-4 py-2 text-rose-600 hover:bg-rose-50 font-semibold text-left transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-rose-600 hover:bg-rose-50 font-semibold text-left transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Đăng xuất</span>

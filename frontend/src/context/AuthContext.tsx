@@ -12,6 +12,17 @@ export interface UserProfile {
   roles: string[];
   permissions?: string[];
   doctorProfile?: any;
+  patient?: {
+    id: string;
+    patientCode: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    birthYear?: number;
+    gender?: string;
+    medicalAlerts?: string;
+    appointments?: any[];
+  } | null;
 }
 
 interface AuthContextType {
@@ -22,6 +33,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (identity: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
+  updateUser: (updatedData: Partial<UserProfile>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return localStorage.getItem('access_token');
   });
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshUser = async () => {
+    try {
+      const res = await apiClient.get('/auth/me');
+      if (res.data) {
+        setUser(res.data);
+        localStorage.setItem('user_profile', JSON.stringify(res.data));
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải lại thông tin tài khoản:', err);
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -77,12 +102,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = (updatedData: Partial<UserProfile>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...updatedData };
+      if (updatedData.patient && prev.patient) {
+        next.patient = { ...prev.patient, ...updatedData.patient };
+      }
+      localStorage.setItem('user_profile', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user_profile');
     setToken(null);
     setUser(null);
-    window.location.href = '/auth/login';
+    window.location.href = '/';
   };
 
   const isAdmin = Boolean(
@@ -105,6 +142,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         logout,
+        updateUser,
+        refreshUser,
       }}
     >
       {children}

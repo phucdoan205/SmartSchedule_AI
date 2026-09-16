@@ -6,13 +6,40 @@ import {
   Sparkles,
   Menu,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
 }
 
+const AVATAR_GRADIENTS = [
+  'from-sky-500 to-teal-400',
+  'from-violet-500 to-indigo-400',
+  'from-rose-500 to-pink-400',
+  'from-amber-500 to-orange-400',
+  'from-emerald-500 to-teal-400',
+];
+
+function getGradient(name: string) {
+  const sum = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[sum % AVATAR_GRADIENTS.length];
+}
+
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const [selectedBranch, setSelectedBranch] = useState('CN1 - Cơ sở Quận 1 (Trung tâm)');
+  const { user } = useAuth();
+
+  const displayName = user?.fullName || 'Quản trị viên';
+  const displayEmail = user?.email || 'admin@smartschedule.ai';
+  const initials = displayName
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'AD';
+  const gradient = getGradient(displayName);
 
   return (
     <header className="h-14 md:h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-20 px-3 md:px-6 flex items-center justify-between shadow-xs gap-3 shrink-0">
@@ -76,14 +103,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
         </button>
 
-        {/* User Profile Badge (Đồng bộ dữ liệu mẫu với Sidebar, bỏ popup ở Header) */}
+        {/* User Profile Badge — live from useAuth() */}
         <div className="flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-50/60 border border-slate-200/60">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
-            AD
+          <div className={`w-8 h-8 rounded-full bg-gradient-to-tr ${gradient} text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 overflow-hidden`}>
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="text-left hidden md:block">
-            <p className="text-xs font-bold text-slate-800 whitespace-nowrap">Bs. Nguyễn Quản Lý</p>
-            <p className="text-[10px] text-slate-500 font-medium">admin@smartschedule.ai</p>
+            <p className="text-xs font-bold text-slate-800 whitespace-nowrap">{displayName}</p>
+            <p className="text-[10px] text-slate-500 font-medium">{displayEmail}</p>
           </div>
         </div>
       </div>

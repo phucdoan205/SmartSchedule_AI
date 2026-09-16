@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { User, Phone, Mail, Award, Building, Save } from 'lucide-react';
 import doctorImg1 from '../../assets/bacsi.jpg';
 import { toast } from '../../context/ToastContext';
+import { rolePermissionStore, type SystemRoleItem } from '../../services/rolePermissionStore';
 
 interface StaffModalProps {
   isOpen: boolean;
@@ -11,13 +12,37 @@ interface StaffModalProps {
 }
 
 export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave }) => {
+  const [roles, setRoles] = useState<SystemRoleItem[]>(() => rolePermissionStore.getRoles());
   const [name, setName] = useState('');
-  const [role, setRole] = useState('Doctor');
+  const [role, setRole] = useState(roles[1]?.name || 'Bác sĩ chuyên khoa');
   const [specialty, setSpecialty] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [branch, setBranch] = useState('Cơ sở Quận 1');
   const [salaryBase, setSalaryBase] = useState(25000000);
+
+  // Synchronize when roles update in SettingsPage
+  useEffect(() => {
+    const unsubscribe = rolePermissionStore.subscribe(() => {
+      const currentRoles = rolePermissionStore.getRoles();
+      setRoles(currentRoles);
+      if (!currentRoles.some((r) => r.name === role)) {
+        setRole(currentRoles[0]?.name || 'Bác sĩ chuyên khoa');
+      }
+    });
+    return unsubscribe;
+  }, [role]);
+
+  // When modal opens, refresh roles
+  useEffect(() => {
+    if (isOpen) {
+      const currentRoles = rolePermissionStore.getRoles();
+      setRoles(currentRoles);
+      if (!role) {
+        setRole(currentRoles[1]?.name || currentRoles[0]?.name || 'Bác sĩ chuyên khoa');
+      }
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +53,8 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         name,
         avatar: doctorImg1,
         role,
-        specialty,
-        department: `Khoa ${specialty || 'Nội'}`,
+        specialty: specialty || role,
+        department: `Khoa ${specialty || role}`,
         branch,
         phone,
         email,
@@ -41,7 +66,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         commission: 0,
       });
     }
-    toast(`Đã thêm nhân sự mới: ${name} thành công!`);
+    toast(`Đã thêm nhân sự mới: ${name} (${role}) thành công!`, 'success');
     onClose();
   };
 
@@ -57,14 +82,14 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors text-center"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors text-center cursor-pointer"
           >
             Hủy bỏ
           </button>
           <button
             type="button"
             onClick={handleSubmit}
-            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             Tạo Hồ Sơ Nhân Sự
@@ -95,13 +120,13 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-slate-50/50 font-medium"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-slate-50/50 font-semibold text-slate-800"
             >
-              <option value="Doctor">Bác sĩ chuyên khoa</option>
-              <option value="Nurse">Điều dưỡng viên</option>
-              <option value="Receptionist">Lễ tân phòng khám</option>
-              <option value="Technician">Kỹ thuật viên xét nghiệm</option>
-              <option value="Manager">Quản lý chi nhánh</option>
+              {roles.map((r) => (
+                <option key={r.code} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

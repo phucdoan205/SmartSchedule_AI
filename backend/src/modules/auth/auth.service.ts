@@ -304,6 +304,25 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
 
+    const patient = await this.prisma.patient.findFirst({
+      where: {
+        OR: [
+          { phone: user.phone },
+          { patientCode: user.employeeCode },
+        ],
+      },
+      include: {
+        appointments: {
+          include: {
+            doctor: true,
+            branch: true,
+            services: { include: { service: true } },
+          },
+          orderBy: { startTime: 'desc' },
+        },
+      },
+    });
+
     return {
       accessToken,
       user: {
@@ -317,6 +336,17 @@ export class AuthService {
         roles,
         permissions: Array.from(new Set(permissions)),
         doctorProfile: user.doctorProfile,
+        patient: patient ? {
+          id: patient.id,
+          patientCode: patient.patientCode,
+          fullName: patient.fullName,
+          phone: patient.phone,
+          email: patient.email,
+          birthYear: patient.birthYear,
+          gender: patient.gender,
+          medicalAlerts: patient.medicalAlerts,
+          appointments: patient.appointments,
+        } : null,
       },
     };
   }
@@ -339,6 +369,25 @@ export class AuthService {
       throw new UnauthorizedException('Không tìm thấy thông tin tài khoản');
     }
 
+    const patient = await this.prisma.patient.findFirst({
+      where: {
+        OR: [
+          { phone: user.phone },
+          { patientCode: user.employeeCode },
+        ],
+      },
+      include: {
+        appointments: {
+          include: {
+            doctor: true,
+            branch: true,
+            services: { include: { service: true } },
+          },
+          orderBy: { startTime: 'desc' },
+        },
+      },
+    });
+
     return {
       id: user.id,
       employeeCode: user.employeeCode,
@@ -349,7 +398,116 @@ export class AuthService {
       branch: user.branch,
       roles: user.userRoles.map((ur) => ur.role.name),
       doctorProfile: user.doctorProfile,
+      patient: patient ? {
+        id: patient.id,
+        patientCode: patient.patientCode,
+        fullName: patient.fullName,
+        phone: patient.phone,
+        email: patient.email,
+        birthYear: patient.birthYear,
+        gender: patient.gender,
+        medicalAlerts: patient.medicalAlerts,
+        appointments: patient.appointments,
+      } : null,
     };
+  }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      fullName?: string;
+      phone?: string;
+      email?: string;
+      avatarUrl?: string;
+      birthYear?: number;
+      gender?: string;
+      address?: string;
+      medicalAlerts?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('Không tìm thấy thông tin tài khoản');
+    }
+
+    const cleanPhone = data.phone ? data.phone.trim() : undefined;
+    const cleanEmail = data.email ? data.email.trim().toLowerCase() : undefined;
+
+    if (cleanPhone && cleanPhone !== user.phone) {
+      const existingPhone = await this.prisma.user.findFirst({
+        where: { phone: cleanPhone, id: { not: userId } },
+      });
+      if (existingPhone) {
+        throw new BadRequestException('Số điện thoại này đã được sử dụng bởi tài khoản khác');
+      }
+    }
+
+    if (cleanEmail && cleanEmail !== user.email) {
+      const existingEmail = await this.prisma.user.findFirst({
+        where: { email: cleanEmail, id: { not: userId } },
+      });
+      if (existingEmail) {
+        throw new BadRequestException('Email này đã được sử dụng bởi tài khoản khác');
+      }
+    }
+
+    // Update User
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.fullName ? { fullName: data.fullName.trim() } : {}),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+      },
+    });
+
+    // Update or create Patient
+    let patient = await this.prisma.patient.findFirst({
+      where: {
+        OR: [
+          { phone: user.phone },
+          { patientCode: user.employeeCode },
+        ],
+      },
+    });
+
+    const medicalAlertsValue =
+      data.address !== undefined || data.medicalAlerts !== undefined
+        ? data.address
+          ? `${data.address}${data.medicalAlerts ? ' | ' + data.medicalAlerts : ''}`
+          : data.medicalAlerts
+        : undefined;
+
+    if (patient) {
+      await this.prisma.patient.update({
+        where: { id: patient.id },
+        data: {
+          ...(data.fullName ? { fullName: data.fullName.trim() } : {}),
+          ...(cleanPhone ? { phone: cleanPhone } : {}),
+          ...(cleanEmail ? { email: cleanEmail } : {}),
+          ...(data.birthYear ? { birthYear: Number(data.birthYear) } : {}),
+          ...(data.gender ? { gender: data.gender } : {}),
+          ...(medicalAlertsValue !== undefined ? { medicalAlerts: medicalAlertsValue } : {}),
+        },
+      });
+    } else {
+      await this.prisma.patient.create({
+        data: {
+          patientCode: user.employeeCode.startsWith('BN-')
+            ? user.employeeCode
+            : `BN-${Date.now().toString().slice(-6)}`,
+          fullName: (data.fullName || user.fullName).trim(),
+          phone: cleanPhone || user.phone,
+          email: cleanEmail || user.email,
+          birthYear: data.birthYear ? Number(data.birthYear) : 1995,
+          gender: data.gender || 'Nam',
+          medicalAlerts: medicalAlertsValue || null,
+        },
+      });
+    }
+
+    return this.getMe(userId);
   }
 
   async googleLogin(googleUser: { email: string; name: string; avatarUrl?: string; sub?: string }) {

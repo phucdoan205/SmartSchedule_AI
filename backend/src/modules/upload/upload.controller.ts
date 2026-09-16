@@ -7,9 +7,12 @@ import {
   Query,
   Body,
   BadRequestException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 
 @Controller('upload')
 export class UploadController {
@@ -41,6 +44,33 @@ export class UploadController {
       success: true,
       message: 'Tải ảnh lên Cloudinary thành công',
       data: result,
+    };
+  }
+
+  /**
+   * POST /upload/avatar
+   * Upload avatar lên Cloudinary, chỉ lưu URL vào database
+   * Yêu cầu đăng nhập (JWT Bearer token)
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @UploadedFile() file: any,
+    @Req() req: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Vui lòng chọn tệp ảnh đại diện');
+    }
+    const userId = req.user?.sub || req.user?.id;
+    if (!userId) {
+      throw new BadRequestException('Không xác định được người dùng');
+    }
+    const result = await this.uploadService.uploadAvatar(file, userId);
+    return {
+      success: true,
+      message: 'Đã cập nhật ảnh đại diện thành công',
+      data: { url: result.url, public_id: result.public_id },
     };
   }
 }

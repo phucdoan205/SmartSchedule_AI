@@ -38,6 +38,7 @@ import { MaintenanceNotificationsPage } from '../modules/maintenance/Maintenance
 import { AiInsightsPage } from '../modules/ai-insights/AiInsightsPage';
 import { AuditLogsPage } from '../modules/audit-logs/AuditLogsPage';
 import { SettingsPage } from '../modules/settings/SettingsPage';
+import { AdminProfilePage } from '../modules/profile/AdminProfilePage';
 
 export const AppRoutes: React.FC = () => {
   const [isBookingWizardOpen, setIsBookingWizardOpen] = useState(false);
@@ -114,6 +115,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="ai-insights" element={<AiInsightsPage />} />
           <Route path="audit-logs" element={<AuditLogsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<AdminProfilePage />} />
         </Route>
 
         {/* Fallback route */}

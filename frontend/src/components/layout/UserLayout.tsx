@@ -37,6 +37,13 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
     { path: '/lookup', label: 'Tra cứu lịch hẹn' },
   ];
 
+  const getInitials = (name?: string) => {
+    if (!name) return 'BN';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       {/* Main Header / Navbar (thanh menu.png) */}
@@ -84,26 +91,43 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                   <button
                     type="button"
                     onClick={() => navigate('/admin')}
-                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1.5 cursor-pointer"
                     title="Vào trang quản trị"
                   >
                     <ShieldCheck className="w-4 h-4 text-indigo-600" />
                     <span>Quản trị</span>
                   </button>
                 )}
+
+                {/* User Avatar + Name (Link to Profile) */}
                 <button
                   type="button"
                   onClick={() => navigate('/profile')}
-                  className="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5 max-w-[150px]"
+                  title="Xem hồ sơ cá nhân"
+                  className="group px-2.5 py-1.5 bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-700 font-bold text-xs rounded-xl border border-slate-200/90 hover:border-sky-300 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
                 >
-                  <User className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span className="truncate">{user?.fullName || 'Hồ sơ'}</span>
+                  {user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="w-7 h-7 rounded-full object-cover border border-sky-300 shadow-2xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-sky-500 to-teal-400 text-white font-black text-[11px] flex items-center justify-center shadow-2xs shrink-0 tracking-wider">
+                      {getInitials(user?.fullName)}
+                    </div>
+                  )}
+                  <span className="max-w-[170px] truncate text-slate-800 group-hover:text-sky-700 font-bold text-xs">
+                    {user?.fullName || 'Hồ sơ'}
+                  </span>
                 </button>
+
+                {/* Logout Button */}
                 <button
                   type="button"
                   onClick={() => logout()}
                   title="Đăng xuất"
-                  className="p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl transition-all"
+                  className="p-2.5 bg-slate-100/90 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl border border-slate-200/80 hover:border-rose-200 transition-all cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -112,7 +136,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
               <button
                 type="button"
                 onClick={() => navigate('/auth/login')}
-                className="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5"
+                className="px-4 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <User className="w-4 h-4 text-sky-600" />
                 <span>Đăng Nhập</span>
@@ -122,7 +146,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
             <button
               type="button"
               onClick={onOpenBookingWizard}
-              className="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-teal-500 hover:from-sky-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              className="px-5 py-2.5 bg-gradient-to-r from-sky-600 to-teal-500 hover:from-sky-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
             >
               <Calendar className="w-4 h-4" />
               <span>Đặt Lịch Ngay</span>
@@ -161,6 +185,24 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
             <div className="pt-3 border-t border-slate-100 space-y-2">
               {isAuthenticated ? (
                 <>
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-3">
+                    {user?.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.fullName}
+                        className="w-10 h-10 rounded-full object-cover border border-sky-300 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 to-teal-400 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
+                        {getInitials(user?.fullName)}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-xs text-slate-900 truncate">{user?.fullName || 'Người dùng'}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{user?.phone || user?.email}</p>
+                    </div>
+                  </div>
+
                   {isAdmin && (
                     <button
                       type="button"
@@ -181,7 +223,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                     }}
                     className="w-full py-2.5 bg-sky-50 text-sky-800 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-sky-200"
                   >
-                    <User className="w-4 h-4" /> {user?.fullName || 'Hồ sơ cá nhân'}
+                    <User className="w-4 h-4" /> Hồ sơ cá nhân & Lịch sử
                   </button>
                   <button
                     type="button"

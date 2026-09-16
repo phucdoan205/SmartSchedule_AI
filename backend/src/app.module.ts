@@ -12,6 +12,7 @@ import { PatientsModule } from './modules/patients/patients.module.js';
 import { FinanceModule } from './modules/finance/finance.module.js';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { StaffModule } from './modules/staff/staff.module.js';
+import { RolesModule } from './modules/roles/roles.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -30,6 +31,7 @@ import { AppService } from './app.service.js';
     FinanceModule,
     AuditLogsModule,
     StaffModule,
+    RolesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
