@@ -37,6 +37,14 @@ export const PatientsPage: React.FC = () => {
   const [selectedPatientForReceipt, setSelectedPatientForReceipt] = useState<PatientRecord | null>(null);
   const [currentReceiptData, setCurrentReceiptData] = useState<ReceiptData | undefined>(undefined);
 
+  const extractDob = (p: any) => {
+    if (p.medicalAlerts) {
+      const match = p.medicalAlerts.match(/DOB:(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+    }
+    return p.birthYear ? `${p.birthYear}-01-01` : '1990-01-01';
+  };
+
   const loadPatients = async () => {
     try {
       setIsLoading(true);
@@ -47,7 +55,7 @@ export const PatientsPage: React.FC = () => {
           name: p.fullName,
           phone: p.phone,
           gender: p.gender,
-          dob: p.birthYear ? `${p.birthYear}-01-01` : '1990-01-01',
+          dob: extractDob(p),
           lastDoctor: 'BS. Chuyên Khoa',
           totalVisits: p._count?.appointments || 1,
           status: 'Active',
@@ -62,6 +70,24 @@ export const PatientsPage: React.FC = () => {
 
   React.useEffect(() => {
     loadPatients();
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      channel = new BroadcastChannel('smartschedule_sync');
+      channel.onmessage = () => {
+        loadPatients();
+      };
+    }
+
+    const handleFocus = () => {
+      loadPatients();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      channel?.close();
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const handleCreatePatient = async (e: React.FormEvent) => {
@@ -73,6 +99,7 @@ export const PatientsPage: React.FC = () => {
         phone,
         gender,
         birthYear,
+        dateOfBirth: dob,
       });
       setIsPatientModalOpen(false);
       setName('');

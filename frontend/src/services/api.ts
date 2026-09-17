@@ -145,6 +145,7 @@ export const appointmentsApi = {
     patientPhone: string;
     patientEmail?: string;
     birthYear?: number;
+    dateOfBirth?: string;
     gender?: string;
     branchId: string;
     doctorId: string;
@@ -169,7 +170,7 @@ export const appointmentsApi = {
     return res.data;
   },
   updateStatus: async (id: string, status: string, reason?: string) => {
-    const res = await apiClient.patch(`/appointments/${id}/status`, { status, reason });
+    const res = await apiClient.patch(`/appointments/${encodeURIComponent(id)}/status`, { status, reason });
     return res.data;
   },
 };

@@ -31,6 +31,7 @@ export class PatientsController {
       phone: string;
       email?: string;
       birthYear?: number;
+      dateOfBirth?: string;
       gender?: string;
       medicalAlerts?: string;
     },

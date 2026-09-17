@@ -79,11 +79,20 @@ export class PatientsService {
     phone: string;
     email?: string;
     birthYear?: number;
+    dateOfBirth?: string;
     gender?: string;
     medicalAlerts?: string;
   }) {
     const count = await this.prisma.patient.count();
     const patientCode = `BN-${1000 + count + 1}`;
+    const calculatedBirthYear = data.birthYear
+      ? Number(data.birthYear)
+      : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
+    const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
+    let alerts = data.medicalAlerts || '';
+    if (dobAlert) {
+      alerts = alerts ? `${alerts} | ${dobAlert}` : dobAlert;
+    }
 
     return this.prisma.patient.create({
       data: {
@@ -91,9 +100,9 @@ export class PatientsService {
         fullName: data.fullName,
         phone: data.phone,
         email: data.email,
-        birthYear: data.birthYear || 1990,
+        birthYear: calculatedBirthYear,
         gender: data.gender || 'Nam',
-        medicalAlerts: data.medicalAlerts,
+        medicalAlerts: alerts || undefined,
       },
     });
   }

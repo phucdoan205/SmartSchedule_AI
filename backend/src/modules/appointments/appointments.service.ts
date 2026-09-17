@@ -16,6 +16,7 @@ export class AppointmentsService {
     patientPhone: string;
     patientEmail?: string;
     birthYear?: number;
+    dateOfBirth?: string;
     gender?: string;
     branchId: string;
     doctorId: string;
@@ -44,45 +45,48 @@ export class AppointmentsService {
       });
 
       if (!chair) {
-        throw new NotFoundException(`Ghế khám ID ${data.chairId} không tồn tại`);
+        throw new NotFoundException(`Ghế điều trị ID ${data.chairId} không tồn tại`);
       }
 
       if (chair.status === 'MAINTENANCE') {
-        throw new ConflictException(
-          `Ghế khám ${chair.name} (${chair.code}) hiện đang trong quá trình bảo trì kỹ thuật, không thể xếp lịch`,
+        throw new BadRequestException(
+          `Ghế ${chair.name} đang bảo trì, không thể xếp lịch`,
         );
       }
 
-      // 2. Kiểm tra xung đột lịch của Bác sĩ trong khoảng [start, end]
-      const doctorConflict = await tx.appointment.findFirst({
-        where: {
-          doctorId: data.doctorId,
-          status: { notIn: ['CANCELLED'] },
-          startTime: { lt: end },
-          endTime: { gt: start },
-        },
-        include: { doctor: true },
-      });
-
-      if (doctorConflict) {
-        throw new ConflictException(
-          `Bác sĩ đã có lịch khám giao thoa trong khoảng thời gian này (Lịch: ${doctorConflict.appointmentCode})`,
-        );
-      }
-
-      // 3. Kiểm tra xung đột ghế khám có tính đệm vô trùng [start, bufferEnd]
+      // 2. Kiểm tra xung đột lịch của Ghế điều trị (bao gồm cả đệm vô trùng 15p)
       const chairConflict = await tx.appointment.findFirst({
         where: {
           chairId: data.chairId,
           status: { notIn: ['CANCELLED'] },
-          startTime: { lt: bufferEnd },
-          bufferEndTime: { gt: start },
+          AND: [
+            { startTime: { lt: bufferEnd } },
+            { bufferEndTime: { gt: start } },
+          ],
         },
       });
 
       if (chairConflict) {
-        throw new ConflictException(
-          `Ghế điều trị ${chair.name} đang bận hoặc đang trong thời gian khử khuẩn vô trùng 15 phút (Lịch: ${chairConflict.appointmentCode})`,
+        throw new BadRequestException(
+          `Ghế ${chair.name} đã bận hoặc đang trong thời gian đệm vô trùng 15 phút. Vui lòng chọn khung giờ khác.`,
+        );
+      }
+
+      // 3. Kiểm tra xung đột lịch của Bác sĩ
+      const doctorConflict = await tx.appointment.findFirst({
+        where: {
+          doctorId: data.doctorId,
+          status: { notIn: ['CANCELLED'] },
+          AND: [
+            { startTime: { lt: end } },
+            { endTime: { gt: start } },
+          ],
+        },
+      });
+
+      if (doctorConflict) {
+        throw new BadRequestException(
+          'Bác sĩ đã có lịch hẹn trùng giờ khám này. Vui lòng chọn thời gian khác.',
         );
       }
 
@@ -90,6 +94,11 @@ export class AppointmentsService {
       let patient = await tx.patient.findUnique({
         where: { phone: data.patientPhone },
       });
+
+      const calculatedBirthYear = data.birthYear
+        ? Number(data.birthYear)
+        : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
+      const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
 
       if (!patient) {
         const countPatients = await tx.patient.count();
@@ -100,8 +109,29 @@ export class AppointmentsService {
             fullName: data.patientName,
             phone: data.patientPhone,
             email: data.patientEmail,
-            birthYear: data.birthYear || 1990,
+            birthYear: calculatedBirthYear,
             gender: data.gender || 'Nam',
+            medicalAlerts: dobAlert || undefined,
+          },
+        });
+      } else {
+        // Cập nhật thông tin ngày sinh và họ tên cho hồ sơ bệnh nhân hiện có
+        const existingAlerts = patient.medicalAlerts || '';
+        let updatedAlerts = existingAlerts;
+        if (data.dateOfBirth) {
+          if (updatedAlerts.includes('DOB:')) {
+            updatedAlerts = updatedAlerts.replace(/DOB:\d{4}-\d{2}-\d{2}/, `DOB:${data.dateOfBirth}`);
+          } else {
+            updatedAlerts = updatedAlerts ? `${updatedAlerts} | DOB:${data.dateOfBirth}` : `DOB:${data.dateOfBirth}`;
+          }
+        }
+
+        patient = await tx.patient.update({
+          where: { id: patient.id },
+          data: {
+            fullName: data.patientName || patient.fullName,
+            birthYear: calculatedBirthYear,
+            medicalAlerts: updatedAlerts || undefined,
           },
         });
       }
@@ -273,16 +303,21 @@ export class AppointmentsService {
   }
 
   async updateStatus(id: string, status: string, reason?: string, changedBy?: string) {
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id },
+    const appointment = await this.prisma.appointment.findFirst({
+      where: {
+        OR: [
+          { id },
+          { appointmentCode: id },
+        ],
+      },
     });
 
     if (!appointment) {
-      throw new NotFoundException(`Lịch hẹn ID ${id} không tồn tại`);
+      throw new NotFoundException(`Lịch hẹn ${id} không tồn tại`);
     }
 
     return this.prisma.appointment.update({
-      where: { id },
+      where: { id: appointment.id },
       data: {
         status,
         statusHistory: {

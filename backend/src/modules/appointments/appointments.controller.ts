@@ -21,6 +21,7 @@ export class AppointmentsController {
       patientPhone: string;
       patientEmail?: string;
       birthYear?: number;
+      dateOfBirth?: string;
       gender?: string;
       branchId: string;
       doctorId: string;
