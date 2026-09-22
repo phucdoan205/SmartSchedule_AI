@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
+import { useAuth } from '../context/AuthContext';
 
 // User Portal Modules & Layout
 import { UserLayout } from '../components/layout/UserLayout';
@@ -40,6 +41,24 @@ import { AuditLogsPage } from '../modules/audit-logs/AuditLogsPage';
 import { SettingsPage } from '../modules/settings/SettingsPage';
 import { AdminProfilePage } from '../modules/profile/AdminProfilePage';
 
+/**
+ * Route trang chủ thông minh:
+ * - Khách hàng / Bệnh nhân / Khách vãng lai: Hiển thị Landing Page đặt lịch.
+ * - Admin, Bác sĩ, Nhân viên đã đăng nhập: Tự động chuyển hướng vào Trang Quản Trị (/admin/overview),
+ *   trừ khi có tham số ?preview=true (chế độ xem trước giao diện khách hàng).
+ */
+const RootIndexRoute: React.FC<{ onOpenBookingWizard: () => void }> = ({ onOpenBookingWizard }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === 'true' || searchParams.get('view') === 'client';
+
+  if (isAuthenticated && isAdmin && !isPreview) {
+    return <Navigate to="/admin/overview" replace />;
+  }
+
+  return <UserHomePage onOpenBookingWizard={onOpenBookingWizard} />;
+};
+
 export const AppRoutes: React.FC = () => {
   const [isBookingWizardOpen, setIsBookingWizardOpen] = useState(false);
   const [selectedDoctorForBooking, setSelectedDoctorForBooking] = useState<string | undefined>(undefined);
@@ -56,7 +75,7 @@ export const AppRoutes: React.FC = () => {
       <Routes>
         {/* User Portal Section */}
         <Route path="/" element={<UserLayout onOpenBookingWizard={() => handleOpenBookingWizard()} />}>
-          <Route index element={<UserHomePage onOpenBookingWizard={() => handleOpenBookingWizard()} />} />
+          <Route index element={<RootIndexRoute onOpenBookingWizard={() => handleOpenBookingWizard()} />} />
           <Route path="doctors" element={<UserDoctorsPage onOpenBookingWizard={(docId) => handleOpenBookingWizard(docId)} />} />
           <Route path="pricing" element={<UserPricingPage onOpenBookingWizard={(srvId) => handleOpenBookingWizard(undefined, srvId)} />} />
           <Route path="ai-consultation" element={<UserAiConsultationPage onOpenBookingWizard={(docId) => handleOpenBookingWizard(docId)} />} />

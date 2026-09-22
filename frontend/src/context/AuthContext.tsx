@@ -31,7 +31,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (identity: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (identity: string, password: string) => Promise<{ success: boolean; message?: string; user?: UserProfile }>;
   logout: () => void;
   updateUser: (updatedData: Partial<UserProfile>) => void;
   refreshUser: () => Promise<void>;
@@ -95,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(accessToken);
       setUser(userData);
 
-      return { success: true };
+      return { success: true, user: userData };
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Đăng nhập không thành công';
       return { success: false, message: msg };
@@ -122,14 +122,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/';
   };
 
+  const INTERNAL_STAFF_ROLES = [
+    'SUPER_ADMIN',
+    'ADMIN',
+    'BRANCH_MANAGER',
+    'DOCTOR',
+    'STAFF',
+    'RECEPTIONIST',
+    'NURSE',
+    'TECHNICIAN',
+    'CLINIC_OWNER',
+    'OWNER',
+  ];
+
   const isAdmin = Boolean(
     user &&
-      (user.roles.includes('SUPER_ADMIN') ||
-        user.roles.includes('ADMIN') ||
-        user.roles.includes('BRANCH_MANAGER') ||
-        user.roles.includes('DOCTOR') ||
-        user.roles.includes('STAFF') ||
-        user.roles.includes('RECEPTIONIST')),
+      Array.isArray(user.roles) &&
+      user.roles.some((r) => INTERNAL_STAFF_ROLES.includes(r.toUpperCase())),
   );
 
   return (

@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { generatePatientCode } from '../../common/utils/code-generator.util.js';
 import bcrypt from 'bcryptjs';
 import nodemailer, { Transporter } from 'nodemailer';
 
@@ -74,7 +75,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const patientCode = `BN-${Date.now().toString().slice(-6)}`;
+    const patientCode = await generatePatientCode(this.prisma);
     const finalEmail = cleanEmail || `${cleanPhone}@smartschedule.ai`;
 
     // Create user in database
@@ -494,9 +495,9 @@ export class AuthService {
     } else {
       await this.prisma.patient.create({
         data: {
-          patientCode: user.employeeCode.startsWith('BN-')
+          patientCode: user.employeeCode.startsWith('BN')
             ? user.employeeCode
-            : `BN-${Date.now().toString().slice(-6)}`,
+            : await generatePatientCode(this.prisma),
           fullName: (data.fullName || user.fullName).trim(),
           phone: cleanPhone || user.phone,
           email: cleanEmail || user.email,
@@ -552,12 +553,12 @@ export class AuthService {
 
       const randomPass = Math.random().toString(36).slice(-8) + 'Aa1@';
       const passwordHash = await bcrypt.hash(randomPass, 10);
-      const code = `GG-${Date.now().toString().slice(-6)}`;
+      const patientCode = await generatePatientCode(this.prisma);
       const phone = `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 
       user = await this.prisma.user.create({
         data: {
-          employeeCode: code,
+          employeeCode: patientCode,
           fullName: googleUser.name || 'Người dùng Google',
           email: cleanEmail,
           phone,
@@ -591,7 +592,7 @@ export class AuthService {
       // Also create patient record
       await this.prisma.patient.create({
         data: {
-          patientCode: code,
+          patientCode,
           fullName: googleUser.name || 'Người dùng Google',
           phone,
           email: cleanEmail,

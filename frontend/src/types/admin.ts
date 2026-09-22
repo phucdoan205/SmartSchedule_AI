@@ -57,7 +57,10 @@ export interface Appointment {
   doctorId: string;
   service: string;
   branch: string;
+  branchId?: string;
   dateTime: string;
+  dateStr?: string;
+  timeStr?: string;
   status: 'Confirmed' | 'Completed' | 'Pending' | 'Cancelled' | 'InProgress';
   aiScore?: number;
   aiNote?: string;

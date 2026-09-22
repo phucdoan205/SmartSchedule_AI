@@ -57,7 +57,7 @@ export const UserLookupPage: React.FC = () => {
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Tra Cứu Lịch Hẹn Khám Bệnh</h1>
         <p className="text-xs text-slate-500">
-          Nhập số điện thoại đã đăng ký hoặc mã đặt lịch (VD: #LH-2026-...) để xem trạng thái cuộc hẹn
+          Nhập số điện thoại đã đăng ký hoặc mã đặt lịch (VD: #LH-2026...) để xem trạng thái cuộc hẹn
         </p>
       </div>
 

@@ -15,6 +15,7 @@ interface DataTableProps<T> {
   searchField?: keyof T;
   title?: string;
   actionButton?: React.ReactNode;
+  itemsPerPage?: number;
 }
 
 export function DataTable<T extends { id?: string | number }>({
@@ -24,10 +25,11 @@ export function DataTable<T extends { id?: string | number }>({
   searchField,
   title,
   actionButton,
+  itemsPerPage = 6,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const pageSize = itemsPerPage;
 
   const filteredData = data.filter((item) => {
     if (!searchTerm) return true;

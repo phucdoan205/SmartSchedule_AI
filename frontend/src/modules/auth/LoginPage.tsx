@@ -8,6 +8,24 @@ import { authApi } from '../../services/api';
 /**
  * Trang đăng nhập thống nhất — kết nối trực tiếp API Backend & Hỗ trợ Google Login.
  */
+const INTERNAL_STAFF_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'BRANCH_MANAGER',
+  'DOCTOR',
+  'STAFF',
+  'RECEPTIONIST',
+  'NURSE',
+  'TECHNICIAN',
+  'CLINIC_OWNER',
+  'OWNER',
+];
+
+const isInternalStaffRole = (roles?: string[]) => {
+  if (!roles || !Array.isArray(roles)) return false;
+  return roles.some((r) => INTERNAL_STAFF_ROLES.includes(r.toUpperCase()));
+};
+
 export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [identity, setIdentity] = useState('');
@@ -17,10 +35,20 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGoogleGuideModal, setShowGoogleGuideModal] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || '/admin/overview';
+
+  // Nếu người dùng đã đăng nhập từ trước, tự động chuyển hướng theo quyền hạn
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      if (isAdmin) {
+        navigate('/admin/overview', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [isLoading, isAuthenticated, isAdmin, navigate]);
 
   // Lắng nghe callback đăng nhập Google OAuth2 nếu có
   useEffect(() => {
@@ -44,8 +72,9 @@ export const LoginPage: React.FC = () => {
               });
               if (res.data?.accessToken) {
                 localStorage.setItem('access_token', res.data.accessToken);
-                localStorage.setItem('auth_user', JSON.stringify(res.data.user));
-                window.location.href = from;
+                localStorage.setItem('user_profile', JSON.stringify(res.data.user));
+                const isStaff = isInternalStaffRole(res.data.user?.roles);
+                window.location.href = isStaff ? '/admin/overview' : '/';
               }
             }
           })
@@ -55,7 +84,7 @@ export const LoginPage: React.FC = () => {
           .finally(() => setIsSubmitting(false));
       }
     }
-  }, [from]);
+  }, []);
 
   const handleGoogleLogin = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -77,7 +106,18 @@ export const LoginPage: React.FC = () => {
 
     const res = await login(identity, password);
     if (res.success) {
-      navigate(from, { replace: true });
+      const isStaff = isInternalStaffRole(res.user?.roles);
+      const requestedFrom = (location.state as any)?.from?.pathname;
+
+      if (isStaff) {
+        // Tài khoản nhân sự/quản trị: Vào thẳng trang quản lý
+        const destination = requestedFrom && requestedFrom.startsWith('/admin') ? requestedFrom : '/admin/overview';
+        navigate(destination, { replace: true });
+      } else {
+        // Tài khoản khách hàng / bệnh nhân: Về trang chủ hoặc trang yêu cầu (không phải /admin)
+        const destination = requestedFrom && !requestedFrom.startsWith('/admin') ? requestedFrom : '/';
+        navigate(destination, { replace: true });
+      }
     } else {
       setErrorMessage(res.message || 'Tài khoản hoặc mật khẩu không chính xác');
     }

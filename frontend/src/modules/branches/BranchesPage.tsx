@@ -25,9 +25,11 @@ import { RoomHistoryModal } from './modals/RoomHistoryModal';
 import branch1Img from '../../assets/cơ sở 1.jpg';
 import branch2Img from '../../assets/cơ sở 2.jpg';
 import branch3Img from '../../assets/cơ sở 3.jpg';
-import { branchesApi } from '../../services/api';
+import { branchesApi, staffApi } from '../../services/api';
+import { useBranch } from '../../context/BranchContext';
 
 export const BranchesPage: React.FC = () => {
+  const { refreshBranches: refreshGlobalBranches } = useBranch();
   // Navigation State
   const [activeView, setActiveView] = useState<'branches' | 'detail' | 'staff_allocation' | 'room_config'>('branches');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('b-bienhoa');
@@ -44,13 +46,18 @@ export const BranchesPage: React.FC = () => {
   // Selected Room for Modals
   const [selectedRoom, setSelectedRoom] = useState<RoomItem | null>(null);
 
-  // Branches Data
+  // Branches & Staff Data
   const [branches, setBranches] = useState<any[]>([]);
+  const [staffCount, setStaffCount] = useState<number>(0);
+  const [doctorsCount, setDoctorsCount] = useState<number>(0);
 
   React.useEffect(() => {
-    const fetchBranches = async () => {
+    const fetchBranchesAndStaff = async () => {
       try {
-        const data = await branchesApi.getAll();
+        const [data, staffList] = await Promise.all([
+          branchesApi.getAll(),
+          staffApi.getAllStaff().catch(() => []),
+        ]);
         if (data && data.length > 0) {
           setBranches(
             data.map((b: any, idx: number) => ({
@@ -62,19 +69,25 @@ export const BranchesPage: React.FC = () => {
               email: `${b.code.toLowerCase()}@vietanhduc.vn`,
               status: b.isActive ? 'Active' : 'Inactive',
               statusLabel: b.isActive ? 'ĐANG HOẠT ĐỘNG' : 'TẠM NGƯNG',
-              roomCount: b.roomCount || 6,
-              doctorCount: b.doctorCount || 10,
+              roomCount: b.roomCount || 0,
+              chairCount: b.chairCount || b.roomCount || 0,
+              doctorCount: b.doctorCount || 0,
               performance: 92,
               image: b.imageUrl || (idx === 0 ? branch1Img : idx === 1 ? branch2Img : branch3Img),
             })),
           );
           setSelectedBranchId(data[0].id);
         }
+        if (Array.isArray(staffList)) {
+          setStaffCount(staffList.length);
+          const docs = staffList.filter((s: any) => s.role === 'DOCTOR' || s.doctorProfile);
+          setDoctorsCount(docs.length);
+        }
       } catch (err) {
-        console.error('Lỗi khi tải chi nhánh:', err);
+        console.error('Lỗi khi tải chi nhánh & nhân sự:', err);
       }
     };
-    fetchBranches();
+    fetchBranchesAndStaff();
   }, []);
 
   // Rooms Data State
@@ -183,6 +196,7 @@ export const BranchesPage: React.FC = () => {
 
   const handleSaveUpdatedBranch = (updated: any) => {
     setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
+    refreshGlobalBranches();
   };
 
   const handleAddNewBranch = (newBranch: any) => {
@@ -196,51 +210,47 @@ export const BranchesPage: React.FC = () => {
         image: branch3Img,
       },
     ]);
+    refreshGlobalBranches();
   };
 
   const handleAddNewRoom = (newRoom: any) => {
     setRooms((prev) => [...prev, newRoom]);
   };
 
+  // Tính toán dữ liệu thời gian thực cho Stat Cards
+  const totalBranches = branches.length;
+  const activeBranches = branches.filter((b) => b.status === 'Active' || b.isActive).length;
+  const inactiveBranches = totalBranches - activeBranches;
+
+  const totalChairs = branches.reduce((sum, b) => sum + (b.chairCount || b.roomCount || 0), 0);
+  const totalRooms = branches.reduce((sum, b) => sum + (b.roomCount || 0), 0);
+
+  const totalStaff = staffCount || branches.reduce((sum, b) => sum + (b.doctorCount || 0), 0);
+  const totalDocs = doctorsCount || branches.reduce((sum, b) => sum + (b.doctorCount || 0), 0);
+  const otherStaff = totalStaff > totalDocs ? totalStaff - totalDocs : 0;
+
   return (
     <div className="space-y-6">
-      {/* View Switcher Sub-header */}
-      <div className="flex items-center justify-between bg-slate-100/60 p-1.5 rounded-2xl border border-slate-200/80">
-        <div className="flex items-center gap-1 text-xs font-bold flex-wrap">
-          <button
-            type="button"
-            onClick={() => setActiveView('branches')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              activeView === 'branches'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            🏢 Danh Sách Hệ Thống Chi Nhánh
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('room_config')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              activeView === 'room_config'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            ⚙️ Cấu Hình Phòng &amp; Phòng Thủ Thuật
-          </button>
-          {activeView === 'detail' && (
-            <span className="px-3 py-1.5 bg-sky-50 text-sky-700 font-extrabold rounded-xl border border-sky-200">
-              🔍 Đang xem chi tiết: {currentBranch?.name || ''}
+      {/* Sub-header navigation breadcrumb khi xem chi tiết hoặc cấu hình */}
+      {activeView !== 'branches' && (
+        <div className="flex items-center justify-between bg-slate-100/70 p-2 px-3 rounded-2xl border border-slate-200/80">
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveView('branches')}
+              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>&larr; Danh sách chi nhánh</span>
+            </button>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-700 font-extrabold">
+              {activeView === 'detail' && `🔍 Chi tiết: ${currentBranch?.name || ''}`}
+              {activeView === 'staff_allocation' && `👥 Phân bổ nhân sự: ${currentBranch?.name || ''}`}
+              {activeView === 'room_config' && `⚙️ Cấu hình phòng & ghế: ${currentBranch?.name || ''}`}
             </span>
-          )}
-          {activeView === 'staff_allocation' && (
-            <span className="px-3 py-1.5 bg-indigo-50 text-indigo-700 font-extrabold rounded-xl border border-indigo-200">
-              👥 Đang phân bổ nhân sự: {currentBranch?.name || ''}
-            </span>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* VIEW 1: QUẢN LÝ HỆ THỐNG CHI NHÁNH & CƠ SỞ KHÁM (KHỚP 100% ẢNH ADMIN) */}
       {activeView === 'branches' && (
@@ -262,13 +272,13 @@ export const BranchesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsAddBranchOpen(true)}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Thêm chi nhánh mới
             </button>
           </div>
 
-          {/* Top 3 Summary KPI Cards (Khớp Ảnh "giao diện trang quản lí chi nhánh.png") */}
+          {/* Top 3 Summary KPI Cards (Dữ Liệu Thật 100% Từ Cơ Sở Dữ Liệu) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 text-xs">
             {/* Card 1: TỔNG SỐ CƠ SỞ */}
             <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex items-start gap-4">
@@ -279,8 +289,10 @@ export const BranchesPage: React.FC = () => {
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                   TỔNG SỐ CƠ SỞ
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-900">3 chi nhánh</h3>
-                <p className="text-[11px] text-slate-500 font-semibold">2 Đang hoạt động, 1 Đang hoàn thiện</p>
+                <h3 className="text-xl font-extrabold text-slate-900">{totalBranches} chi nhánh</h3>
+                <p className="text-[11px] text-slate-500 font-semibold">
+                  {activeBranches} Đang hoạt động{inactiveBranches > 0 ? `, ${inactiveBranches} Đang hoàn thiện` : ''}
+                </p>
               </div>
             </div>
 
@@ -293,8 +305,10 @@ export const BranchesPage: React.FC = () => {
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                   TỔNG SỐ GHẾ KHÁM
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-900">18 ghế nha khoa</h3>
-                <p className="text-[11px] text-slate-500 font-semibold">12 Ghế khám tiêu chuẩn, 6 Phòng mổ vô trùng Implant</p>
+                <h3 className="text-xl font-extrabold text-slate-900">{totalChairs} ghế nha khoa</h3>
+                <p className="text-[11px] text-slate-500 font-semibold">
+                  {totalRooms} phòng khám tiêu chuẩn &amp; phòng mổ
+                </p>
               </div>
             </div>
 
@@ -307,8 +321,10 @@ export const BranchesPage: React.FC = () => {
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                   TỔNG NHÂN SỰ
                 </span>
-                <h3 className="text-xl font-extrabold text-slate-900">48 bác sĩ &amp; điều dưỡng</h3>
-                <p className="text-[11px] text-slate-500 font-semibold">Đã phân bổ trên toàn hệ thống</p>
+                <h3 className="text-xl font-extrabold text-slate-900">{totalStaff} bác sĩ &amp; nhân sự</h3>
+                <p className="text-[11px] text-slate-500 font-semibold">
+                  {totalDocs} Bác sĩ{otherStaff > 0 ? `, ${otherStaff} điều dưỡng/nhân viên` : ' phân bổ toàn hệ thống'}
+                </p>
               </div>
             </div>
           </div>

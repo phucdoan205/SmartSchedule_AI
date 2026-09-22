@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { generatePatientCode, generateAppointmentCode } from '../../common/utils/code-generator.util.js';
 import crypto from 'crypto';
 
 @Injectable()
@@ -101,8 +102,7 @@ export class AppointmentsService {
       const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
 
       if (!patient) {
-        const countPatients = await tx.patient.count();
-        const patientCode = `BN-${1000 + countPatients + 1}`;
+        const patientCode = await generatePatientCode(tx);
         patient = await tx.patient.create({
           data: {
             patientCode,
@@ -145,10 +145,8 @@ export class AppointmentsService {
         throw new BadRequestException('Vui lòng chọn ít nhất một dịch vụ hợp lệ');
       }
 
-      // 6. Sinh mã lịch hẹn & mã QR Pass Code
-      const year = new Date().getFullYear();
-      const randomCode = Math.floor(1000 + Math.random() * 9000);
-      const appointmentCode = `#LH-${year}-${randomCode}`;
+      // 6. Sinh mã lịch hẹn theo ngày giờ hiện tại & mã QR Pass Code
+      const appointmentCode = await generateAppointmentCode(tx);
       const qrPassCode = `QR-PASS-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 
       // 7. Tạo bản ghi Appointment

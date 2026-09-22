@@ -22,6 +22,7 @@ import {
   User,
   ShieldCheck,
   LogOut,
+  Globe,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import logoImg from '../../assets/logo.png';
@@ -339,6 +340,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
                 <span>Bảo mật & Quyền hạn</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  navigate('/?preview=true');
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-sky-700 hover:bg-sky-50 font-semibold text-left transition-colors cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5 text-sky-500" />
+                <span>Xem Website Khách Hàng</span>
               </button>
             </div>
 

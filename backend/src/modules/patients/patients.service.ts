@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { generatePatientCode } from '../../common/utils/code-generator.util.js';
 
 @Injectable()
 export class PatientsService {
@@ -83,8 +84,7 @@ export class PatientsService {
     gender?: string;
     medicalAlerts?: string;
   }) {
-    const count = await this.prisma.patient.count();
-    const patientCode = `BN-${1000 + count + 1}`;
+    const patientCode = await generatePatientCode(this.prisma);
     const calculatedBirthYear = data.birthYear
       ? Number(data.birthYear)
       : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);

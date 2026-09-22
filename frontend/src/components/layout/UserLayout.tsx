@@ -30,7 +30,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const navLinks = [
-    { path: '/', label: 'Trang chủ', end: true },
+    { path: isAdmin ? '/?preview=true' : '/', label: 'Trang chủ', end: true },
     { path: '/doctors', label: 'Đội ngũ bác sĩ' },
     { path: '/pricing', label: 'Bảng giá dịch vụ' },
     { path: '/ai-consultation', label: 'AI tư vấn phác đồ', highlight: true },
@@ -46,11 +46,31 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+      {/* Admin Preview Top Banner - xuất hiện khi Quản trị viên/Bác sĩ xem giao diện khách */}
+      {isAdmin && (
+        <div className="bg-slate-900 border-b border-slate-800 text-white px-4 py-2 text-xs flex items-center justify-between sticky top-0 z-50 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-semibold text-slate-200">
+              Bạn đang xem giao diện Khách hàng với quyền <span className="text-teal-400 font-bold">{user?.fullName || 'Nội bộ'}</span>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/overview')}
+            className="px-3 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-extrabold rounded-lg transition-all flex items-center gap-1.5 shadow-sm text-[11px] cursor-pointer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Vào Trang Quản Trị &rarr;</span>
+          </button>
+        </div>
+      )}
+
       {/* Main Header / Navbar (thanh menu.png) */}
       <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
           {/* Logo & Brand Name */}
-          <NavLink to="/" className="flex items-center gap-3 shrink-0">
+          <NavLink to={isAdmin ? '/?preview=true' : '/'} className="flex items-center gap-3 shrink-0">
             <img src={logoImg} alt="SmartSchedule Logo" className="w-11 h-11 object-contain rounded-xl bg-sky-50 p-1 border border-sky-100 shadow-xs" />
             <div>
               <span className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
@@ -87,23 +107,11 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
           <div className="hidden sm:flex items-center gap-2.5">
             {isAuthenticated ? (
               <>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/admin')}
-                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition-all flex items-center gap-1.5 cursor-pointer"
-                    title="Vào trang quản trị"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                    <span>Quản trị</span>
-                  </button>
-                )}
-
                 {/* User Avatar + Name (Link to Profile) */}
                 <button
                   type="button"
-                  onClick={() => navigate('/profile')}
-                  title="Xem hồ sơ cá nhân"
+                  onClick={() => navigate(isAdmin ? '/admin/profile' : '/profile')}
+                  title={isAdmin ? "Xem hồ sơ quản trị viên" : "Xem hồ sơ cá nhân"}
                   className="group px-2.5 py-1.5 bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-700 font-bold text-xs rounded-xl border border-slate-200/90 hover:border-sky-300 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
                 >
                   {user?.avatarUrl ? (
@@ -203,27 +211,15 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                     </div>
                   </div>
 
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        navigate('/admin');
-                      }}
-                      className="w-full py-2.5 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-indigo-200"
-                    >
-                      <ShieldCheck className="w-4 h-4" /> Bảng Quản trị
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      navigate('/profile');
+                      navigate(isAdmin ? '/admin/profile' : '/profile');
                     }}
                     className="w-full py-2.5 bg-sky-50 text-sky-800 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-sky-200"
                   >
-                    <User className="w-4 h-4" /> Hồ sơ cá nhân & Lịch sử
+                    <User className="w-4 h-4" /> {isAdmin ? 'Hồ sơ Quản trị viên' : 'Hồ sơ cá nhân & Lịch sử'}
                   </button>
                   <button
                     type="button"
