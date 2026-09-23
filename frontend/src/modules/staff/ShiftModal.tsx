@@ -49,20 +49,20 @@ interface ShiftModalProps {
 const SHIFT_OPTIONS = [
   {
     type: 'morning' as const,
-    label: 'Ca Sáng',
+    label: 'Ca Sáng (Chuẩn)',
     time: '08:00 - 12:00',
     icon: Sun,
   },
   {
     type: 'afternoon' as const,
-    label: 'Ca Chiều',
-    time: '13:30 - 18:00',
+    label: 'Ca Chiều (Chuẩn)',
+    time: '13:30 - 17:30',
     icon: Moon,
   },
   {
     type: 'fullday' as const,
-    label: 'Cả ngày',
-    time: '08:00 - 18:00',
+    label: 'Cả ngày (Chuẩn)',
+    time: '08:00 - 17:30',
     icon: Briefcase,
   },
   {
@@ -121,6 +121,8 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   if (!isOpen) return null;
 
   const selectedDoctor = MOCK_DOCTORS.find((d) => d.id === staffId) || MOCK_DOCTORS[0];
+  const docName = (selectedDoctor?.name || (selectedDoctor as any)?.fullName || 'Bác sĩ').trim();
+  const doctorShortName = docName.split(/\s+/).slice(-2).join(' ') || 'bác sĩ';
 
   const toggleRepeatDay = (day: string) => {
     setRepeatDays((prev) =>
@@ -416,7 +418,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
                 <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/70 text-emerald-800 text-xs flex items-start gap-2.5">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div className="font-medium leading-relaxed">
-                    <span className="font-bold">✓ Hợp lệ:</span> Không trùng lịch trực và đảm bảo quy định thời gian nghỉ ngơi tối thiểu giữa 2 ca của {selectedDoctor.name.split(' ').slice(-2).join(' ')}.
+                    <span className="font-bold">✓ Hợp lệ:</span> Không trùng lịch trực và đảm bảo quy định thời gian nghỉ ngơi tối thiểu giữa 2 ca của {doctorShortName}.
                   </div>
                 </div>
 

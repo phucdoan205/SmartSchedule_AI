@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   UserPlus,
@@ -7,6 +7,7 @@ import {
   Check,
 } from 'lucide-react';
 import { MOCK_DOCTORS } from '../../../services/mockData';
+import { staffApi } from '../../../services/api';
 
 interface AddStaffModalProps {
   isOpen: boolean;
@@ -18,9 +19,10 @@ interface AddStaffModalProps {
 export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   isOpen,
   onClose,
-  branchName = 'Chi nhánh Biên Hòa',
+  branchName = 'Chi nhánh',
   onAddStaff,
 }) => {
+  const [dbDoctors, setDbDoctors] = useState<any[]>(MOCK_DOCTORS);
   const [selectedStaffId, setSelectedStaffId] = useState(MOCK_DOCTORS[0]?.id || 'nv-001');
   const [allocationType, setAllocationType] = useState<'permanent' | 'shift'>('permanent');
   const [roleTitle, setRoleTitle] = useState('Bác sĩ điều trị chính');
@@ -33,9 +35,20 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   const [startDate, setStartDate] = useState('2026-08-24');
   const [syncWebSchedule, setSyncWebSchedule] = useState(true);
 
+  useEffect(() => {
+    if (isOpen) {
+      staffApi.getAllStaff().then((list) => {
+        if (Array.isArray(list) && list.length > 0) {
+          setDbDoctors(list);
+          setSelectedStaffId(list[0].id);
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const currentDoctor = MOCK_DOCTORS.find((d) => d.id === selectedStaffId) || MOCK_DOCTORS[0];
+  const currentDoctor = dbDoctors.find((d) => d.id === selectedStaffId) || dbDoctors[0] || MOCK_DOCTORS[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,9 +117,9 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
                         onChange={(e) => setSelectedStaffId(e.target.value)}
                         className="w-full font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
                       >
-                        {MOCK_DOCTORS.map((doc) => (
+                        {dbDoctors.map((doc) => (
                           <option key={doc.id} value={doc.id}>
-                            {doc.name} (#{doc.code})
+                            {doc.name || doc.fullName} (#{doc.code || doc.employeeCode || doc.id.slice(0, 5)})
                           </option>
                         ))}
                       </select>

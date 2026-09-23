@@ -81,4 +81,31 @@ export class AppointmentsController {
       body.changedBy,
     );
   }
+
+  @Patch(':id')
+  async updateAppointment(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      patientName?: string;
+      patientPhone?: string;
+      patientEmail?: string;
+      dateOfBirth?: string;
+      birthYear?: number;
+      gender?: string;
+      medicalAlerts?: string;
+      branchId?: string;
+      doctorId?: string;
+      chairId?: string;
+      serviceIds?: string[];
+      startTime?: string;
+      durationMinutes?: number;
+      notes?: string;
+      status?: string;
+      editReason?: string;
+      changedBy?: string;
+    },
+  ) {
+    return this.appointmentsService.updateAppointment(id, body);
+  }
 }

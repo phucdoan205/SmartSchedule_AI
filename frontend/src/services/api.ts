@@ -128,6 +128,30 @@ export const staffApi = {
     const res = await apiClient.post('/staff', data);
     return res.data;
   },
+  updateStaff: async (id: string, data: any) => {
+    const res = await apiClient.patch(`/staff/${id}`, data);
+    return res.data;
+  },
+};
+
+// Staff Schedules API
+export const staffSchedulesApi = {
+  getAll: async (params?: { branchId?: string; startDate?: string; endDate?: string; userId?: string }) => {
+    const res = await apiClient.get('/staff/schedules', { params });
+    return res.data;
+  },
+  create: async (data: any) => {
+    const res = await apiClient.post('/staff/schedules', data);
+    return res.data;
+  },
+  autoGenerate: async (data: { branchId?: string; weekStart?: string }) => {
+    const res = await apiClient.post('/staff/schedules/auto-generate', data);
+    return res.data;
+  },
+  delete: async (id: string) => {
+    const res = await apiClient.delete(`/staff/schedules/${id}`);
+    return res.data;
+  },
 };
 
 // Appointments API
@@ -171,6 +195,10 @@ export const appointmentsApi = {
   },
   updateStatus: async (id: string, status: string, reason?: string) => {
     const res = await apiClient.patch(`/appointments/${encodeURIComponent(id)}/status`, { status, reason });
+    return res.data;
+  },
+  update: async (id: string, data: any) => {
+    const res = await apiClient.patch(`/appointments/${encodeURIComponent(id)}`, data);
     return res.data;
   },
 };

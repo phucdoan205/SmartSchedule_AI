@@ -379,4 +379,254 @@ export class AppointmentsService {
       existingAppointmentsCount: existingAppointments.length,
     };
   }
+
+  async updateAppointment(
+    id: string,
+    data: {
+      patientName?: string;
+      patientPhone?: string;
+      patientEmail?: string;
+      dateOfBirth?: string;
+      birthYear?: number;
+      gender?: string;
+      medicalAlerts?: string;
+      branchId?: string;
+      doctorId?: string;
+      chairId?: string;
+      serviceIds?: string[];
+      startTime?: string | Date;
+      durationMinutes?: number;
+      notes?: string;
+      status?: string;
+      editReason?: string;
+      changedBy?: string;
+    },
+  ) {
+    const existing = await this.prisma.appointment.findFirst({
+      where: {
+        OR: [{ id }, { appointmentCode: id }],
+      },
+      include: {
+        patient: true,
+        chair: {
+          include: { room: true },
+        },
+        services: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Lịch hẹn ${id} không tồn tại`);
+    }
+
+    if (existing.status === 'COMPLETED' && data.startTime) {
+      throw new BadRequestException('Lịch hẹn đã hoàn thành điều trị, không thể thay đổi thời gian khám');
+    }
+
+    let start = existing.startTime;
+    let end = existing.endTime;
+    let bufferEnd = existing.bufferEndTime;
+
+    if (data.startTime) {
+      const parsedStart = new Date(data.startTime);
+      if (isNaN(parsedStart.getTime())) {
+        throw new BadRequestException('Thời gian bắt đầu không hợp lệ');
+      }
+      start = parsedStart;
+      const duration = data.durationMinutes || Math.round((existing.endTime.getTime() - existing.startTime.getTime()) / (60 * 1000)) || 60;
+      end = new Date(start.getTime() + duration * 60 * 1000);
+      bufferEnd = new Date(end.getTime() + 15 * 60 * 1000);
+    }
+
+    const targetDoctorId = data.doctorId || existing.doctorId;
+    const targetBranchId = data.branchId || existing.branchId;
+    let targetChairId = data.chairId || existing.chairId;
+
+    // Kiểm tra ghế có thuộc chi nhánh chỉ định không, nếu không tìm ghế phù hợp trong chi nhánh
+    const chairInBranch = await this.prisma.operatoryChair.findFirst({
+      where: {
+        id: targetChairId,
+        room: { branchId: targetBranchId },
+      },
+      include: { room: true },
+    });
+
+    if (!chairInBranch) {
+      const fallbackChair = await this.prisma.operatoryChair.findFirst({
+        where: {
+          room: { branchId: targetBranchId },
+          status: { not: 'MAINTENANCE' },
+        },
+      });
+      if (fallbackChair) {
+        targetChairId = fallbackChair.id;
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Kiểm tra ghế điều trị (nếu có thay đổi giờ hoặc ghế hoặc chi nhánh)
+      if (data.startTime || data.chairId || data.branchId) {
+        const chair = await tx.operatoryChair.findUnique({
+          where: { id: targetChairId },
+        });
+
+        if (chair && chair.status === 'MAINTENANCE') {
+          throw new BadRequestException(`Ghế ${chair.name} đang bảo trì, không thể xếp lịch`);
+        }
+
+        const chairConflict = await tx.appointment.findFirst({
+          where: {
+            id: { not: existing.id },
+            chairId: targetChairId,
+            status: { notIn: ['CANCELLED'] },
+            AND: [
+              { startTime: { lt: bufferEnd } },
+              { bufferEndTime: { gt: start } },
+            ],
+          },
+        });
+
+        if (chairConflict) {
+          throw new BadRequestException(
+            'Ghế điều trị đã có lịch hẹn hoặc đang trong đệm vô trùng 15 phút tại khung giờ này. Vui lòng chọn khung giờ khác.',
+          );
+        }
+      }
+
+      // 2. Kiểm tra xung đột bác sĩ (nếu thay đổi giờ hoặc bác sĩ)
+      if (data.startTime || data.doctorId) {
+        const doctorConflict = await tx.appointment.findFirst({
+          where: {
+            id: { not: existing.id },
+            doctorId: targetDoctorId,
+            status: { notIn: ['CANCELLED'] },
+            AND: [
+              { startTime: { lt: end } },
+              { endTime: { gt: start } },
+            ],
+          },
+        });
+
+        if (doctorConflict) {
+          throw new BadRequestException(
+            'Bác sĩ đã có lịch hẹn khám khác trong khung giờ này. Vui lòng chọn khung giờ hoặc bác sĩ khác.',
+          );
+        }
+      }
+
+      // 3. Cập nhật hồ sơ bệnh nhân nếu có thay đổi
+      if (
+        data.patientName ||
+        data.patientPhone ||
+        data.dateOfBirth ||
+        data.birthYear !== undefined ||
+        data.medicalAlerts !== undefined
+      ) {
+        const patientUpdateData: any = {};
+        if (data.patientName) patientUpdateData.fullName = data.patientName;
+        if (data.patientPhone) patientUpdateData.phone = data.patientPhone;
+        if (data.patientEmail) patientUpdateData.email = data.patientEmail;
+        if (data.gender) patientUpdateData.gender = data.gender;
+
+        if (data.birthYear !== undefined) {
+          patientUpdateData.birthYear = Number(data.birthYear);
+        } else if (data.dateOfBirth) {
+          patientUpdateData.birthYear = parseInt(data.dateOfBirth.split('-')[0], 10);
+        }
+
+        let updatedAlerts = existing.patient.medicalAlerts || '';
+        if (data.dateOfBirth) {
+          if (updatedAlerts.includes('DOB:')) {
+            updatedAlerts = updatedAlerts.replace(/DOB:\d{4}-\d{2}-\d{2}/, `DOB:${data.dateOfBirth}`);
+          } else {
+            updatedAlerts = updatedAlerts ? `${updatedAlerts} | DOB:${data.dateOfBirth}` : `DOB:${data.dateOfBirth}`;
+          }
+        }
+        if (data.medicalAlerts !== undefined) {
+          if (data.dateOfBirth && !data.medicalAlerts.includes('DOB:')) {
+            updatedAlerts = `${data.medicalAlerts} | DOB:${data.dateOfBirth}`;
+          } else {
+            updatedAlerts = data.medicalAlerts;
+          }
+        }
+        patientUpdateData.medicalAlerts = updatedAlerts || undefined;
+
+        await tx.patient.update({
+          where: { id: existing.patientId },
+          data: patientUpdateData,
+        });
+      }
+
+      // 4. Cập nhật dịch vụ nếu có danh sách mới
+      if (data.serviceIds && data.serviceIds.length > 0) {
+        const services = await tx.service.findMany({
+          where: { id: { in: data.serviceIds } },
+        });
+
+        if (services.length > 0) {
+          await tx.appointmentService.deleteMany({
+            where: { appointmentId: existing.id },
+          });
+
+          await tx.appointmentService.createMany({
+            data: services.map((s) => ({
+              appointmentId: existing.id,
+              serviceId: s.id,
+              price: s.standardPrice,
+            })),
+          });
+        }
+      }
+
+      // 5. Cập nhật bản ghi Appointment
+      const appointmentUpdateData: any = {
+        branchId: targetBranchId,
+        doctorId: targetDoctorId,
+        chairId: targetChairId,
+        startTime: start,
+        endTime: end,
+        bufferEndTime: bufferEnd,
+      };
+
+      if (data.notes !== undefined) {
+        appointmentUpdateData.notes = data.notes;
+      }
+
+      if (data.status) {
+        appointmentUpdateData.status = data.status;
+      }
+
+      const updated = await tx.appointment.update({
+        where: { id: existing.id },
+        data: appointmentUpdateData,
+        include: {
+          patient: true,
+          branch: true,
+          doctor: true,
+          chair: {
+            include: { room: true },
+          },
+          services: {
+            include: { service: true },
+          },
+          statusHistory: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
+
+      // 6. Ghi vết lịch sử chỉnh sửa
+      await tx.appointmentStatusHistory.create({
+        data: {
+          appointmentId: existing.id,
+          fromStatus: existing.status,
+          toStatus: data.status || existing.status,
+          reason: data.editReason || 'Cập nhật/điều chỉnh thông tin lịch hẹn',
+          changedBy: data.changedBy || 'Lễ tân / Quản trị viên',
+        },
+      });
+
+      return updated;
+    });
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -18,10 +18,13 @@ import {
   Search,
   CheckCircle2,
   TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { MOCK_DOCTORS, MOCK_SERVICES } from '../../services/mockData';
 import { ShiftModal } from './ShiftModal';
 import { DoctorEditModal } from './DoctorEditModal';
+import { staffApi } from '../../services/api';
+import { exportToExcel } from '../../utils/excelExport';
 
 // ─── Mock data for tabs ─────────────────────────────────────────────────────
 const WEEK_DAYS = [
@@ -175,7 +178,109 @@ export const DoctorDetailPage: React.FC = () => {
   const [historySearch, setHistorySearch] = useState('');
   const [showWebToggle, setShowWebToggle] = useState(true);
 
-  const doctor = MOCK_DOCTORS.find((d) => d.id === id) || MOCK_DOCTORS[0];
+  const [doctor, setDoctor] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDoctor = async () => {
+    try {
+      setLoading(true);
+      const data = await staffApi.getDoctorById(id || 'NV001');
+      if (data) {
+        const resolvedName = data.name || data.fullName || 'Bác sĩ';
+        const resolvedCode = data.code || data.employeeCode || `NV-${String(data.id).slice(0, 4)}`;
+        const resolvedAvatar = data.avatar || data.avatarUrl;
+        setDoctor({
+          id: data.id,
+          code: resolvedCode,
+          employeeCode: resolvedCode,
+          name: resolvedName,
+          fullName: resolvedName,
+          initials: resolvedName
+            ? resolvedName.trim().split(/\s+/).map((w: string) => w[0]).join('').slice(-2).toUpperCase()
+            : 'BS',
+          specialty: data.specialty || data.doctorProfile?.specialty || data.department || 'Phục hình Răng sứ & Thẩm mỹ',
+          branch: data.branch?.name || data.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)',
+          branchId: data.branchId,
+          phone: data.phone || '090 123 4567',
+          email: data.email || 'doctor@smartschedule.ai',
+          avatar: resolvedAvatar,
+          avatarUrl: resolvedAvatar,
+          rating: data.rating || data.doctorProfile?.rating || data.doctorProfile?.ratingAverage || 4.9,
+          totalAppointments: data.totalAppointments || data.doctorProfile?.totalAppointments || data.doctorAppointments?.length || 128,
+          commissionRate: data.commissionRate ?? 15,
+          joinedDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN') : (data.joinedDate || '12/05/2021'),
+          title: data.title || data.doctorProfile?.title || data.role || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt',
+          bio: data.bio || data.doctorProfile?.bio || 'Chuyên gia phục hình nụ cười với hơn 8 năm kinh nghiệm...',
+          doctorAppointments: data.doctorAppointments || [],
+          staffSchedules: data.staffSchedules || [],
+        });
+      } else {
+        const fallback = MOCK_DOCTORS.find((d) => d.id === id || d.code === id) || MOCK_DOCTORS[0];
+        setDoctor(fallback);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi tải thông tin bác sĩ:', err);
+      const fallback = MOCK_DOCTORS.find((d) => d.id === id || d.code === id) || MOCK_DOCTORS[0];
+      setDoctor(fallback);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDoctor();
+
+    // Listen to real-time sync when doctor updates profile in doctor account or modal
+    try {
+      const channel = new BroadcastChannel('smartschedule_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'STAFF_UPDATED') {
+          fetchDoctor();
+        }
+      };
+      return () => channel.close();
+    } catch (e) {
+      // BroadcastChannel fallback
+    }
+  }, [id]);
+
+  const handleExportSchedule = () => {
+    const targetDoc = doctor || currentDoctor;
+    if (!targetDoc) return;
+    const scheduleData = WEEK_DAYS.map((d, i) => {
+      const shift = DOCTOR_SHIFTS[i];
+      return {
+        'Thứ': d.label,
+        'Ngày': d.date,
+        'Bác sĩ': targetDoc.name || targetDoc.fullName || 'Bác sĩ',
+        'Mã bác sĩ': targetDoc.code || targetDoc.employeeCode || 'NV001',
+        'Ca trực': shift?.type === 'morning' ? 'Ca Sáng' : shift?.type === 'afternoon' ? 'Ca Chiều' : shift?.type === 'fullday' ? 'Cả ngày' : 'Nghỉ (OFF)',
+        'Khung giờ': shift?.time || '—',
+        'Phòng / Ghế': shift?.room || '—',
+        'Số ca hẹn': shift?.patients || 0,
+      };
+    });
+    exportToExcel(scheduleData, `Lich_truc_${targetDoc.code || targetDoc.employeeCode || 'BS'}_Tuan`);
+  };
+
+  const handleExportTreatments = () => {
+    const targetDoc = doctor || currentDoctor;
+    if (!targetDoc) return;
+    const treatments = (targetDoc.doctorAppointments && targetDoc.doctorAppointments.length > 0)
+      ? targetDoc.doctorAppointments.map((a: any) => ({
+          'Mã ca': a?.appointmentCode || (a?.id ? a.id.slice(0, 8) : '#CA-001'),
+          'Ngày khám': a?.startTime ? new Date(a.startTime).toLocaleDateString('vi-VN') : (a?.date || '—'),
+          'Bệnh nhân': a?.patient?.fullName || 'Khách hàng',
+          'SĐT': a?.patient?.phone || '—',
+          'Dịch vụ kỹ thuật': a?.services?.[0]?.service?.name || 'Khám điều trị',
+          'Thời lượng (phút)': a?.services?.[0]?.service?.durationMinutes || 60,
+          'Doanh thu (VNĐ)': a?.services?.[0]?.service?.price || 12000000,
+          'Hoa hồng (VNĐ)': (((a?.services?.[0]?.service?.price || 12000000) * (targetDoc.commissionRate || 15)) / 100),
+        }))
+      : MOCK_TREATMENT_HISTORY;
+
+    exportToExcel(treatments, `Lich_su_ca_kham_${targetDoc.code || targetDoc.employeeCode || 'BS'}`);
+  };
 
   // Star distribution mock
   const starDist = [
@@ -193,6 +298,17 @@ export const DoctorDetailPage: React.FC = () => {
     { id: 'reviews', label: 'Đánh giá từ bệnh nhân' },
   ] as const;
 
+  if (loading && !doctor) {
+    return (
+      <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-sky-600" />
+        <p className="text-xs font-semibold text-slate-500">Đang tải hồ sơ bác sĩ...</p>
+      </div>
+    );
+  }
+
+  const currentDoctor = doctor || MOCK_DOCTORS[0];
+
   return (
     <div className="min-h-screen bg-slate-50/50">
       {/* Breadcrumb */}
@@ -205,7 +321,9 @@ export const DoctorDetailPage: React.FC = () => {
           Danh sách nhân viên
         </button>
         <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-        <span className="text-slate-800 font-semibold">Chi tiết: {doctor.name} ({doctor.code})</span>
+        <span className="text-slate-800 font-semibold">
+          Chi tiết: {currentDoctor.name || currentDoctor.fullName || 'Bác sĩ'} ({currentDoctor.code || currentDoctor.employeeCode || 'NV001'})
+        </span>
       </nav>
 
       {/* Top Action Bar */}
@@ -237,15 +355,15 @@ export const DoctorDetailPage: React.FC = () => {
           {/* Profile Card */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-5 flex flex-col items-center text-center">
             <div className="relative mb-3">
-              {doctor.avatar ? (
+              {currentDoctor.avatar ? (
                 <img
-                  src={doctor.avatar}
-                  alt={doctor.name}
+                  src={currentDoctor.avatar}
+                  alt={currentDoctor.name || currentDoctor.fullName}
                   className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-md"
                 />
               ) : (
                 <div className="w-24 h-24 rounded-2xl bg-sky-100 text-sky-700 font-black text-2xl flex items-center justify-center border-4 border-white shadow-md">
-                  {doctor.initials}
+                  {currentDoctor.initials || (currentDoctor.name || currentDoctor.fullName || 'BS').slice(0, 2).toUpperCase()}
                 </div>
               )}
               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">
@@ -254,25 +372,25 @@ export const DoctorDetailPage: React.FC = () => {
               </span>
             </div>
 
-            <h2 className="text-sm font-black text-slate-900 mt-2">{doctor.name}</h2>
-            <p className="text-[11px] font-bold text-sky-600 mt-0.5">#{doctor.code}</p>
-            <p className="text-xs text-slate-500 font-medium mt-1 leading-snug">{doctor.specialty}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{doctor.branch}</p>
+            <h2 className="text-sm font-black text-slate-900 mt-2">{currentDoctor.name || currentDoctor.fullName}</h2>
+            <p className="text-[11px] font-bold text-sky-600 mt-0.5">#{currentDoctor.code || currentDoctor.employeeCode}</p>
+            <p className="text-xs text-slate-500 font-medium mt-1 leading-snug">{currentDoctor.specialty}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{currentDoctor.branch}</p>
 
             <div className="w-full h-px bg-slate-100 my-4" />
 
             <div className="w-full space-y-2.5 text-left">
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="font-medium">{doctor.phone}</span>
+                <span className="font-medium">{currentDoctor.phone}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="font-medium truncate text-[11px]">{doctor.email}</span>
+                <span className="font-medium truncate text-[11px]">{currentDoctor.email}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="font-medium">Gia nhập: 12/05/2021</span>
+                <span className="font-medium">Gia nhập: {currentDoctor.joinedDate || '12/05/2021'}</span>
               </div>
             </div>
 
@@ -284,12 +402,12 @@ export const DoctorDetailPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
                   <p className="text-[10px] text-slate-400 font-semibold mb-1">Mức hoa hồng</p>
-                  <p className="text-base font-black text-slate-800">{doctor.commissionRate ?? 15}%</p>
+                  <p className="text-base font-black text-slate-800">{currentDoctor.commissionRate ?? 15}%</p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đánh giá ({doctor.totalAppointments})</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đánh giá ({currentDoctor.totalAppointments})</p>
                   <div className="flex items-center justify-center gap-1">
-                    <span className="text-base font-black text-slate-800">{doctor.rating}</span>
+                    <span className="text-base font-black text-slate-800">{currentDoctor.rating}</span>
                     <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                   </div>
                 </div>
@@ -425,7 +543,11 @@ export const DoctorDetailPage: React.FC = () => {
                       <Printer className="w-3.5 h-3.5" />
                       In lịch
                     </button>
-                    <button type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                    <button
+                      type="button"
+                      onClick={handleExportSchedule}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
                       <Download className="w-3.5 h-3.5" />
                       Xuất Excel
                     </button>
@@ -599,7 +721,8 @@ export const DoctorDetailPage: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                      onClick={handleExportTreatments}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       <Download className="w-3 h-3" />
                       Xuất danh sách ca khám (Excel)
@@ -767,14 +890,17 @@ export const DoctorDetailPage: React.FC = () => {
       <ShiftModal
         isOpen={isShiftModalOpen}
         onClose={() => setIsShiftModalOpen(false)}
-        initialStaffId={doctor.id}
+        initialStaffId={currentDoctor.id}
       />
 
       {/* Doctor Edit Modal */}
       <DoctorEditModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        doctor={doctor}
+        doctor={currentDoctor}
+        onSave={(updated) => {
+          setDoctor((prev: any) => ({ ...prev, ...updated }));
+        }}
       />
     </div>
   );

@@ -51,19 +51,30 @@ export interface LeaveRequest {
 
 export interface Appointment {
   id: string;
+  realId?: string;
   patientName: string;
   patientPhone: string;
+  patientDob?: string;
+  medicalAlerts?: string;
   doctorName: string;
   doctorId: string;
   service: string;
+  serviceId?: string;
   branch: string;
   branchId?: string;
+  chairId?: string;
+  chairName?: string;
   dateTime: string;
   dateStr?: string;
   timeStr?: string;
+  dateRaw?: string;
+  timeRaw?: string;
+  startTime?: string | Date;
   status: 'Confirmed' | 'Completed' | 'Pending' | 'Cancelled' | 'InProgress';
   aiScore?: number;
   aiNote?: string;
+  notes?: string;
+  rawItem?: any;
 }
 
 export interface Branch {

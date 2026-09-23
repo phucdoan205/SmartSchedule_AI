@@ -16,18 +16,23 @@ import {
   Plus,
   Pencil,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
+import { staffApi, uploadApi } from '../../services/api';
 
 export interface DoctorEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  doctor: {
-    id: string;
-    code: string;
-    name: string;
+  doctor?: {
+    id?: string;
+    code?: string;
+    employeeCode?: string;
+    name?: string;
+    fullName?: string;
     phone?: string;
     email?: string;
     avatar?: string;
+    avatarUrl?: string;
     initials?: string;
     specialty?: string;
     branch?: string;
@@ -39,7 +44,7 @@ export interface DoctorEditModalProps {
     title?: string;
     bio?: string;
     services?: string[];
-  };
+  } | null;
   onSave?: (updatedDoctor: any) => void;
 }
 
@@ -63,17 +68,18 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states initialized with doctor or default values
-  const [avatarPreview, setAvatarPreview] = useState<string | undefined>(doctor.avatar);
-  const [code] = useState(doctor.code || 'NV001');
-  const [name, setName] = useState(doctor.name || 'BS. Nguyễn Thị An');
-  const [title, setTitle] = useState(doctor.title || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt');
-  const [phone, setPhone] = useState(doctor.phone || '090 123 4567');
-  const [joinedDate, setJoinedDate] = useState(doctor.joinedDate || '12/05/2021');
-  const [email, setEmail] = useState(doctor.email || 'bs.an@vietanhduc.vn');
+  const [avatarPreview, setAvatarPreview] = useState<string | undefined>(doctor?.avatar || doctor?.avatarUrl);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [code, setCode] = useState(doctor?.code || doctor?.employeeCode || 'NV001');
+  const [name, setName] = useState(doctor?.name || doctor?.fullName || 'BS. Nguyễn Thị An');
+  const [title, setTitle] = useState(doctor?.title || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt');
+  const [phone, setPhone] = useState(doctor?.phone || '090 123 4567');
+  const [joinedDate, setJoinedDate] = useState(doctor?.joinedDate || '12/05/2021');
+  const [email, setEmail] = useState(doctor?.email || 'bs.an@vietanhduc.vn');
   const [status, setStatus] = useState<'active' | 'leave' | 'resigned'>('active');
 
-  const [branch, setBranch] = useState(doctor.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)');
-  const [specialty, setSpecialty] = useState(doctor.specialty || 'Phục hình Răng sứ thẩm mỹ');
+  const [branch, setBranch] = useState(doctor?.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)');
+  const [specialty, setSpecialty] = useState(doctor?.specialty || 'Phục hình Răng sứ thẩm mỹ');
 
   // Selected services
   const [services, setServices] = useState<string[]>([
@@ -86,7 +92,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
   // Commission & default working schedule
   const [commissionRate, setCommissionRate] = useState<number | string>(
-    doctor.commissionRate !== undefined ? doctor.commissionRate : 15
+    doctor?.commissionRate !== undefined ? doctor.commissionRate : 15
   );
   const [workDays, setWorkDays] = useState<string[]>(['T2', 'T3', 'T4', 'T5', 'T6', 'T7']);
   const [workHours, setWorkHours] = useState('08:00 - 17:30');
@@ -95,7 +101,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
   // Bio
   const [bio, setBio] = useState(
-    doctor.bio ||
+    doctor?.bio ||
       'Chuyên gia phục hình nụ cười với hơn 8 năm kinh nghiệm, tu nghiệp chuyên sâu về dán sứ Veneer bảo tồn men răng.'
   );
 
@@ -108,14 +114,17 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
   // Sync state whenever modal opens or doctor changes
   useEffect(() => {
-    if (isOpen) {
-      setAvatarPreview(doctor.avatar);
-      setName(doctor.name || 'BS. Nguyễn Thị An');
+    if (isOpen && doctor) {
+      setAvatarPreview(doctor.avatar || doctor.avatarUrl);
+      setCode(doctor.code || doctor.employeeCode || 'NV001');
+      setName(doctor.name || doctor.fullName || 'BS. Nguyễn Thị An');
       setTitle(doctor.title || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt');
       setPhone(doctor.phone || '090 123 4567');
       setEmail(doctor.email || 'bs.an@vietanhduc.vn');
       setBranch(doctor.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)');
       setSpecialty(doctor.specialty || 'Phục hình Răng sứ thẩm mỹ');
+      if (doctor.bio) setBio(doctor.bio);
+      if (doctor.commissionRate !== undefined) setCommissionRate(doctor.commissionRate);
       setIsEditingHours(false);
       setIsAddingService(false);
       setShowToast(null);
@@ -124,17 +133,41 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Handle avatar upload
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const doctorDisplayName = name || doctor?.name || doctor?.fullName || 'Bác sĩ';
+  const doctorShortName = doctorDisplayName.trim()
+    ? doctorDisplayName.trim().split(/\s+/).slice(-2).join(' ')
+    : 'bác sĩ';
+
+  // Handle avatar upload to Cloudinary
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setAvatarPreview(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Show temporary local preview while uploading
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setAvatarPreview(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      setIsUploadingAvatar(true);
+      setShowToast({ message: 'Đang tải ảnh lên Cloudinary...', type: 'warn' });
+      const res = await uploadApi.uploadImage(file, 'doctors');
+      if (res?.url) {
+        setAvatarPreview(res.url);
+        setShowToast({ message: 'Đã tải ảnh lên Cloudinary thành công!', type: 'success' });
+      }
+    } catch (err: any) {
+      console.error('Lỗi upload Cloudinary:', err);
+      setShowToast({
+        message: 'Lỗi tải ảnh lên Cloudinary: ' + (err?.response?.data?.message || err.message || 'Thất bại'),
+        type: 'warn',
+      });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -164,10 +197,11 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   };
 
   // Handle Save
-  const handleSave = () => {
+  const handleSave = async () => {
     const updatedData = {
-      ...doctor,
+      ...(doctor || {}),
       name,
+      fullName: name,
       title,
       phone,
       email,
@@ -184,6 +218,30 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       lunchBreak,
       onlineBookingEnabled,
     };
+
+    try {
+      if (doctor?.id) {
+        await staffApi.updateStaff(doctor.id, {
+          fullName: name,
+          phone,
+          email,
+          specialty,
+          bio,
+          avatarUrl: avatarPreview,
+        });
+      }
+    } catch (err) {
+      console.warn('Backend updateStaff notice:', err);
+    }
+
+    // Broadcast sync event to all open tabs / admin view
+    try {
+      const channel = new BroadcastChannel('smartschedule_sync');
+      channel.postMessage({ type: 'STAFF_UPDATED', doctorId: doctor?.id, data: updatedData });
+      channel.close();
+    } catch (e) {
+      // BroadcastChannel fallback
+    }
 
     if (onSave) {
       onSave(updatedData);
@@ -251,7 +309,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                   Cập nhật thông tin định danh, chuyên khoa điều trị, tỷ lệ hoa hồng và khung giờ làm việc chuẩn cho{' '}
-                  <span className="font-bold text-slate-800">{doctor.name}</span>{' '}
+                  <span className="font-bold text-slate-800">{doctorDisplayName}</span>{' '}
                   <span className="text-sky-600 font-semibold">(#{code})</span>
                 </p>
               </div>
@@ -275,21 +333,37 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                 <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 flex flex-col items-center justify-center text-center relative group">
                   <div className="relative mb-2.5">
                     {avatarPreview ? (
-                      <img
-                        src={avatarPreview}
-                        alt={name}
-                        className="w-20 h-20 rounded-xl object-cover border-2 border-white shadow-sm"
-                      />
+                      <div className="relative w-20 h-20">
+                        <img
+                          src={avatarPreview}
+                          alt={name}
+                          className="w-20 h-20 rounded-xl object-cover border-2 border-white shadow-sm"
+                        />
+                        {isUploadingAvatar && (
+                          <div className="absolute inset-0 bg-slate-900/60 rounded-xl flex flex-col items-center justify-center text-white text-[10px] font-bold">
+                            <Loader2 className="w-5 h-5 animate-spin mb-1 text-sky-400" />
+                            <span>Cloudinary</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-20 h-20 rounded-xl bg-sky-100 text-sky-600 font-bold text-xl flex items-center justify-center border-2 border-white shadow-sm">
-                        {doctor.initials || name.slice(0, 2).toUpperCase()}
+                      <div className="relative w-20 h-20 rounded-xl bg-sky-100 text-sky-600 font-bold text-xl flex items-center justify-center border-2 border-white shadow-sm">
+                        {isUploadingAvatar ? (
+                          <div className="flex flex-col items-center justify-center text-sky-600 text-[10px] font-bold">
+                            <Loader2 className="w-5 h-5 animate-spin mb-1" />
+                            <span>Cloudinary</span>
+                          </div>
+                        ) : (
+                          doctor?.initials || name.slice(0, 2).toUpperCase() || 'BS'
+                        )}
                       </div>
                     )}
                     <button
                       type="button"
+                      disabled={isUploadingAvatar}
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:scale-105 transition-all cursor-pointer"
-                      title="Chỉnh sửa ảnh"
+                      className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-white shadow-md border border-slate-200 flex items-center justify-center text-slate-600 hover:text-sky-600 hover:scale-105 transition-all cursor-pointer disabled:opacity-50"
+                      title="Chỉnh sửa ảnh (Cloudinary)"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -720,7 +794,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                         Cổng Đặt lịch trực tuyến
                       </div>
                       <div className="text-[11px] text-slate-500 font-medium">
-                        Cho phép khách hàng chọn {doctor.name.split(' ').slice(-2).join(' ')} trên website/app đặt lịch
+                        Cho phép khách hàng chọn {doctorShortName} trên website/app đặt lịch
                       </div>
                     </div>
                   </div>
@@ -781,11 +855,21 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
               {/* Primary action: CẬP NHẬT HỒ SƠ */}
               <button
                 type="button"
+                disabled={isUploadingAvatar}
                 onClick={handleSave}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-3.5 h-3.5" />
-                <span>CẬP NHẬT HỒ SƠ</span>
+                {isUploadingAvatar ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
+                    <span>ĐANG TẢI ẢNH LÊN...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>CẬP NHẬT HỒ SƠ</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

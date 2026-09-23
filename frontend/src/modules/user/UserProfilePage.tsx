@@ -44,6 +44,13 @@ export const UserProfilePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
+  // Standard working days and self-schedule permission
+  const [allowSelfSchedule, setAllowSelfSchedule] = useState<boolean>(() => {
+    const saved = localStorage.getItem('user_allow_self_schedule');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [standardWorkDays, setStandardWorkDays] = useState<string[]>(['T2', 'T3', 'T4', 'T5', 'T6', 'T7']);
+
   // Form states
   const [formData, setFormData] = useState({
     fullName: '',
@@ -177,6 +184,27 @@ export const UserProfilePage: React.FC = () => {
       });
 
       updateUser(updatedUser);
+
+      // Persist self schedule preference
+      localStorage.setItem('user_allow_self_schedule', String(allowSelfSchedule));
+
+      // Broadcast sync event so admin staff view updates in real-time
+      try {
+        const channel = new BroadcastChannel('smartschedule_sync');
+        channel.postMessage({
+          type: 'STAFF_UPDATED',
+          userId: user?.id,
+          fullName: formData.fullName.trim(),
+          phone: formData.phone.trim(),
+          email: formData.email.trim(),
+          avatarUrl: formData.avatarUrl.trim() || undefined,
+          allowSelfSchedule,
+        });
+        channel.close();
+      } catch (e) {
+        // BroadcastChannel fallback
+      }
+
       setIsEditing(false);
       showToast('Cập nhật thông tin cá nhân thành công!', 'success');
     } catch (err: any) {
@@ -422,6 +450,56 @@ export const UserProfilePage: React.FC = () => {
                   <p className="font-semibold text-amber-900 text-xs">{currentAlerts}</p>
                 </div>
               )}
+
+              {/* Khung ngày làm việc tiêu chuẩn */}
+              <div className="p-4 bg-sky-50/50 rounded-2xl border border-sky-100 space-y-3 sm:col-span-2 lg:col-span-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-sky-600" />
+                    <h4 className="font-extrabold text-slate-900 text-xs">
+                      Khung ngày làm việc tiêu chuẩn &amp; Phân ca
+                    </h4>
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      allowSelfSchedule
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}
+                  >
+                    {allowSelfSchedule
+                      ? '✓ Cho phép tự chọn lịch làm việc'
+                      : '🔒 Lịch làm việc do phòng khám ấn định (Không tự chọn)'}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {['T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d) => (
+                    <span
+                      key={d}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold ${
+                        standardWorkDays.includes(d)
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {d}
+                    </span>
+                  ))}
+                  <span className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-400">
+                    CN: OFF
+                  </span>
+                  <span className="px-3 py-1 rounded-xl text-xs font-bold text-sky-800 bg-sky-100 border border-sky-200">
+                    Sáng: 08:00 - 12:00
+                  </span>
+                  <span className="px-3 py-1 rounded-xl text-xs font-bold text-sky-800 bg-sky-100 border border-sky-200">
+                    Chiều: 13:30 - 17:30
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    (Nghỉ trưa: 12:00 - 13:30)
+                  </span>
+                </div>
+              </div>
             </div>
           ) : (
             /* EDIT MODE FORM */
@@ -572,6 +650,70 @@ export const UserProfilePage: React.FC = () => {
                     placeholder="VD: Tiền sử cao huyết áp, dị ứng thuốc gây tê Lidocaine, bệnh tim mạch..."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                   />
+                </div>
+
+                {/* Khung ngày làm việc tiêu chuẩn & Tùy chọn tự chọn lịch */}
+                <div className="p-4 bg-sky-50/50 rounded-2xl border border-sky-100 space-y-3 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-sky-600" /> Khung ngày làm việc tiêu chuẩn &amp; Tùy chọn tự chọn ca
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Chọn các ngày làm việc tiêu chuẩn trong tuần (Mặc định: Ca sáng 08:00 - 12:00, Ca chiều 13:30 - 17:30):
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day) => {
+                        const isSelected = standardWorkDays.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              setStandardWorkDays((prev) =>
+                                prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Toggle: Cho phép hoặc không cho phép tự chọn lịch làm việc */}
+                  <div className="pt-2 border-t border-sky-100/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-extrabold text-slate-900 block">
+                        Cho phép tự đăng ký &amp; chọn lịch làm việc
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Khi bật: Cho phép nhân viên/bác sĩ tự đăng ký hoặc điều chỉnh ca làm việc trong tuần. Khi tắt: Cố định theo chỉ định của phòng khám.
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAllowSelfSchedule(!allowSelfSchedule)}
+                      className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${
+                        allowSelfSchedule ? 'bg-sky-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
+                          allowSelfSchedule ? 'left-6' : 'left-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
 

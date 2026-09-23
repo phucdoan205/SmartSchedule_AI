@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   ArrowRightLeft,
@@ -7,6 +7,7 @@ import {
   Send,
 } from 'lucide-react';
 import { MOCK_DOCTORS, MOCK_BRANCHES } from '../../../services/mockData';
+import { staffApi, branchesApi } from '../../../services/api';
 
 interface TransferStaffModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export const TransferStaffModal: React.FC<TransferStaffModalProps> = ({
   fromBranchName = 'Chi nhánh Biên Hòa (Trụ sở chính)',
   onTransferSuccess,
 }) => {
+  const [dbDoctors, setDbDoctors] = useState<any[]>(MOCK_DOCTORS);
+  const [dbBranches, setDbBranches] = useState<any[]>(MOCK_BRANCHES);
   const [selectedStaffId, setSelectedStaffId] = useState(MOCK_DOCTORS[0]?.id || 'nv-001');
   const [destinationBranchId, setDestinationBranchId] = useState(MOCK_BRANCHES[0]?.id || 'b-1');
   const [transferType, setTransferType] = useState<'temporary' | 'permanent'>('temporary');
@@ -30,10 +33,28 @@ export const TransferStaffModal: React.FC<TransferStaffModalProps> = ({
   const [shiftTime, setShiftTime] = useState('Cả ngày (08:00 - 17:30)');
   const [notifyZalo, setNotifyZalo] = useState(true);
 
+  useEffect(() => {
+    if (isOpen) {
+      Promise.all([
+        staffApi.getAllStaff().catch(() => []),
+        branchesApi.getAll().catch(() => []),
+      ]).then(([staffs, branches]) => {
+        if (Array.isArray(staffs) && staffs.length > 0) {
+          setDbDoctors(staffs);
+          setSelectedStaffId(staffs[0].id);
+        }
+        if (Array.isArray(branches) && branches.length > 0) {
+          setDbBranches(branches);
+          setDestinationBranchId(branches[0].id);
+        }
+      });
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const currentDoctor = MOCK_DOCTORS.find((d) => d.id === selectedStaffId) || MOCK_DOCTORS[0];
-  const targetBranch = MOCK_BRANCHES.find((b) => b.id === destinationBranchId) || MOCK_BRANCHES[0];
+  const currentDoctor = dbDoctors.find((d) => d.id === selectedStaffId) || dbDoctors[0] || MOCK_DOCTORS[0];
+  const targetBranch = dbBranches.find((b) => b.id === destinationBranchId) || dbBranches[0] || MOCK_BRANCHES[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,13 +121,13 @@ export const TransferStaffModal: React.FC<TransferStaffModalProps> = ({
                     onChange={(e) => setSelectedStaffId(e.target.value)}
                     className="w-full font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
                   >
-                    {MOCK_DOCTORS.map((doc) => (
+                    {dbDoctors.map((doc) => (
                       <option key={doc.id} value={doc.id}>
-                        {doc.name}
+                        {doc.name || doc.fullName}
                       </option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-slate-500">{currentDoctor.specialty.split('-')[1] || currentDoctor.specialty}</p>
+                  <p className="text-[10px] text-slate-500">{currentDoctor.specialty?.split('-')[1] || currentDoctor.specialty || 'Chuyên khoa'}</p>
                 </div>
               </div>
             </div>
@@ -130,12 +151,11 @@ export const TransferStaffModal: React.FC<TransferStaffModalProps> = ({
                   onChange={(e) => setDestinationBranchId(e.target.value)}
                   className="font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
                 >
-                  {MOCK_BRANCHES.map((b) => (
+                  {dbBranches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
                     </option>
                   ))}
-                  <option value="b-quan1">Chi nhánh Quận 1 - TP. HCM</option>
                 </select>
               </div>
 

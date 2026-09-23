@@ -9,11 +9,13 @@ import {
   List,
   Building2,
   XCircle,
+  Edit3,
 } from 'lucide-react';
 import { appointmentsApi, staffApi, servicesApi, branchesApi } from '../../services/api';
 import { DataTable, type Column } from '../../components/common/DataTable';
 import type { Appointment } from '../../types/admin';
 import { Modal } from '../../components/common/Modal';
+import { EditAppointmentModal } from './modals/EditAppointmentModal';
 import { toast } from '../../context/ToastContext';
 import { useBranch } from '../../context/BranchContext';
 
@@ -26,6 +28,8 @@ export const SmartSchedulePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -38,6 +42,11 @@ export const SmartSchedulePage: React.FC = () => {
   const [doctorId, setDoctorId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [branchId, setBranchId] = useState('');
+
+  const handleOpenEdit = (apt: Appointment) => {
+    setEditingAppointment(apt);
+    setIsEditModalOpen(true);
+  };
 
   const loadAppointments = async (silent = false) => {
     try {
@@ -53,19 +62,37 @@ export const SmartSchedulePage: React.FC = () => {
         const timeFormatted = `${hours}:${minutes}`;
         const dateFormatted = `${day}/${month}/${year}`;
         const dateTimeFull = `${timeFormatted} • ${dateFormatted}`;
+        const dateRaw = `${year}-${month}-${day}`;
+        const timeRaw = `${hours}:${minutes}`;
+
+        let patientDob = '';
+        if (item.patient?.medicalAlerts && item.patient.medicalAlerts.includes('DOB:')) {
+          const match = item.patient.medicalAlerts.match(/DOB:(\d{4}-\d{2}-\d{2})/);
+          if (match) patientDob = match[1];
+        }
 
         return {
           id: item.appointmentCode,
+          realId: item.id,
           patientName: item.patient?.fullName || 'Khách hàng',
           patientPhone: item.patient?.phone || '',
+          patientDob,
+          medicalAlerts: item.patient?.medicalAlerts || '',
           doctorName: item.doctor?.fullName || 'Bác sĩ trực',
           doctorId: item.doctorId,
           service: item.services?.[0]?.service?.name || 'Khám tổng quát',
+          serviceId: item.services?.[0]?.serviceId || item.services?.[0]?.service?.id,
           branch: item.branch?.name || 'Chi nhánh chính',
           branchId: item.branchId,
+          chairId: item.chairId,
+          chairName: item.chair?.name,
+          startTime: item.startTime,
           dateTime: dateTimeFull,
           timeStr: timeFormatted,
           dateStr: dateFormatted,
+          dateRaw,
+          timeRaw,
+          notes: item.notes || '',
           status:
             item.status === 'CONFIRMED' ? 'Confirmed'
             : item.status === 'IN_PROGRESS' ? 'InProgress'
@@ -74,6 +101,7 @@ export const SmartSchedulePage: React.FC = () => {
             : 'Pending',
           aiScore: item.isAiRecommended ? 98 : 92,
           aiNote: 'Xep lich kiem soat dem vo trung 15 phut',
+          rawItem: item,
         };
       });
       setAppointments(mapped);
@@ -158,6 +186,20 @@ export const SmartSchedulePage: React.FC = () => {
         const c = cfg[row.status] || { label: row.status, bg: 'bg-slate-50 text-slate-700 border-slate-200', dot: 'bg-slate-400' };
         return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${c.bg}`}><span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />{c.label}</span>;
       },
+    },
+    {
+      header: 'THAO TÁC',
+      cell: (row) => (
+        <button
+          type="button"
+          onClick={() => handleOpenEdit(row)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all cursor-pointer shadow-2xs"
+          title="Chỉnh sửa lịch hẹn khi có sai sót"
+        >
+          <Edit3 className="w-3.5 h-3.5 text-sky-600" />
+          <span>Sửa Lịch</span>
+        </button>
+      ),
     },
   ];
 
@@ -301,15 +343,30 @@ export const SmartSchedulePage: React.FC = () => {
                         key={apt.id}
                         draggable
                         onDragStart={() => handleDragStart(apt.id)}
-                        className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing space-y-2"
+                        onDoubleClick={() => handleOpenEdit(apt)}
+                        className="group bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing space-y-2 relative"
+                        title="Kéo thả để đổi trạng thái, hoặc nhấp đúp để chỉnh sửa lịch hẹn"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">
                             {apt.id}
                           </span>
-                          <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                            <Sparkles className="w-3 h-3 text-indigo-500" />
-                            <span>AI: {apt.aiScore}%</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                              <Sparkles className="w-3 h-3 text-indigo-500" />
+                              <span>AI: {apt.aiScore}%</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEdit(apt);
+                              }}
+                              className="p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                              title="Chỉnh sửa lịch hẹn này"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
 
@@ -329,6 +386,22 @@ export const SmartSchedulePage: React.FC = () => {
                           <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
                             <Clock className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                             <span>Khám lúc: <strong className="text-sky-700 font-bold">{apt.timeStr || apt.dateTime.split(' • ')[0]}</strong> • <span className="text-slate-500 font-medium">{apt.dateStr || apt.dateTime.split(' • ')[1]}</span></span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100/80">
+                            <span className="text-[10px] text-slate-400">Nhấp đúp thẻ để sửa</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEdit(apt);
+                              }}
+                              className="text-[10px] font-bold text-sky-600 hover:text-sky-700 hover:bg-sky-50 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Chỉnh sửa thông tin lịch hẹn"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>Sửa lịch</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -414,6 +487,21 @@ export const SmartSchedulePage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      <EditAppointmentModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingAppointment(null);
+        }}
+        appointment={editingAppointment}
+        doctors={doctors}
+        services={services}
+        branches={branches}
+        onSaved={async () => {
+          await loadAppointments(true);
+        }}
+      />
     </div>
   );
 };
