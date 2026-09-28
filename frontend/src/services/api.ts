@@ -152,6 +152,26 @@ export const staffSchedulesApi = {
     const res = await apiClient.delete(`/staff/schedules/${id}`);
     return res.data;
   },
+  clearWeek: async (data: { branchId?: string; startDate: string; endDate: string; userId?: string }) => {
+    const res = await apiClient.post('/staff/schedules/clear-week', data);
+    return res.data;
+  },
+};
+
+// Dental Services API
+export const dentalServicesApi = {
+  getAll: async (params?: { categoryId?: string; search?: string; isActive?: boolean }) => {
+    const res = await apiClient.get('/services', { params });
+    return res.data;
+  },
+  getCategories: async () => {
+    const res = await apiClient.get('/services/categories');
+    return res.data;
+  },
+  getById: async (id: string) => {
+    const res = await apiClient.get(`/services/${id}`);
+    return res.data;
+  },
 };
 
 // Appointments API

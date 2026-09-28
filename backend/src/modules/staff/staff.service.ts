@@ -237,6 +237,7 @@ export class StaffService {
       experienceYears?: number;
       bio?: string;
       avatarUrl?: string;
+      isActive?: boolean;
     },
   ) {
     const existing = await this.prisma.user.findFirst({
@@ -256,6 +257,7 @@ export class StaffService {
       if (data.phone) userUpdateData.phone = data.phone.trim();
       if (data.branchId) userUpdateData.branchId = data.branchId;
       if (data.avatarUrl !== undefined) userUpdateData.avatarUrl = data.avatarUrl;
+      if (data.isActive !== undefined) userUpdateData.isActive = data.isActive;
 
       const updatedUser = await tx.user.update({
         where: { id: existing.id },
@@ -357,29 +359,56 @@ export class StaffService {
   }
 
   async createStaffSchedule(data: {
-    userId: string;
-    branchId: string;
-    workDate: string;
-    shiftType: 'morning' | 'afternoon' | 'fullday' | 'leave' | 'overtime';
+    userId?: string;
+    staffId?: string;
+    branchId?: string;
+    workDate?: string;
+    date?: string;
+    shiftType: string;
     startTime?: string;
     endTime?: string;
     notes?: string;
   }) {
-    const date = new Date(data.workDate + 'T00:00:00.000Z');
+    const rawUserId = data.userId || data.staffId;
+    if (!rawUserId) {
+      throw new NotFoundException('userId hoặc staffId là bắt buộc');
+    }
+
+    // Resolve user to ensure valid foreign key
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ id: rawUserId }, { employeeCode: rawUserId }],
+      },
+    });
+
+    const targetUserId = user ? user.id : rawUserId;
+    let targetBranchId = data.branchId || user?.branchId;
+    if (!targetBranchId) {
+      const defaultBranch = await this.prisma.branch.findFirst();
+      targetBranchId = defaultBranch?.id || '';
+    }
+
+    const dateStr = data.workDate || data.date || new Date().toISOString().split('T')[0];
+    const date = new Date(dateStr.split('T')[0] + 'T00:00:00.000Z');
+
     let start = '08:00';
     let end = '12:00';
     let isLeave = false;
+    const normShift = (data.shiftType || 'morning').toLowerCase();
 
-    if (data.shiftType === 'morning') {
+    if (normShift === 'morning' || normShift === 'ca sáng') {
       start = data.startTime || '08:00';
       end = data.endTime || '12:00';
-    } else if (data.shiftType === 'afternoon') {
+    } else if (normShift === 'afternoon' || normShift === 'ca chiều') {
       start = data.startTime || '13:30';
       end = data.endTime || '17:30';
-    } else if (data.shiftType === 'overtime') {
+    } else if (normShift === 'fullday' || normShift === 'full_day' || normShift === 'cả ngày') {
+      start = data.startTime || '08:00';
+      end = data.endTime || '17:30';
+    } else if (normShift === 'overtime' || normShift === 'tăng ca') {
       start = data.startTime || '18:00';
       end = data.endTime || '20:30';
-    } else if (data.shiftType === 'leave') {
+    } else if (normShift === 'leave' || normShift === 'nghỉ phép') {
       isLeave = true;
       start = '00:00';
       end = '23:59';
@@ -387,13 +416,13 @@ export class StaffService {
 
     return this.prisma.staffSchedule.create({
       data: {
-        userId: data.userId,
-        branchId: data.branchId,
+        userId: targetUserId,
+        branchId: targetBranchId,
         workDate: date,
         shiftStart: new Date(`1970-01-01T${start}:00.000Z`),
         shiftEnd: new Date(`1970-01-01T${end}:00.000Z`),
         isLeave,
-        notes: data.notes || (isLeave ? 'Nghỉ phép' : `Ca ${data.shiftType}`),
+        notes: data.notes || (isLeave ? 'Nghỉ phép' : `Ca ${normShift}`),
       },
     });
   }
@@ -465,6 +494,39 @@ export class StaffService {
     return this.prisma.staffSchedule.delete({
       where: { id },
     });
+  }
+
+  async clearWeekSchedules(query: {
+    branchId?: string;
+    startDate: string;
+    endDate: string;
+    userId?: string;
+  }) {
+    const where: any = {};
+    if (query.branchId && query.branchId !== 'ALL' && query.branchId !== 'all') {
+      where.branchId = query.branchId;
+    }
+    if (query.userId) {
+      where.userId = query.userId;
+    }
+    if (query.startDate && query.endDate) {
+      const start = new Date(query.startDate.split('T')[0] + 'T00:00:00.000Z');
+      const end = new Date(query.endDate.split('T')[0] + 'T23:59:59.999Z');
+      where.workDate = {
+        gte: start,
+        lte: end,
+      };
+    }
+
+    const result = await this.prisma.staffSchedule.deleteMany({
+      where,
+    });
+
+    return {
+      success: true,
+      message: `Đã xóa sạch ${result.count} ca trực trong tuần!`,
+      count: result.count,
+    };
   }
 
   async createStaff(data: {

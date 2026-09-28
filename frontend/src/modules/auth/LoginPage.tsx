@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Mail, Phone, Eye, EyeOff, ArrowRight, LogIn, AlertCircle, Info, X } from 'lucide-react';
+import { Lock, Mail, Phone, Eye, EyeOff, ArrowRight, LogIn, AlertCircle, Info, X, KeyRound, CheckCircle2 } from 'lucide-react';
 import { AuthLayout } from './AuthLayout';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../services/api';
+import { authApi, apiClient } from '../../services/api';
 
 /**
  * Trang đăng nhập thống nhất — kết nối trực tiếp API Backend & Hỗ trợ Google Login.
@@ -34,6 +34,15 @@ export const LoginPage: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGoogleGuideModal, setShowGoogleGuideModal] = useState(false);
+
+  // First-time change password modal state (Req 1)
+  const [showFirstChangePwModal, setShowFirstChangePwModal] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [isChangingPw, setIsChangingPw] = useState(false);
+  const [pendingDestination, setPendingDestination] = useState('/admin/overview');
 
   const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -104,24 +113,95 @@ export const LoginPage: React.FC = () => {
     setErrorMessage(null);
     setIsSubmitting(true);
 
+    const cleanId = identity.trim().toLowerCase();
+
+    // Kiểm tra tài khoản có bị khóa trên hệ thống hay không (Yêu cầu 5)
+    if (localStorage.getItem(`account_locked_${cleanId}`) === 'true') {
+      setErrorMessage('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cấp trên hoặc quản trị viên để mở khóa.');
+      setIsSubmitting(false);
+      return;
+    }
+
     const res = await login(identity, password);
     if (res.success) {
+      // Nếu trạng thái tài khoản bị khóa
+      if ((res.user as any)?.isActive === false || (res.user as any)?.status === 'Locked') {
+        setErrorMessage('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cấp trên hoặc quản trị viên để mở khóa.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const isStaff = isInternalStaffRole(res.user?.roles);
       const requestedFrom = (location.state as any)?.from?.pathname;
+      const destination = isStaff
+        ? (requestedFrom && requestedFrom.startsWith('/admin') ? requestedFrom : '/admin/overview')
+        : (requestedFrom && !requestedFrom.startsWith('/admin') ? requestedFrom : '/');
 
-      if (isStaff) {
-        // Tài khoản nhân sự/quản trị: Vào thẳng trang quản lý
-        const destination = requestedFrom && requestedFrom.startsWith('/admin') ? requestedFrom : '/admin/overview';
-        navigate(destination, { replace: true });
-      } else {
-        // Tài khoản khách hàng / bệnh nhân: Về trang chủ hoặc trang yêu cầu (không phải /admin)
-        const destination = requestedFrom && !requestedFrom.startsWith('/admin') ? requestedFrom : '/';
-        navigate(destination, { replace: true });
+      // Kiểm tra mật khẩu mặc định (123456) hoặc cờ bắt buộc đổi mật khẩu (Yêu cầu 1)
+      const empCode = (res.user?.employeeCode || '').toLowerCase();
+      const isDefault =
+        password === '123456' ||
+        Boolean((res.user as any)?.isDefaultPassword) ||
+        localStorage.getItem(`user_must_change_password_${cleanId}`) === 'true' ||
+        localStorage.getItem(`user_must_change_password_${empCode}`) === 'true';
+
+      if (isDefault) {
+        setPendingDestination(destination);
+        setShowFirstChangePwModal(true);
+        setIsSubmitting(false);
+        return;
       }
+
+      navigate(destination, { replace: true });
     } else {
-      setErrorMessage(res.message || 'Tài khoản hoặc mật khẩu không chính xác');
+      if (res.message && (res.message.includes('khóa') || res.message.includes('tam khoa'))) {
+        setErrorMessage('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cấp trên hoặc quản trị viên để mở khóa.');
+      } else {
+        setErrorMessage(res.message || 'Tài khoản hoặc mật khẩu không chính xác');
+      }
     }
     setIsSubmitting(false);
+  };
+
+  const handleFirstTimeChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+
+    if (newPw.length < 6) {
+      setPwError('Mật khẩu mới phải có tối thiểu 6 ký tự');
+      return;
+    }
+    if (newPw === '123456') {
+      setPwError('Mật khẩu mới không được trùng với mật khẩu mặc định (123456)');
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError('Xác nhận mật khẩu mới không khớp');
+      return;
+    }
+
+    try {
+      setIsChangingPw(true);
+      await apiClient.patch('/auth/profile', {
+        currentPassword: '123456',
+        newPassword: newPw,
+      });
+
+      const cleanId = identity.trim().toLowerCase();
+      localStorage.removeItem(`user_must_change_password_${cleanId}`);
+
+      setShowFirstChangePwModal(false);
+      navigate(pendingDestination, { replace: true });
+    } catch (err: any) {
+      setPwError(err?.response?.data?.message || 'Có lỗi khi cập nhật mật khẩu mới');
+    } finally {
+      setIsChangingPw(false);
+    }
+  };
+
+  const handleSkipChangePw = () => {
+    setShowFirstChangePwModal(false);
+    navigate(pendingDestination, { replace: true });
   };
 
   return (
@@ -368,6 +448,87 @@ export const LoginPage: React.FC = () => {
                 Đã Hiểu
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Bắt buộc / Nhắc nhở đổi mật khẩu lần đầu (Yêu cầu 1) */}
+      {showFirstChangePwModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-teal-500/30 w-full max-w-md rounded-2xl shadow-2xl p-6 text-xs relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white">Thiết Lập Mật Khẩu Mới</h3>
+                <p className="text-[11px] text-teal-300/80 font-medium">Bảo mật tài khoản trong lần đăng nhập đầu tiên</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4 text-slate-300 text-[11px] leading-relaxed">
+              Bạn đang sử dụng <strong className="text-amber-300">mật khẩu mặc định (123456)</strong>. Để bảo vệ dữ liệu phòng khám, vui lòng đặt mật khẩu mới trước khi tiếp tục.
+            </div>
+
+            {pwError && (
+              <div className="mb-3 p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-200 font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{pwError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleFirstTimeChangePassword} className="space-y-3.5">
+              <div>
+                <label className="block font-bold text-white/80 mb-1">Mật khẩu mới (tối thiểu 6 ký tự) *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPw ? 'text' : 'password'}
+                    required
+                    value={newPw}
+                    onChange={(e) => setNewPw(e.target.value)}
+                    placeholder="Nhập mật khẩu mới..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-xs focus:outline-none focus:border-teal-400 font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPw(!showNewPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                  >
+                    {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-white/80 mb-1">Xác nhận mật khẩu mới *</label>
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  required
+                  value={confirmPw}
+                  onChange={(e) => setConfirmPw(e.target.value)}
+                  placeholder="Nhập lại mật khẩu mới..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/30 text-xs focus:outline-none focus:border-teal-400 font-medium"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleSkipChangePw}
+                  className="px-3 py-2 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                >
+                  Bỏ qua &amp; đổi sau
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPw}
+                  className="px-5 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isChangingPw ? 'Đang lưu...' : 'Lưu mật khẩu mới'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

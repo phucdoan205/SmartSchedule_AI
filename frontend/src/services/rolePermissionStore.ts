@@ -118,6 +118,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     subPermissions: [
       { id: 'p_br_view', code: 'branches_view', name: 'Xem danh sách phòng khám & chi nhánh' },
       { id: 'p_br_edit', code: 'branches_edit', name: 'Thêm mới hoặc sửa cấu hình chi nhánh' },
+      { id: 'p_br_filter', code: 'branches_filter', name: 'Lọc dữ liệu theo chi nhánh (Bộ lọc chi nhánh trên thanh điều hướng)' },
     ],
   },
   {
@@ -128,7 +129,9 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     iconName: 'Receipt',
     subPermissions: [
       { id: 'p_srv_view', code: 'services_view', name: 'Xem danh mục dịch vụ nha khoa & giá niêm yết' },
-      { id: 'p_srv_edit', code: 'services_edit', name: 'Thêm dịch vụ & điều chỉnh bảng giá' },
+      { id: 'p_srv_create', code: 'services_create', name: 'Thêm mới dịch vụ nha khoa' },
+      { id: 'p_srv_edit', code: 'services_edit', name: 'Chỉnh sửa thông tin & hình ảnh dịch vụ' },
+      { id: 'p_srv_toggle', code: 'services_toggle', name: 'Bật/Tắt công tắc áp dụng (Ẩn/Hiện dịch vụ trên trang chủ & người dùng)' },
     ],
   },
   {
@@ -525,6 +528,63 @@ export const rolePermissionStore = {
     if (!roleState) return true; // Default fallback to visible
 
     return Boolean(roleState.enabled);
+  },
+
+  hasSubPermission(roleNameOrCode?: string, subPermCode?: string): boolean {
+    if (!roleNameOrCode || !subPermCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
+      return true;
+    }
+
+    const matrix = this.getMatrix();
+    const roles = this.getRoles();
+
+    const matchedRole = roles.find(
+      (r) =>
+        r.code.toLowerCase() === lower ||
+        r.name.toLowerCase() === lower
+    );
+    const roleCode = matchedRole ? matchedRole.code : lower;
+
+    const roleState = matrix[roleCode];
+    if (!roleState) return false;
+
+    for (const modCode of Object.keys(roleState)) {
+      const mod = roleState[modCode];
+      if (mod.subPermissions && mod.subPermissions[subPermCode] !== undefined) {
+        return Boolean(mod.subPermissions[subPermCode]);
+      }
+    }
+
+    return false;
+  },
+
+  canFilterBranches(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'branches_filter');
+  },
+
+  canEditServices(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'services_edit') || this.hasSubPermission(roleNameOrCode, 'services_create');
+  },
+
+  canToggleServices(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'services_toggle') || this.hasSubPermission(roleNameOrCode, 'services_edit');
   },
 
   subscribe(listener: Listener) {

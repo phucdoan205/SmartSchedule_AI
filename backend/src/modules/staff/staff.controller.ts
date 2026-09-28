@@ -55,6 +55,19 @@ export class StaffController {
     );
   }
 
+  @Post('schedules/clear-week')
+  async clearWeekSchedules(
+    @Body()
+    body: {
+      branchId?: string;
+      startDate: string;
+      endDate: string;
+      userId?: string;
+    },
+  ) {
+    return this.staffService.clearWeekSchedules(body);
+  }
+
   @Delete('schedules/:id')
   async deleteStaffSchedule(@Param('id') id: string) {
     return this.staffService.deleteStaffSchedule(id);
@@ -91,6 +104,7 @@ export class StaffController {
       experienceYears?: number;
       bio?: string;
       avatarUrl?: string;
+      isActive?: boolean;
     },
   ) {
     return this.staffService.updateStaff(id, body);

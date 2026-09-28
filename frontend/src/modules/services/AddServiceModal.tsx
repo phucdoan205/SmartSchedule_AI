@@ -29,6 +29,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
   const [price, setPrice] = useState('6.000.000đ');
   const [deposit, setDeposit] = useState('500.000đ');
   const [duration, setDuration] = useState('60 phút');
+  const [hasImage, setHasImage] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -96,7 +97,7 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
         status: 'Active',
         aiRecommended: aiRecommendation,
         isPublic: publicDisplay,
-        imageUrl,
+        imageUrl: hasImage && imageUrl.trim() ? imageUrl.trim() : null,
       });
     }
     onClose();
@@ -159,12 +160,13 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-900 focus:outline-none focus:border-sky-500 transition-colors"
                 >
+                  <option value="Cấy ghép Implant đơn lẻ">Cấy ghép Implant đơn lẻ</option>
+                  <option value="Cấy ghép Implant toàn hàm (All-on-4 / All-on-6)">Cấy ghép Implant toàn hàm (All-on-4 / All-on-6)</option>
                   <option value="Răng sứ thẩm mỹ">Răng sứ thẩm mỹ</option>
-                  <option value="Cấy ghép Implant">Cấy ghép Implant</option>
+                  <option value="Chỉnh nha & Niềng răng">Chỉnh nha &amp; Niềng răng</option>
                   <option value="Mini hàm tháo lắp">Mini hàm tháo lắp</option>
                   <option value="Thủ thuật đi kèm">Thủ thuật đi kèm</option>
-                  <option value="Chỉnh nha & Niềng răng">Chỉnh nha &amp; Niềng răng</option>
-                  <option value="Điều trị tổng quát">Điều trị tổng quát</option>
+                  <option value="Nha khoa thẩm mỹ & Tổng quát">Nha khoa thẩm mỹ &amp; Tổng quát</option>
                 </select>
               </div>
 
@@ -198,42 +200,71 @@ export const AddServiceModal: React.FC<AddServiceModalProps> = ({
               </div>
 
               {/* Ảnh minh họa dịch vụ (Upload Dropzone) */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Ảnh minh họa dịch vụ</label>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-4 bg-white border-2 border-dashed border-slate-200 hover:border-sky-400 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 cursor-pointer transition-colors group overflow-hidden"
-                >
-                  {imageUrl ? (
-                    <div className="relative w-full h-32 rounded-xl overflow-hidden group/img">
-                      <img src={imageUrl} alt="Service preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">
-                        Nhấn để thay đổi ảnh
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-10 h-10 rounded-2xl bg-slate-50 group-hover:bg-sky-50 text-slate-500 group-hover:text-sky-600 flex items-center justify-center transition-colors">
-                        <UploadCloud className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700 text-xs group-hover:text-sky-600 transition-colors">
-                          {isUploading ? 'Đang tải ảnh lên Cloudinary...' : 'Kéo thả ảnh vào đây hoặc click để tải lên'}
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          PNG, JPG, tối đa 5MB (Tự động tải lên Cloudinary)
-                        </p>
-                      </div>
-                    </>
-                  )}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700">Ảnh minh họa dịch vụ</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {hasImage ? 'Bật tải ảnh' : 'Không có ảnh'}
+                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={hasImage}
+                        onChange={(e) => {
+                          setHasImage(e.target.checked);
+                          if (!e.target.checked) setImageUrl('');
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-sky-600" />
+                    </label>
+                  </div>
                 </div>
+
+                {hasImage ? (
+                  <>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-4 bg-white border-2 border-dashed border-sky-300 hover:border-sky-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 cursor-pointer transition-colors group overflow-hidden"
+                    >
+                      {imageUrl ? (
+                        <div className="relative w-full h-32 rounded-xl overflow-hidden group/img">
+                          <img src={imageUrl} alt="Service preview" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">
+                            Nhấn để thay đổi ảnh
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center transition-colors">
+                            <UploadCloud className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-700 text-xs group-hover:text-sky-600 transition-colors">
+                              {isUploading ? 'Đang tải ảnh lên Cloudinary...' : 'Kéo thả ảnh vào đây hoặc click để tải lên'}
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              PNG, JPG, tối đa 5MB (Tự động tải lên Cloudinary)
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] text-slate-500 flex items-center gap-2">
+                    <span className="text-sm">🦷</span>
+                    <span>Dịch vụ mặc định không có ảnh (hiển thị biểu tượng nha khoa). Bật công tắc phía trên nếu muốn thêm ảnh.</span>
+                  </div>
+                )}
               </div>
             </div>
 

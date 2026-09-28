@@ -131,12 +131,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return menuGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) =>
-          rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path)
-        ),
+        items: group.items.filter((item) => {
+          // If user has self-schedule permission or doctor schedule permission, ensure schedule is accessible
+          if (item.path === '/admin/staff/schedule') {
+            const userKey = user?.id || user?.employeeCode || '';
+            const allowSelfSchedule =
+              localStorage.getItem(`staff_self_schedule_${userKey}`) !== 'false' &&
+              localStorage.getItem(`staff_self_schedule_${user?.employeeCode}`) !== 'false';
+            if (allowSelfSchedule) return true;
+          }
+          return rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path);
+        }),
       }))
       .filter((group) => group.items.length > 0);
-  }, [userRoleCode, menuGroups]);
+  }, [userRoleCode, menuGroups, user]);
 
   return (
     <aside

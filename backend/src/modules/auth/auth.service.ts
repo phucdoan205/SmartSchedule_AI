@@ -282,13 +282,17 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Tài khoản đã bị tạm khóa');
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ cấp trên hoặc quản trị viên để mở khóa.',
+      );
     }
 
     const isMatch = await bcrypt.compare(passwordPlain, user.passwordHash);
     if (!isMatch) {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
+
+    const isDefaultPassword = passwordPlain === '123456' || (await bcrypt.compare('123456', user.passwordHash));
 
     const roles = user.userRoles.map((ur) => ur.role.name);
     const permissions = user.userRoles.flatMap((ur) =>
@@ -326,8 +330,10 @@ export class AuthService {
 
     return {
       accessToken,
+      isDefaultPassword,
       user: {
         id: user.id,
+        isDefaultPassword,
         employeeCode: user.employeeCode,
         fullName: user.fullName,
         email: user.email,

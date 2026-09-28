@@ -100,6 +100,8 @@ export interface ServiceItem {
   status?: 'Active' | 'Inactive';
   imageUrl?: string;
   isAiRecommended?: boolean;
+  description?: string;
+  isActive?: boolean;
 }
 
 export interface FinanceReport {

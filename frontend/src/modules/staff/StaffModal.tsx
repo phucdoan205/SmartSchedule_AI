@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../../components/common/Modal';
-import { User, Phone, Mail, Award, Building, Save, Camera, Loader2 } from 'lucide-react';
+import { User, Phone, Mail, Award, Building, Save, Camera, Loader2, KeyRound } from 'lucide-react';
 import doctorImg1 from '../../assets/bacsi.jpg';
 import { toast } from '../../context/ToastContext';
 import { rolePermissionStore, type SystemRoleItem } from '../../services/rolePermissionStore';
@@ -139,7 +139,12 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         onSave(newStaff);
       }
 
-      toast(`Đã thêm nhân sự mới: ${name} (${role}) vào ${chosenBranch?.name || 'chi nhánh'} thành công!`, 'success');
+      // Mark that this new staff must change default password on first login
+      localStorage.setItem(`user_must_change_password_${empCode.toLowerCase()}`, 'true');
+      localStorage.setItem(`user_must_change_password_${userEmail.toLowerCase()}`, 'true');
+      localStorage.setItem(`user_must_change_password_${phone.trim()}`, 'true');
+
+      toast(`Đã thêm nhân sự mới: ${name} (${role}) - Mật khẩu mặc định: 123456`, 'success');
       onClose();
     } catch (err: any) {
       console.error('Error creating staff:', err);
@@ -187,6 +192,17 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {/* Default Account & Password Info Banner */}
+        <div className="p-3 bg-sky-50/80 border border-sky-200/80 rounded-2xl flex items-start gap-2.5">
+          <KeyRound className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+          <div className="text-[11px] text-sky-900 leading-relaxed">
+            <span className="font-bold">Mật khẩu khởi tạo mặc định: </span>
+            <code className="px-1.5 py-0.5 bg-white border border-sky-300 rounded font-mono font-bold text-sky-800">123456</code>
+            <p className="text-slate-600 mt-0.5">
+              Tài khoản nhân sự mới sẽ dùng mã nhân viên/email và mật khẩu này để đăng nhập. Hệ thống sẽ tự động nhắc nhân sự đổi mật khẩu mới trong lần đăng nhập đầu tiên.
+            </p>
+          </div>
+        </div>
         {/* Avatar Upload (Cloudinary) */}
         <div className="flex items-center gap-4 p-3 bg-slate-50/70 border border-slate-200/70 rounded-2xl">
           <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-sky-100 flex items-center justify-center">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useBranch } from '../../context/BranchContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -33,8 +34,37 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { branches, selectedBranchId, setSelectedBranchId } = useBranch();
   const { user } = useAuth();
 
+  // Listen to rolePermissionStore updates for real-time permissions re-evaluation
+  const [, setStoreVersion] = useState(0);
+  useEffect(() => {
+    return rolePermissionStore.subscribe(() => {
+      setStoreVersion((v) => v + 1);
+    });
+  }, []);
+
+  // Determine current user role code
+  const getUserRoleCode = () => {
+    if (!user || !user.roles || user.roles.length === 0) return 'owner';
+    const roles = user.roles;
+    if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
+    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa')) return 'doctor';
+    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
+    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên')) return 'nurse';
+    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên xét nghiệm')) return 'technician';
+    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh')) return 'manager';
+    return roles[0];
+  };
+
+  const userRoleCode = getUserRoleCode();
+  const canFilterBranches = rolePermissionStore.canFilterBranches(userRoleCode);
+
   const displayName = user?.fullName || 'Quản trị viên';
   const displayEmail = user?.email || 'admin@smartschedule.ai';
+  const userBranchName =
+    typeof user?.branch === 'string'
+      ? user.branch
+      : user?.branch?.name || (branches.length > 0 ? branches[0].name : 'Cơ sở hiện tại');
+
   const initials = displayName
     .trim()
     .split(' ')
@@ -61,24 +91,38 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Branch Selector */}
-        <div className="relative shrink-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer">
-            <Building className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-            <select
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="bg-transparent focus:outline-none cursor-pointer font-medium max-w-[140px] sm:max-w-none truncate"
-            >
-              <option value="ALL">Tất cả chi nhánh</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+        {/* Branch Selector (Chỉ hiển thị cho vai trò được cấp quyền 'branches_filter' trong Cấu hình phân quyền) */}
+        {canFilterBranches ? (
+          <div className="relative shrink-0">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer">
+              <Building className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="bg-transparent focus:outline-none cursor-pointer font-medium max-w-[140px] sm:max-w-none truncate"
+                title="Lọc dữ liệu theo chi nhánh"
+              >
+                <option value="ALL">Tất cả chi nhánh</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Khi không có quyền lọc chi nhánh: Hiển thị cố định chi nhánh hiện tại của tài khoản, không cho phép lọc */
+          <div className="relative shrink-0">
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200/60 bg-slate-100/70 text-xs font-semibold text-slate-600 cursor-default"
+              title="Chi nhánh công tác (Tài khoản không có quyền lọc chi nhánh khác)"
+            >
+              <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <span className="font-medium max-w-[140px] sm:max-w-none truncate">{userBranchName}</span>
+            </div>
+          </div>
+        )}
 
         {/* Global Search — ẩn trên mobile nhỏ */}
         <div className="relative flex-1 hidden sm:block max-w-sm lg:max-w-md">

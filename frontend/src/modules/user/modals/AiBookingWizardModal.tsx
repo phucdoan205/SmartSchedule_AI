@@ -60,21 +60,25 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         setIsLoadingData(true);
         const [branchesData, servicesData, doctorsData] = await Promise.all([
           branchesApi.getAll(),
-          servicesApi.getAll(),
+          servicesApi.getAll({ isActive: true }),
           staffApi.getDoctors(),
         ]);
 
+        const activeServices = Array.isArray(servicesData)
+          ? servicesData.filter((s: any) => s.isActive !== false)
+          : [];
+
         setBranches(branchesData);
-        setServices(servicesData);
+        setServices(activeServices);
         setDoctors(doctorsData);
 
         if (branchesData.length > 0) {
           setSelectedBranch(branchesData[0].id);
         }
-        if (initialServiceId) {
+        if (initialServiceId && activeServices.some((s: any) => s.id === initialServiceId)) {
           setSelectedService(initialServiceId);
-        } else if (servicesData.length > 0) {
-          setSelectedService(servicesData[0].id);
+        } else if (activeServices.length > 0) {
+          setSelectedService(activeServices[0].id);
         }
         if (initialDoctorId) {
           setSelectedDoctor(initialDoctorId);

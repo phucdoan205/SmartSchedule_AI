@@ -134,10 +134,17 @@ export const StaffListPage: React.FC = () => {
       else docs++;
     });
 
-    const onDuty = Math.max(1, Math.round(total * 0.75));
-    const onLeave = total > 5 ? 2 : 0;
+    const activeStaff = filteredDoctors.filter((d) => {
+      const isLocked = (d as any).isLocked || (d.status as string) === 'Locked' || (d as any).isActive === false;
+      return !isLocked && (d.status === 'Active' || (d as any).isActive !== false);
+    }).length;
 
-    return { total, docs, nurses, receptionists, onDuty, onLeave };
+    const onLeave = filteredDoctors.filter((d) => {
+      const s = (d.status || '').toLowerCase();
+      return s.includes('leave') || s.includes('nghỉ') || (d as any).isLeave;
+    }).length;
+
+    return { total, docs, nurses, receptionists, activeStaff, onLeave };
   }, [filteredDoctors]);
 
   const handleAddStaff = () => {
@@ -224,27 +231,21 @@ export const StaffListPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: Đang trong ca trực hôm nay */}
+        {/* Card 2: Đang hoạt động */}
         <div className="relative overflow-hidden rounded-2xl border border-slate-100 border-l-4 border-l-emerald-500 bg-white p-5 shadow-xs transition-all">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <p className="text-xs font-semibold text-slate-500">Đang trong ca trực hôm nay</p>
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <p className="text-xs font-semibold text-slate-500">Đang hoạt động</p>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               </div>
-              <h3 className="text-2xl font-black text-slate-900">{metrics.onDuty} người</h3>
+              <h3 className="text-2xl font-black text-slate-900">{metrics.activeStaff} người</h3>
               <div className="pt-2 text-xs font-medium text-slate-400">
-                <button
-                  type="button"
-                  onClick={() => navigate('/admin/staff/schedule')}
-                  className="hover:text-sky-600 transition-colors cursor-pointer"
-                >
-                  Xem danh sách trực &rarr;
-                </button>
+                <span className="text-emerald-600 font-semibold">Tài khoản khả dụng</span>
               </div>
             </div>
             <div className="text-slate-200">
-              <CalendarCheck className="w-12 h-12 stroke-1" />
+              <CalendarCheck className="w-12 h-12 stroke-1 text-emerald-100" />
             </div>
           </div>
         </div>
@@ -258,7 +259,7 @@ export const StaffListPage: React.FC = () => {
               <div className="pt-2 text-xs font-medium text-slate-400">
                 <button
                   type="button"
-                  onClick={() => navigate('/admin/staff/leaves')}
+                  onClick={() => navigate('/admin/staff/leave')}
                   className="hover:text-amber-600 transition-colors cursor-pointer"
                 >
                   Xem chi tiết &rarr;

@@ -17,6 +17,7 @@ import {
   Pencil,
   CheckCircle2,
   Loader2,
+  CalendarDays,
 } from 'lucide-react';
 import { staffApi, uploadApi } from '../../services/api';
 
@@ -108,6 +109,9 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   // Online booking portal switch
   const [onlineBookingEnabled, setOnlineBookingEnabled] = useState(true);
 
+  // Quyền tự chọn ca làm việc
+  const [allowSelfSchedule, setAllowSelfSchedule] = useState(true);
+
   // Account locked status
   const [isLocked, setIsLocked] = useState(false);
   const [showToast, setShowToast] = useState<{ message: string; type: 'success' | 'warn' } | null>(null);
@@ -125,6 +129,23 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       setSpecialty(doctor.specialty || 'Phục hình Răng sứ thẩm mỹ');
       if (doctor.bio) setBio(doctor.bio);
       if (doctor.commissionRate !== undefined) setCommissionRate(doctor.commissionRate);
+
+      const staffKey = doctor.id || doctor.code || doctor.employeeCode || '';
+      const savedSelf = localStorage.getItem(`staff_self_schedule_${staffKey}`);
+      if (savedSelf !== null) {
+        setAllowSelfSchedule(savedSelf === 'true');
+      } else if ((doctor as any).allowSelfSchedule !== undefined) {
+        setAllowSelfSchedule(Boolean((doctor as any).allowSelfSchedule));
+      } else {
+        setAllowSelfSchedule(true);
+      }
+
+      const lockedStorage =
+        localStorage.getItem(`account_locked_${(doctor.email || '').toLowerCase()}`) === 'true' ||
+        localStorage.getItem(`account_locked_${(doctor.code || doctor.employeeCode || '').toLowerCase()}`) === 'true';
+      const isDocLocked = Boolean(doctor.status === 'Locked' || (doctor as any).isActive === false || lockedStorage);
+      setIsLocked(isDocLocked);
+
       setIsEditingHours(false);
       setIsAddingService(false);
       setShowToast(null);
@@ -212,12 +233,33 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       commissionRate: Number(commissionRate),
       joinedDate,
       status: isLocked ? 'Locked' : status === 'active' ? 'Active' : status === 'leave' ? 'On Leave' : 'Resigned',
+      isActive: !isLocked,
+      isLocked,
+      allowSelfSchedule,
       bio,
       workDays,
       workHours,
       lunchBreak,
       onlineBookingEnabled,
     };
+
+    const staffKey = doctor?.id || doctor?.code || doctor?.employeeCode || code;
+    if (staffKey) {
+      localStorage.setItem(`staff_self_schedule_${staffKey}`, String(allowSelfSchedule));
+    }
+    if (code) {
+      localStorage.setItem(`staff_self_schedule_${code}`, String(allowSelfSchedule));
+    }
+
+    const docKeyEmail = (email || doctor?.email || '').toLowerCase();
+    const docKeyCode = (code || doctor?.code || doctor?.employeeCode || '').toLowerCase();
+    if (isLocked) {
+      if (docKeyEmail) localStorage.setItem(`account_locked_${docKeyEmail}`, 'true');
+      if (docKeyCode) localStorage.setItem(`account_locked_${docKeyCode}`, 'true');
+    } else {
+      if (docKeyEmail) localStorage.removeItem(`account_locked_${docKeyEmail}`);
+      if (docKeyCode) localStorage.removeItem(`account_locked_${docKeyCode}`);
+    }
 
     try {
       if (doctor?.id) {
@@ -228,6 +270,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
           specialty,
           bio,
           avatarUrl: avatarPreview,
+          isActive: !isLocked,
         });
       }
     } catch (err) {
@@ -247,17 +290,46 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       onSave(updatedData);
     }
 
-    setShowToast({ message: 'Cập nhật hồ sơ bác sĩ thành công!', type: 'success' });
+    setShowToast({
+      message: isLocked
+        ? 'Đã cập nhật hồ sơ & khóa tài khoản thành công!'
+        : 'Cập nhật hồ sơ bác sĩ thành công!',
+      type: 'success',
+    });
     setTimeout(() => {
       onClose();
     }, 600);
   };
 
-  const handleToggleLock = () => {
-    setIsLocked((prev) => !prev);
+  const handleToggleLock = async () => {
+    const nextLocked = !isLocked;
+    setIsLocked(nextLocked);
+
+    const docKeyEmail = (email || doctor?.email || '').toLowerCase();
+    const docKeyCode = (code || doctor?.code || doctor?.employeeCode || '').toLowerCase();
+
+    if (nextLocked) {
+      if (docKeyEmail) localStorage.setItem(`account_locked_${docKeyEmail}`, 'true');
+      if (docKeyCode) localStorage.setItem(`account_locked_${docKeyCode}`, 'true');
+    } else {
+      if (docKeyEmail) localStorage.removeItem(`account_locked_${docKeyEmail}`);
+      if (docKeyCode) localStorage.removeItem(`account_locked_${docKeyCode}`);
+    }
+
+    // Synchronize to backend if staff id exists
+    if (doctor?.id) {
+      try {
+        await staffApi.updateStaff(doctor.id, { isActive: !nextLocked });
+      } catch (err) {
+        console.warn('Backend updateStaff isActive notice:', err);
+      }
+    }
+
     setShowToast({
-      message: !isLocked ? 'Đã khóa tài khoản bác sĩ!' : 'Đã mở khóa tài khoản bác sĩ!',
-      type: 'warn',
+      message: nextLocked
+        ? 'Đã khóa tài khoản! Nhân sự này sẽ không thể đăng nhập cho đến khi quản trị viên mở khóa.'
+        : 'Đã mở khóa tài khoản! Nhân sự hiện có thể đăng nhập bình thường.',
+      type: nextLocked ? 'warn' : 'success',
     });
   };
 
@@ -781,6 +853,51 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                       {bio.length}/500 ký tự
                     </div>
                   </div>
+                </div>
+
+                {/* Quyền tự chọn ca làm việc (Công tắc cho phép/khóa quyền) */}
+                <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      allowSelfSchedule ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      <CalendarDays className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800">
+                          Quyền tự chọn ca làm việc
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          allowSelfSchedule
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {allowSelfSchedule ? 'Nhân sự tự chọn ca' : 'Khóa quyền (Quản lý chọn)'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        {allowSelfSchedule
+                          ? `Cho phép ${doctorShortName} tự đăng ký & điều chỉnh ca làm việc trên hệ thống`
+                          : `Đã khóa quyền tự chọn ca. Lịch làm việc do Quản lý/Admin trực tiếp phân bổ`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => setAllowSelfSchedule((v) => !v)}
+                    className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${
+                      allowSelfSchedule ? 'bg-emerald-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
+                        allowSelfSchedule ? 'left-6' : 'left-1'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 {/* Cổng Đặt lịch trực tuyến */}

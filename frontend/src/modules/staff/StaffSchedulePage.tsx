@@ -19,6 +19,7 @@ import {
   X,
   Loader2,
   Wand2,
+  Trash2,
 } from 'lucide-react';
 import { useBranch } from '../../context/BranchContext';
 import { staffApi, staffSchedulesApi } from '../../services/api';
@@ -84,24 +85,53 @@ export const StaffSchedulePage: React.FC = () => {
     }, 2800);
   };
 
-  // Calculate dynamic week columns based on weekOffset
+  const formatLocalDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Broadcast sync event to notify all tabs (Doctor details, Profile, Staff schedule)
+  const broadcastSync = () => {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const channel = new BroadcastChannel('smartschedule_sync');
+        channel.postMessage({ type: 'SCHEDULE_UPDATED' });
+        channel.close();
+      } catch (e) {
+        // Fallback
+      }
+    }
+  };
+
+  // Get Monday of the current real-time week
+  const getMondayOfCurrentWeek = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
+    return monday;
+  };
+
+  // Calculate dynamic week columns based on real-time current date & weekOffset
   const weekColumns = useMemo(() => {
-    const base = new Date(2026, 7, 17); // Aug 17, 2026 (Monday)
-    base.setDate(base.getDate() + weekOffset * 7);
+    const monday = getMondayOfCurrentWeek();
+    monday.setDate(monday.getDate() + weekOffset * 7);
     const labels = ['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CHỦ NHẬT'];
     const dayKeys = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const todayStr = formatLocalDate(new Date());
 
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const dateFull = d.toISOString().split('T')[0];
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const dateFull = formatLocalDate(d);
       const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
       return {
         dayKey: dayKeys[i],
         label: labels[i],
         dateStr,
         dateFull,
-        isToday: weekOffset === 0 && i === 3, // T5 is today in mock
+        isToday: dateFull === todayStr,
         isSunday: i === 6,
       };
     });
@@ -109,14 +139,21 @@ export const StaffSchedulePage: React.FC = () => {
 
   const currentWeekDateRangeStr = `${weekColumns[0].dateStr}/${weekColumns[0].dateFull.slice(0, 4)} - ${weekColumns[6].dateStr}/${weekColumns[6].dateFull.slice(0, 4)}`;
 
-  // Fetch real staff and shifts from DB
-  const loadData = async () => {
+  // Fetch real staff and shifts for the requested week only to prevent backend overload
+  const loadData = async (startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
-      const branchParam = selectedBranchId && selectedBranchId !== 'all' ? selectedBranchId : undefined;
+      const branchParam = selectedBranchId && selectedBranchId !== 'all' && selectedBranchId !== 'ALL' ? selectedBranchId : undefined;
+      const start = startDate || weekColumns[0]?.dateFull;
+      const end = endDate || weekColumns[6]?.dateFull;
+
       const [staffList, scheduleList] = await Promise.all([
         staffApi.getAllStaff({ branchId: branchParam }).catch(() => []),
-        staffSchedulesApi.getAll({ branchId: branchParam }).catch(() => []),
+        staffSchedulesApi.getAll({
+          branchId: branchParam,
+          startDate: start,
+          endDate: end,
+        }).catch(() => []),
       ]);
 
       if (Array.isArray(staffList) && staffList.length > 0) {
@@ -146,6 +183,8 @@ export const StaffSchedulePage: React.FC = () => {
                 ? 'morning'
                 : sc.shiftType === 'evening'
                 ? 'overtime'
+                : sc.shiftType === 'leave'
+                ? 'leave'
                 : 'morning',
             startTime: sc.startTime || '08:00',
             endTime: sc.endTime || (sc.shiftType === 'afternoon' ? '17:30' : '12:00'),
@@ -153,6 +192,8 @@ export const StaffSchedulePage: React.FC = () => {
             statusLabel: sc.isAvailable ? undefined : '(Tạm ngưng)',
           }))
         );
+      } else {
+        setShifts([]);
       }
     } catch (err) {
       console.error('Lỗi khi tải lịch làm việc:', err);
@@ -161,10 +202,29 @@ export const StaffSchedulePage: React.FC = () => {
     }
   };
 
+  // Lazy-load data when weekOffset or branch changes
   useEffect(() => {
-    loadData();
+    if (weekColumns.length > 0) {
+      loadData(weekColumns[0].dateFull, weekColumns[6].dateFull);
+    }
     setCurrentPage(1);
-  }, [selectedBranchId]);
+  }, [selectedBranchId, weekOffset]);
+
+  // Real-time synchronization when staff registers shifts or profile updates
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      channel = new BroadcastChannel('smartschedule_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'SCHEDULE_UPDATED' || event.data?.type === 'STAFF_UPDATED') {
+          if (weekColumns.length > 0) {
+            loadData(weekColumns[0].dateFull, weekColumns[6].dateFull);
+          }
+        }
+      };
+    }
+    return () => channel?.close();
+  }, [weekColumns]);
 
   // Filter staff by search, department, and branch
   const filteredStaff = useMemo(() => {
@@ -337,7 +397,46 @@ export const StaffSchedulePage: React.FC = () => {
       );
     }
 
+    broadcastSync();
     setQuickPicker(null);
+  };
+
+  const [isClearing, setIsClearing] = useState(false);
+
+  // Xóa sạch toàn bộ ca làm việc trong tuần đang xem nếu lỡ áp dụng nhầm
+  const handleClearWeekShifts = async () => {
+    if (shifts.length === 0) {
+      showToast('Tuần này hiện không có ca làm việc nào để xóa!');
+      return;
+    }
+    const confirmClear = window.confirm(
+      `Bạn có chắc chắn muốn xóa toàn bộ ca trực trong tuần (${currentWeekDateRangeStr})? Thao tác này sẽ xóa sạch dữ liệu ca trực của tuần đang hiển thị để bạn phân ca lại từ đầu.`
+    );
+    if (!confirmClear) return;
+
+    try {
+      setIsClearing(true);
+      const branchParam = selectedBranchId && selectedBranchId !== 'all' && selectedBranchId !== 'ALL' ? selectedBranchId : undefined;
+      const start = weekColumns[0]?.dateFull;
+      const end = weekColumns[6]?.dateFull;
+
+      // Optimistic clear in local state
+      setShifts([]);
+
+      const res = await staffSchedulesApi.clearWeek({
+        branchId: branchParam,
+        startDate: start,
+        endDate: end,
+      });
+
+      broadcastSync();
+      showToast(res?.message || 'Đã xóa sạch toàn bộ ca trực tuần này thành công!');
+    } catch (err: any) {
+      showToast('Lỗi khi xóa ca trực: ' + (err.message || 'Lỗi server'));
+      loadData();
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   // Auto-generate standard weekly schedule for all staff in branch
@@ -349,9 +448,10 @@ export const StaffSchedulePage: React.FC = () => {
         weekStart: weekColumns[0].dateFull,
       });
       await loadData();
+      broadcastSync();
       showToast(res?.message || 'Đã áp dụng khung giờ tiêu chuẩn T2-T7 cho toàn bộ nhân sự!');
     } catch (err: any) {
-      showToast('Tự động tạo ca thất bại: ' + (err.message || 'Lỗi server'), );
+      showToast('Tự động tạo ca thất bại: ' + (err.message || 'Lỗi server'));
     } finally {
       setIsGenerating(false);
     }
@@ -384,6 +484,7 @@ export const StaffSchedulePage: React.FC = () => {
         startTime,
         endTime,
       });
+      broadcastSync();
     } catch (err) {
       console.warn('API shift create notice:', err);
     }
@@ -397,6 +498,7 @@ export const StaffSchedulePage: React.FC = () => {
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
     try {
       await staffSchedulesApi.delete(shiftId);
+      broadcastSync();
     } catch (err) {
       // Ignored if local-only ID
     }
@@ -520,7 +622,7 @@ export const StaffSchedulePage: React.FC = () => {
           <button
             type="button"
             onClick={handleAutoGenerateWeek}
-            disabled={isGenerating}
+            disabled={isGenerating || isClearing}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
             title="Tự động gán ca sáng 08:00-12:00 và ca chiều 13:30-17:30 từ T2 đến T7"
           >
@@ -530,6 +632,22 @@ export const StaffSchedulePage: React.FC = () => {
               <Wand2 className="w-3.5 h-3.5 text-sky-600" />
             )}
             <span>Áp dụng ca tiêu chuẩn tuần này</span>
+          </button>
+
+          {/* Button: Xóa sạch ca tuần này */}
+          <button
+            type="button"
+            onClick={handleClearWeekShifts}
+            disabled={isGenerating || isClearing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+            title="Xóa sạch toàn bộ ca trực trong tuần này nếu lỡ áp dụng nhầm hoặc muốn phân chia lại"
+          >
+            {isClearing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            )}
+            <span>Xóa sạch ca tuần này</span>
           </button>
 
           {/* Export button */}

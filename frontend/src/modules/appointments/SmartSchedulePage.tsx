@@ -116,23 +116,43 @@ export const SmartSchedulePage: React.FC = () => {
     loadAppointments();
     const loadMeta = async () => {
       try {
-        const [docs, srvs, brs] = await Promise.all([staffApi.getDoctors(), servicesApi.getAll(), branchesApi.getAll()]);
-        setDoctors(docs); setServices(srvs); setBranches(brs);
-        if (docs.length > 0) setDoctorId(docs[0].id);
-        if (srvs.length > 0) setServiceId(srvs[0].id);
-        if (brs.length > 0) setBranchId(brs[0].id);
+        const [docs, srvs, brs] = await Promise.all([
+          staffApi.getDoctors(),
+          servicesApi.getAll({ isActive: true }),
+          branchesApi.getAll(),
+        ]);
+        const activeSrvs = Array.isArray(srvs) ? srvs.filter((s: any) => s.isActive !== false) : [];
+        setDoctors(docs); setServices(activeSrvs); setBranches(brs);
+        if (docs.length > 0 && !doctorId) setDoctorId(docs[0].id);
+        if (activeSrvs.length > 0 && !serviceId) setServiceId(activeSrvs[0].id);
+        if (brs.length > 0 && !branchId) setBranchId(brs[0].id);
       } catch (err) { console.error(err); }
     };
     loadMeta();
     let channel: BroadcastChannel | null = null;
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       channel = new BroadcastChannel('smartschedule_sync');
-      channel.onmessage = () => loadAppointments(true);
+      channel.onmessage = (event) => {
+        loadAppointments(true);
+        if (event.data?.type === 'SERVICES_UPDATED') {
+          loadMeta();
+        }
+      };
     }
+    const handleServicesUpdated = () => {
+      loadMeta();
+      loadAppointments(true);
+    };
+    window.addEventListener('services_updated', handleServicesUpdated);
     const handleFocus = () => loadAppointments(true);
     window.addEventListener('focus', handleFocus);
     const interval = setInterval(() => loadAppointments(true), 5000);
-    return () => { channel?.close(); window.removeEventListener('focus', handleFocus); clearInterval(interval); };
+    return () => {
+      channel?.close();
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('services_updated', handleServicesUpdated);
+      clearInterval(interval);
+    };
   }, []);
 
   const filteredAppointments = useMemo(() => {

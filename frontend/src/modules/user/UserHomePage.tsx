@@ -32,11 +32,14 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
       try {
         setIsLoading(true);
         const [servicesData, doctorsData] = await Promise.all([
-          servicesApi.getAll(),
+          servicesApi.getAll({ isActive: true }),
           staffApi.getDoctors(),
         ]);
-        setServices(servicesData);
-        setDoctors(doctorsData);
+        const activeOnly = Array.isArray(servicesData)
+          ? servicesData.filter((s: any) => s.isActive !== false)
+          : [];
+        setServices(activeOnly);
+        setDoctors(doctorsData || []);
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu trang chủ:', err);
       } finally {
@@ -44,6 +47,27 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
       }
     };
     fetchData();
+
+    // Listen to real-time service update events
+    const handleSync = () => {
+      fetchData();
+    };
+    window.addEventListener('services_updated', handleSync);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('smartschedule_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'SERVICES_UPDATED') {
+          fetchData();
+        }
+      };
+    } catch {}
+
+    return () => {
+      window.removeEventListener('services_updated', handleSync);
+      if (channel) channel.close();
+    };
   }, []);
 
   return (
@@ -159,9 +183,11 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-400 text-xs">
-                      <ImageIcon className="w-6 h-6 text-slate-300 mb-1" />
-                      <span>Chưa có ảnh</span>
+                    <div className="flex flex-col items-center justify-center text-slate-400 text-xs p-4 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-2xl mb-1 shadow-2xs">
+                        🦷
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">Dịch vụ nha khoa</span>
                     </div>
                   )}
                   {s.code && (
