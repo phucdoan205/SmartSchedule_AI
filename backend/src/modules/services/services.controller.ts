@@ -32,6 +32,11 @@ export class ServicesController {
     return this.servicesService.findCategories();
   }
 
+  @Post('categories')
+  async createCategory(@Body() body: { name: string; description?: string }) {
+    return this.servicesService.createCategory(body);
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string) {
     return this.servicesService.findById(id);
