@@ -39,4 +39,18 @@ export class FinanceController {
   ) {
     return this.financeService.handleVietQrWebhook(body);
   }
+
+  @Post('receipt')
+  async createReceipt(
+    @Body()
+    body: {
+      patientId: string;
+      amount: number;
+      description?: string;
+      paymentMethod?: string;
+      collector?: string;
+    },
+  ) {
+    return this.financeService.createReceipt(body);
+  }
 }

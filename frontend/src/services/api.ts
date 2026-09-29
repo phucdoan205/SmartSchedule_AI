@@ -237,8 +237,8 @@ export const operatoriesApi = {
 
 // Patients API
 export const patientsApi = {
-  getAll: async (search?: string) => {
-    const res = await apiClient.get('/patients', { params: { search } });
+  getAll: async (params?: { search?: string; page?: number; limit?: number }) => {
+    const res = await apiClient.get('/patients', { params });
     return res.data;
   },
   getById: async (id: string) => {
@@ -259,6 +259,32 @@ export const patientsApi = {
       condition,
       colorStatus,
     });
+    return res.data;
+  },
+  addMedicalRecord: async (patientId: string, data: { diagnosis: string; treatmentGiven: string; xrayImageUrls?: string[]; stepId?: string }) => {
+    const res = await apiClient.post(`/patients/${patientId}/medical-records`, data);
+    return res.data;
+  },
+};
+
+// Finance API
+export const financeApi = {
+  getInvoices: async (params?: { branchId?: string; status?: string }) => {
+    const res = await apiClient.get('/finance/invoices', { params });
+    return res.data;
+  },
+  createInvoice: async (data: any) => {
+    const res = await apiClient.post('/finance/invoices', data);
+    return res.data;
+  },
+  createReceipt: async (data: {
+    patientId: string;
+    amount: number;
+    description?: string;
+    paymentMethod?: string;
+    collector?: string;
+  }) => {
+    const res = await apiClient.post('/finance/receipt', data);
     return res.data;
   },
 };

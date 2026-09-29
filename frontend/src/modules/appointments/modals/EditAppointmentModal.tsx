@@ -29,6 +29,15 @@ interface EditAppointmentModalProps {
   onSaved: () => Promise<void> | void;
 }
 
+// Status badge config
+const STATUS_BADGE: Record<string, { label: string; bg: string; dot: string }> = {
+  PENDING:     { label: 'Chờ Khám & Check-in',       bg: 'bg-amber-50 text-amber-700 border-amber-200',   dot: 'bg-amber-500' },
+  CONFIRMED:   { label: 'Đã Xác Nhận Lịch',           bg: 'bg-sky-50 text-sky-700 border-sky-200',         dot: 'bg-sky-500' },
+  IN_PROGRESS: { label: 'Đang Thực Hiện Điều Trị',    bg: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
+  COMPLETED:   { label: 'Hoàn Thành & Thanh Toán',    bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  CANCELLED:   { label: 'Đã Hủy Lịch Hẹn',            bg: 'bg-rose-50 text-rose-700 border-rose-200',      dot: 'bg-rose-500' },
+};
+
 export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   isOpen,
   onClose,
@@ -51,6 +60,9 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [notes, setNotes] = useState('');
   const [editReason, setEditReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Lock time/date editing for in-progress or completed appointments
+  const isLocked = status === 'IN_PROGRESS' || status === 'COMPLETED' || status === 'CANCELLED';
 
   // Sync state when appointment changes
   useEffect(() => {
@@ -166,60 +178,78 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
   if (!appointment) return null;
 
+  const statusBadge = STATUS_BADGE[status] || STATUS_BADGE['PENDING'];
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={`Chỉnh Sửa Lịch Hẹn [${appointment.id}]`}
-      subtitle="Điều chỉnh ngày giờ, bác sĩ phụ trách hoặc thông tin bệnh nhân khi có sai sót"
+      subtitle={isLocked ? 'Chỉ có thể chỉnh sửa ghi chú & thông tin bệnh nhân. Kéo thả thẻ trên bảng Kanban để thay đổi trạng thái.' : 'Điều chỉnh ngày giờ, bác sĩ phụ trách hoặc thông tin bệnh nhân khi có sai sót'}
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        {/* Quick Reschedule Bar */}
-        <div className="bg-gradient-to-r from-sky-50 via-teal-50 to-emerald-50 p-3 rounded-2xl border border-sky-100 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-sky-900 font-bold">
-            <CalendarDays className="w-4 h-4 text-sky-600" />
-            <span>Dời Lịch Nhanh 1-Click:</span>
+        {/* Status Badge */}
+        <div className={`flex items-center justify-between p-3 rounded-2xl border ${statusBadge.bg}`}>
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${statusBadge.dot} shrink-0`} />
+            <span className="font-bold text-[11px] uppercase tracking-wide">Trạng thái hiện tại:</span>
+            <span className="font-bold text-sm">{statusBadge.label}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => addDaysToCurrent(1)}
-              className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
-            >
-              +1 Ngày
-            </button>
-            <button
-              type="button"
-              onClick={() => addDaysToCurrent(2)}
-              className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
-            >
-              +2 Ngày
-            </button>
-            <button
-              type="button"
-              onClick={() => addDaysToCurrent(7)}
-              className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
-            >
-              +1 Tuần
-            </button>
-            <div className="h-4 w-px bg-slate-300 mx-1 hidden sm:block" />
-            <button
-              type="button"
-              onClick={() => setPresetTime('09:00')}
-              className="px-2.5 py-1 bg-white hover:bg-teal-100 text-teal-700 font-semibold rounded-lg border border-teal-200 transition-colors shadow-2xs cursor-pointer"
-            >
-              Sáng 09:00
-            </button>
-            <button
-              type="button"
-              onClick={() => setPresetTime('14:30')}
-              className="px-2.5 py-1 bg-white hover:bg-teal-100 text-teal-700 font-semibold rounded-lg border border-teal-200 transition-colors shadow-2xs cursor-pointer"
-            >
-              Chiều 14:30
-            </button>
-          </div>
+          {isLocked && (
+            <span className="text-[10px] font-bold bg-white/60 px-2 py-1 rounded-lg border border-current/20">
+              🔒 {status === 'COMPLETED' ? 'Đã hoàn thành' : status === 'CANCELLED' ? 'Đã hủy' : 'Đang điều trị — không thể dời lịch'}
+            </span>
+          )}
         </div>
+
+        {/* Quick Reschedule Bar — only when not locked */}
+        {!isLocked && (
+          <div className="bg-gradient-to-r from-sky-50 via-teal-50 to-emerald-50 p-3 rounded-2xl border border-sky-100 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-sky-900 font-bold">
+              <CalendarDays className="w-4 h-4 text-sky-600" />
+              <span>Dời Lịch Nhanh 1-Click:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => addDaysToCurrent(1)}
+                className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                +1 Ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => addDaysToCurrent(2)}
+                className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                +2 Ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => addDaysToCurrent(7)}
+                className="px-2.5 py-1 bg-white hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                +1 Tuần
+              </button>
+              <div className="h-4 w-px bg-slate-300 mx-1 hidden sm:block" />
+              <button
+                type="button"
+                onClick={() => setPresetTime('09:00')}
+                className="px-2.5 py-1 bg-white hover:bg-teal-100 text-teal-700 font-semibold rounded-lg border border-teal-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                Sáng 09:00
+              </button>
+              <button
+                type="button"
+                onClick={() => setPresetTime('14:30')}
+                className="px-2.5 py-1 bg-white hover:bg-teal-100 text-teal-700 font-semibold rounded-lg border border-teal-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                Chiều 14:30
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* SECTION 1: THÔNG TIN BỆNH NHÂN */}
         <div className="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200 space-y-3">
@@ -280,115 +310,130 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
         </div>
 
         {/* SECTION 2: THỜI GIAN & ĐỊA ĐIỂM */}
-        <div className="bg-sky-50/60 p-3.5 rounded-2xl border border-sky-100 space-y-3">
+        <div className={`p-3.5 rounded-2xl border space-y-3 ${isLocked ? 'bg-slate-50/50 border-slate-200 opacity-70' : 'bg-sky-50/60 border-sky-100'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-bold text-sky-900 text-[11px] uppercase tracking-wide">
               <Clock className="w-3.5 h-3.5 text-sky-600" />
               <span>2. Thời Gian & Cơ Sở Điều Trị</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md border border-teal-200">
-              <Sparkles className="w-3 h-3 text-teal-600" />
-              <span>AI Đệm vô trùng 15p: Tự động kích hoạt</span>
-            </div>
+            {isLocked ? (
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-200/80 px-2 py-0.5 rounded-md">🔒 Không thể thay đổi</span>
+            ) : (
+              <div className="flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-md border border-teal-200">
+                <Sparkles className="w-3 h-3 text-teal-600" />
+                <span>AI Đệm vô trùng 15p: Tự động kích hoạt</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-sky-600" /> Cơ Sở Chi Nhánh: *
+                <Building2 className="w-3.5 h-3.5 text-sky-600" /> Cơ Sở Chi Nhánh:
               </label>
-              <select
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              >
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+              {isLocked ? (
+                <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-100/80 font-semibold text-slate-600">
+                  {branches.find(b => b.id === branchId)?.name || branchId || '—'}
+                </div>
+              ) : (
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-sky-600" /> Ngày Hẹn Khám: *
+                <Calendar className="w-3.5 h-3.5 text-sky-600" /> Ngày Hẹn Khám:
               </label>
-              <input
-                type="date"
-                required
-                value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
+              {isLocked ? (
+                <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-100/80 font-bold text-slate-600">{appointmentDate || '—'}</div>
+              ) : (
+                <input
+                  type="date"
+                  required
+                  value={appointmentDate}
+                  onChange={(e) => setAppointmentDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              )}
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-sky-600" /> Giờ Bắt Đầu: *
+                <Clock className="w-3.5 h-3.5 text-sky-600" /> Giờ Bắt Đầu:
               </label>
-              <input
-                type="time"
-                required
-                value={appointmentTime}
-                onChange={(e) => setAppointmentTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
+              {isLocked ? (
+                <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-100/80 font-bold text-slate-600">{appointmentTime || '—'}</div>
+              ) : (
+                <input
+                  type="time"
+                  required
+                  value={appointmentTime}
+                  onChange={(e) => setAppointmentTime(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              )}
             </div>
           </div>
         </div>
 
-        {/* SECTION 3: BÁC SĨ & DỊCH VỤ & TRẠNG THÁI */}
+        {/* SECTION 3: BÁC SĨ & DỊCH VỤ */}
         <div className="bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200 space-y-3">
           <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] uppercase tracking-wide">
             <Stethoscope className="w-3.5 h-3.5 text-indigo-600" />
-            <span>3. Dịch Vụ, Bác Sĩ & Trạng Thái Lịch</span>
+            <span>3. Dịch Vụ & Bác Sĩ Đảm Nhiệm</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Dịch Vụ Điều Trị: *</label>
-              <select
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              >
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({Number(s.standardPrice).toLocaleString('vi-VN')}đ)
-                  </option>
-                ))}
-              </select>
+              {isLocked ? (
+                <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-100/80 font-semibold text-slate-600">
+                  {services.find(s => s.id === serviceId)?.name || '—'}
+                </div>
+              ) : (
+                <select
+                  value={serviceId}
+                  onChange={(e) => setServiceId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                >
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({Number(s.standardPrice).toLocaleString('vi-VN')}đ)
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Bác Sĩ Đảm Nhiệm: *</label>
-              <select
-                value={doctorId}
-                onChange={(e) => setDoctorId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              >
-                {doctors.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} ({d.specialty || 'Nha sĩ'})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Trạng Thái Cuộc Hẹn: *</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              >
-                <option value="PENDING">Chờ Khám & Check-in</option>
-                <option value="CONFIRMED">Đã Xác Nhận Lịch</option>
-                <option value="IN_PROGRESS">Đang Thực Hiện Điều Trị</option>
-                <option value="COMPLETED">Hoàn Thành & Thanh Toán</option>
-                <option value="CANCELLED">Đã Hủy Lịch Hẹn</option>
-              </select>
+              {isLocked ? (
+                <div className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-100/80 font-semibold text-slate-600">
+                  {doctors.find(d => d.id === doctorId)?.name || '—'}
+                </div>
+              ) : (
+                <select
+                  value={doctorId}
+                  onChange={(e) => setDoctorId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                >
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.specialty || 'Nha sĩ'})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

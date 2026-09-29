@@ -239,6 +239,7 @@ model Patient {
   birthYear      Int
   gender         String          // Nam / Nu
   medicalAlerts  String?         @db.Text // Tiền sử cao huyết áp, dị ứng Lidocaine
+  avatarUrl      String?         // URL ảnh đại diện trên Cloudinary
   createdAt      DateTime        @default(now())
 
   appointments   Appointment[]

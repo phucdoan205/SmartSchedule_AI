@@ -111,4 +111,69 @@ export class FinanceService {
       };
     });
   }
+
+  async createReceipt(data: {
+    patientId: string;
+    amount: number;
+    description?: string;
+    paymentMethod?: string;
+    collector?: string;
+  }) {
+    const patient = await this.prisma.patient.findFirst({
+      where: {
+        OR: [{ id: data.patientId }, { patientCode: data.patientId }],
+      },
+      include: {
+        appointments: { take: 1, orderBy: { startTime: 'desc' } },
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException(`Bệnh nhân ${data.patientId} không tồn tại`);
+    }
+
+    const branch =
+      (patient.appointments[0]?.branchId
+        ? await this.prisma.branch.findUnique({ where: { id: patient.appointments[0].branchId } })
+        : null) || (await this.prisma.branch.findFirst());
+
+    if (!branch) {
+      throw new NotFoundException('Không tìm thấy chi nhánh hợp lệ');
+    }
+
+    const year = new Date().getFullYear();
+    const count = await this.prisma.invoice.count();
+    const invoiceCode = `#HD-${year}-${1000 + count + 1}`;
+    const receiptCode = `#PT-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    return this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.create({
+        data: {
+          invoiceCode,
+          branchId: branch.id,
+          patientId: patient.id,
+          totalAmount: data.amount,
+          discountAmount: 0,
+          finalAmount: data.amount,
+          status: 'PAID',
+        },
+      });
+
+      const payment = await tx.payment.create({
+        data: {
+          receiptCode,
+          invoiceId: invoice.id,
+          amountPaid: data.amount,
+          paymentMethod: data.paymentMethod || 'VIETQR',
+          transactionRef: `REC-${Date.now()}`,
+          isMatched: true,
+        },
+      });
+
+      return {
+        invoice,
+        payment,
+      };
+    });
+  }
 }

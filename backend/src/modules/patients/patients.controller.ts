@@ -14,8 +14,12 @@ export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Get()
-  async findAll(@Query('search') search?: string) {
-    return this.patientsService.findAll(search);
+  async findAll(
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.patientsService.findAll(search, page, limit);
   }
 
   @Get(':id')
@@ -50,6 +54,7 @@ export class PatientsController {
       birthYear?: number;
       gender?: string;
       medicalAlerts?: string;
+      avatarUrl?: string;
     },
   ) {
     return this.patientsService.update(id, body);

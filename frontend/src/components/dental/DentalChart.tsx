@@ -16,101 +16,147 @@ export interface ToothInfo {
 }
 
 // Initial state matching design mock (Image 2)
-export const DEFAULT_TEETH_DATA: Record<number, ToothInfo> = {
-  // Upper Right (18 - 11)
-  18: { number: 18, jaw: 'upper', side: 'right', type: 'molar', nameVi: 'Răng khôn hàm trên phải', condition: 'healthy' },
-  17: { number: 17, jaw: 'upper', side: 'right', type: 'molar', nameVi: 'Răng hàm lớn 2 hàm trên phải', condition: 'healthy' },
-  16: { number: 16, jaw: 'upper', side: 'right', type: 'molar', nameVi: 'Răng hàm lớn 1 hàm trên phải', condition: 'healthy' },
-  15: { number: 15, jaw: 'upper', side: 'right', type: 'premolar', nameVi: 'Răng hàm nhỏ 2 hàm trên phải', condition: 'healthy' },
-  14: { number: 14, jaw: 'upper', side: 'right', type: 'premolar', nameVi: 'Răng hàm nhỏ 1 hàm trên phải', condition: 'healthy' },
-  13: { number: 13, jaw: 'upper', side: 'right', type: 'canine', nameVi: 'Răng nanh hàm trên phải', condition: 'healthy' },
-  12: { number: 12, jaw: 'upper', side: 'right', type: 'incisor', nameVi: 'Răng cửa bên hàm trên phải', condition: 'healthy' },
-  11: {
-    number: 11,
-    jaw: 'upper',
-    side: 'right',
-    type: 'incisor',
-    nameVi: 'Răng cửa giữa hàm trên phải',
-    condition: 'crown',
-    conditionNote: 'Bọc răng toàn sứ Cercon HT - Khớp cắn chuẩn',
-    date: '10/08/2026',
-    doctor: 'BS. CKII Lê Văn Hùng',
-  },
+export const createDefaultTeethData = (): Record<number, ToothInfo> => {
+  const data: Record<number, ToothInfo> = {};
+  const upperRight = [18, 17, 16, 15, 14, 13, 12, 11];
+  const upperLeft = [21, 22, 23, 24, 25, 26, 27, 28];
+  const lowerRight = [48, 47, 46, 45, 44, 43, 42, 41];
+  const lowerLeft = [31, 32, 33, 34, 35, 36, 37, 38];
 
-  // Upper Left (21 - 28)
-  21: {
-    number: 21,
-    jaw: 'upper',
-    side: 'left',
-    type: 'incisor',
-    nameVi: 'Răng cửa giữa hàm trên trái',
-    condition: 'crown',
-    conditionNote: 'Bọc răng toàn sứ Cercon HT - Khớp cắn chuẩn',
-    date: '10/08/2026',
-    doctor: 'BS. CKII Lê Văn Hùng',
-  },
-  22: { number: 22, jaw: 'upper', side: 'left', type: 'incisor', nameVi: 'Răng cửa bên hàm trên trái', condition: 'healthy' },
-  23: { number: 23, jaw: 'upper', side: 'left', type: 'canine', nameVi: 'Răng nanh hàm trên trái', condition: 'healthy' },
-  24: { number: 24, jaw: 'upper', side: 'left', type: 'premolar', nameVi: 'Răng hàm nhỏ 1 hàm trên trái', condition: 'healthy' },
-  25: { number: 25, jaw: 'upper', side: 'left', type: 'premolar', nameVi: 'Răng hàm nhỏ 2 hàm trên trái', condition: 'healthy' },
-  26: { number: 26, jaw: 'upper', side: 'left', type: 'molar', nameVi: 'Răng hàm lớn 1 hàm trên trái', condition: 'healthy' },
-  27: { number: 27, jaw: 'upper', side: 'left', type: 'molar', nameVi: 'Răng hàm lớn 2 hàm trên trái', condition: 'healthy' },
-  28: { number: 28, jaw: 'upper', side: 'left', type: 'molar', nameVi: 'Răng khôn hàm trên trái', condition: 'healthy' },
+  const getToothMeta = (num: number): { jaw: 'upper' | 'lower'; side: 'right' | 'left'; type: ToothInfo['type']; nameVi: string } => {
+    const isUpper = num < 30;
+    const jaw = isUpper ? 'upper' : 'lower';
+    const lastDigit = num % 10;
+    const isRight = num < 20 || (num >= 40 && num < 50);
+    const side = isRight ? 'right' : 'left';
+    let type: ToothInfo['type'] = 'molar';
+    let typeName = 'Răng hàm';
+    if (lastDigit === 1) { type = 'incisor'; typeName = 'Răng cửa giữa'; }
+    else if (lastDigit === 2) { type = 'incisor'; typeName = 'Răng cửa bên'; }
+    else if (lastDigit === 3) { type = 'canine'; typeName = 'Răng nanh'; }
+    else if (lastDigit === 4) { type = 'premolar'; typeName = 'Răng hàm nhỏ 1'; }
+    else if (lastDigit === 5) { type = 'premolar'; typeName = 'Răng hàm nhỏ 2'; }
+    else if (lastDigit === 6) { type = 'molar'; typeName = 'Răng hàm lớn 1'; }
+    else if (lastDigit === 7) { type = 'molar'; typeName = 'Răng hàm lớn 2'; }
+    else if (lastDigit === 8) { type = 'molar'; typeName = 'Răng khôn'; }
 
-  // Lower Right (48 - 41)
-  48: { number: 48, jaw: 'lower', side: 'right', type: 'molar', nameVi: 'Răng khôn hàm dưới phải', condition: 'healthy' },
-  47: { number: 47, jaw: 'lower', side: 'right', type: 'molar', nameVi: 'Răng hàm lớn 2 hàm dưới phải', condition: 'healthy' },
-  46: {
-    number: 46,
-    jaw: 'lower',
-    side: 'right',
-    type: 'molar',
-    nameVi: 'Răng hàm lớn 1 hàm dưới phải',
-    condition: 'implant',
-    conditionNote: 'Cấy 1 trụ Straumann SLA Ø4.1x10mm - Đang tích hợp xương tốt',
-    date: '15/10/2026',
-    doctor: 'BS. CKII Lê Văn Hùng',
-  },
-  45: { number: 45, jaw: 'lower', side: 'right', type: 'premolar', nameVi: 'Răng hàm nhỏ 2 hàm dưới phải', condition: 'healthy' },
-  44: { number: 44, jaw: 'lower', side: 'right', type: 'premolar', nameVi: 'Răng hàm nhỏ 1 hàm dưới phải', condition: 'healthy' },
-  43: { number: 43, jaw: 'lower', side: 'right', type: 'canine', nameVi: 'Răng nanh hàm dưới phải', condition: 'healthy' },
-  42: { number: 42, jaw: 'lower', side: 'right', type: 'incisor', nameVi: 'Răng cửa bên hàm dưới phải', condition: 'healthy' },
-  41: { number: 41, jaw: 'lower', side: 'right', type: 'incisor', nameVi: 'Răng cửa giữa hàm dưới phải', condition: 'healthy' },
+    return {
+      jaw,
+      side,
+      type,
+      nameVi: `${typeName} hàm ${jaw === 'upper' ? 'trên' : 'dưới'} ${side === 'right' ? 'phải' : 'trái'}`,
+    };
+  };
 
-  // Lower Left (31 - 38)
-  31: { number: 31, jaw: 'lower', side: 'left', type: 'incisor', nameVi: 'Răng cửa giữa hàm dưới trái', condition: 'healthy' },
-  32: { number: 32, jaw: 'lower', side: 'left', type: 'incisor', nameVi: 'Răng cửa bên hàm dưới trái', condition: 'healthy' },
-  33: { number: 33, jaw: 'lower', side: 'left', type: 'canine', nameVi: 'Răng nanh hàm dưới trái', condition: 'healthy' },
-  34: { number: 34, jaw: 'lower', side: 'left', type: 'premolar', nameVi: 'Răng hàm nhỏ 1 hàm dưới trái', condition: 'healthy' },
-  35: { number: 35, jaw: 'lower', side: 'left', type: 'premolar', nameVi: 'Răng hàm nhỏ 2 hàm dưới trái', condition: 'healthy' },
-  36: { number: 36, jaw: 'lower', side: 'left', type: 'molar', nameVi: 'Răng hàm lớn 1 hàm dưới trái', condition: 'healthy' },
-  37: { number: 37, jaw: 'lower', side: 'left', type: 'molar', nameVi: 'Răng hàm lớn 2 hàm dưới trái', condition: 'healthy' },
-  38: {
-    number: 38,
-    jaw: 'lower',
-    side: 'left',
-    type: 'molar',
-    nameVi: 'Răng khôn hàm dưới trái',
-    condition: 'extracted',
-    conditionNote: 'Đã nhổ tiểu phẫu do mọc lệch ngầm 90 độ',
-    date: '02/09/2026',
-    doctor: 'BS. Nguyễn Minh Anh',
-  },
+  [...upperRight, ...upperLeft, ...lowerRight, ...lowerLeft].forEach((num) => {
+    const meta = getToothMeta(num);
+    data[num] = {
+      number: num,
+      jaw: meta.jaw,
+      side: meta.side,
+      type: meta.type,
+      nameVi: meta.nameVi,
+      condition: 'healthy',
+    };
+  });
+
+  return data;
 };
+
+export const DEFAULT_TEETH_DATA: Record<number, ToothInfo> = createDefaultTeethData();
 
 interface DentalChartProps {
   onAddDiagnosis?: (toothNumber?: number) => void;
   patientName?: string;
   patientId?: string;
+  dentalCharts?: Array<{
+    toothNumber: number;
+    condition: string;
+    colorStatus?: string | null;
+  }>;
+  onUpdateCondition?: (toothNumber: number, condition: ToothCondition) => void;
 }
 
 export const DentalChart: React.FC<DentalChartProps> = ({
   onAddDiagnosis,
-  patientName = 'Nguyễn Văn An',
-  patientId = 'BN-2026-104',
+  patientName = 'Bệnh nhân',
+  patientId = '',
+  dentalCharts = [],
+  onUpdateCondition,
 }) => {
-  const [teeth, setTeeth] = useState<Record<number, ToothInfo>>(DEFAULT_TEETH_DATA);
-  const [selectedTooth, setSelectedTooth] = useState<ToothInfo>(DEFAULT_TEETH_DATA[46]);
+  const [teeth, setTeeth] = useState<Record<number, ToothInfo>>(() => {
+    const base = createDefaultTeethData();
+    if (dentalCharts && dentalCharts.length > 0) {
+      dentalCharts.forEach((dc) => {
+        if (base[dc.toothNumber]) {
+          const rawCond = (dc.condition || '').toLowerCase();
+          let cond: ToothCondition = 'healthy';
+          if (rawCond.includes('implant')) cond = 'implant';
+          else if (rawCond.includes('sứ') || rawCond.includes('crown')) cond = 'crown';
+          else if (rawCond.includes('sâu') || rawCond.includes('decay')) cond = 'decay';
+          else if (rawCond.includes('nhổ') || rawCond.includes('mất') || rawCond.includes('extracted')) cond = 'extracted';
+
+          base[dc.toothNumber] = {
+            ...base[dc.toothNumber],
+            condition: cond,
+            conditionNote:
+              cond === 'implant'
+                ? 'Cấy ghép trụ Implant'
+                : cond === 'crown'
+                ? 'Bọc răng toàn sứ'
+                : cond === 'decay'
+                ? 'Sâu răng phát hiện'
+                : cond === 'extracted'
+                ? 'Đã nhổ bỏ'
+                : 'Khỏe mạnh',
+          };
+        }
+      });
+    }
+    return base;
+  });
+
+  const [selectedTooth, setSelectedTooth] = useState<ToothInfo>(() => {
+    const base = teeth;
+    // Pick first non-healthy tooth or 11
+    const nonHealthy = Object.values(base).find((t) => t.condition !== 'healthy');
+    return nonHealthy || base[11] || Object.values(base)[0];
+  });
+
+  // Sync when dentalCharts prop changes
+  React.useEffect(() => {
+    setTeeth((prev) => {
+      const next = createDefaultTeethData();
+      if (dentalCharts && dentalCharts.length > 0) {
+        dentalCharts.forEach((dc) => {
+          if (next[dc.toothNumber]) {
+            const rawCond = (dc.condition || '').toLowerCase();
+            let cond: ToothCondition = 'healthy';
+            if (rawCond.includes('implant')) cond = 'implant';
+            else if (rawCond.includes('sứ') || rawCond.includes('crown')) cond = 'crown';
+            else if (rawCond.includes('sâu') || rawCond.includes('decay')) cond = 'decay';
+            else if (rawCond.includes('nhổ') || rawCond.includes('mất') || rawCond.includes('extracted')) cond = 'extracted';
+
+            next[dc.toothNumber] = {
+              ...next[dc.toothNumber],
+              condition: cond,
+              conditionNote:
+                cond === 'implant'
+                  ? 'Cấy ghép trụ Implant'
+                  : cond === 'crown'
+                  ? 'Bọc răng toàn sứ'
+                  : cond === 'decay'
+                  ? 'Sâu răng'
+                  : cond === 'extracted'
+                  ? 'Đã nhổ bỏ'
+                  : 'Khỏe mạnh',
+            };
+          }
+        });
+      }
+      return next;
+    });
+  }, [dentalCharts]);
 
   const handleUpdateCondition = (toothNumber: number, newCond: ToothCondition) => {
     setTeeth((prev) => {
@@ -133,6 +179,10 @@ export const DentalChart: React.FC<DentalChartProps> = ({
       setSelectedTooth(updated);
       return { ...prev, [toothNumber]: updated };
     });
+
+    if (onUpdateCondition) {
+      onUpdateCondition(toothNumber, newCond);
+    }
   };
 
   // Tooth layout definition according to FDI / Universal system

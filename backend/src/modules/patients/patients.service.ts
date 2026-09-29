@@ -6,40 +6,73 @@ import { generatePatientCode } from '../../common/utils/code-generator.util.js';
 export class PatientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(search?: string) {
+  async findAll(search?: string, page?: string | number, limit?: string | number) {
     const where: any = {};
-    if (search) {
+    if (search && search.trim()) {
+      const q = search.trim();
       where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
-        { patientCode: { contains: search, mode: 'insensitive' } },
+        { fullName: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q } },
+        { patientCode: { contains: q, mode: 'insensitive' } },
       ];
     }
 
-    return this.prisma.patient.findMany({
-      where,
-      include: {
-        _count: {
-          select: {
-            appointments: true,
-            treatmentPlans: true,
-            medicalRecords: true,
+    const pageNum = page !== undefined ? Math.max(1, parseInt(page as any, 10) || 1) : 1;
+    const limitNum = limit !== undefined ? Math.max(1, parseInt(limit as any, 10) || 5) : 5;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, items] = await Promise.all([
+      this.prisma.patient.count({ where }),
+      this.prisma.patient.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          _count: {
+            select: {
+              appointments: true,
+              treatmentPlans: true,
+              medicalRecords: true,
+            },
+          },
+          appointments: {
+            orderBy: { startTime: 'desc' },
+            take: 1,
+            include: {
+              doctor: {
+                select: { fullName: true },
+              },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return {
+      data: items,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    };
   }
 
   async findById(id: string) {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id },
+    const patient = await this.prisma.patient.findFirst({
+      where: {
+        OR: [{ id }, { patientCode: id }],
+      },
       include: {
         appointments: {
           include: {
             doctor: true,
             branch: true,
+            chair: {
+              include: { room: true },
+            },
             services: { include: { service: true } },
+            invoices: { include: { payments: true } },
           },
           orderBy: { startTime: 'desc' },
         },
@@ -69,7 +102,7 @@ export class PatientsService {
     });
 
     if (!patient) {
-      throw new NotFoundException(`Bệnh nhân ID ${id} không tồn tại`);
+      throw new NotFoundException(`Bệnh nhân ID hoặc mã ${id} không tồn tại`);
     }
 
     return patient;
@@ -116,10 +149,22 @@ export class PatientsService {
       birthYear?: number;
       gender?: string;
       medicalAlerts?: string;
+      avatarUrl?: string;
     },
   ) {
+    const existing = await this.prisma.patient.findFirst({
+      where: {
+        OR: [{ id }, { patientCode: id }],
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Bệnh nhân ID hoặc mã ${id} không tồn tại`);
+    }
+
     return this.prisma.patient.update({
-      where: { id },
+      where: { id: existing.id },
       data,
     });
   }

@@ -53,11 +53,13 @@ const SAMPLE_XRAYS: XrayFilmItem[] = [
 interface XrayLibraryProps {
   onOpenDicomViewer: (film?: XrayFilmItem) => void;
   onOpenUploadModal: () => void;
+  films?: XrayFilmItem[];
 }
 
 export const XrayLibrary: React.FC<XrayLibraryProps> = ({
   onOpenDicomViewer,
   onOpenUploadModal,
+  films,
 }) => {
   const [filter, setFilter] = useState<'all' | 'Phim Panorama' | 'CT Cone Beam 3D' | 'Periapical'>('all');
 
@@ -68,10 +70,12 @@ export const XrayLibrary: React.FC<XrayLibraryProps> = ({
     { id: 'Periapical', label: 'Periapical' },
   ] as const;
 
+  const currentFilms = films !== undefined ? films : SAMPLE_XRAYS;
+
   const filteredFilms =
     filter === 'all'
-      ? SAMPLE_XRAYS
-      : SAMPLE_XRAYS.filter((film) => film.type === filter);
+      ? currentFilms
+      : currentFilms.filter((film) => film.type === filter);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 flex flex-col justify-between h-full">
@@ -106,50 +110,63 @@ export const XrayLibrary: React.FC<XrayLibraryProps> = ({
 
         {/* X-Ray Cards List */}
         <div className="space-y-3">
-          {filteredFilms.map((film) => (
-            <div
-              key={film.id}
-              onClick={() => onOpenDicomViewer(film)}
-              className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 hover:border-sky-300 hover:shadow-md transition-all duration-150 flex flex-col sm:flex-row gap-3.5"
-            >
-              {/* Thumbnail with simulated monitor/viewer bezel */}
-              <div className="relative h-28 sm:h-20 w-full sm:w-28 shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-950 shadow-inner">
-                <img
-                  src={film.thumbnail}
-                  alt={film.title}
-                  className="h-full w-full object-cover opacity-90 transition-transform duration-200 group-hover:scale-105 group-hover:opacity-100"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent pointer-events-none" />
-                <span className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-sky-300 backdrop-blur-xs">
-                  <Eye className="w-2.5 h-2.5" /> Xem 3D
-                </span>
-              </div>
-
-              {/* Info Column */}
-              <div className="flex flex-col justify-between flex-1 min-w-0">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border ${film.badgeClass}`}
-                    >
-                      {film.type}
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
-                      {film.date}
-                    </span>
-                  </div>
-
-                  <h3 className="text-xs font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors line-clamp-2 leading-tight">
-                    {film.title}
-                  </h3>
+          {filteredFilms.length > 0 ? (
+            filteredFilms.map((film) => (
+              <div
+                key={film.id}
+                onClick={() => onOpenDicomViewer(film)}
+                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 hover:border-sky-300 hover:shadow-md transition-all duration-150 flex flex-col sm:flex-row gap-3.5"
+              >
+                {/* Thumbnail with simulated monitor/viewer bezel */}
+                <div className="relative h-28 sm:h-20 w-full sm:w-28 shrink-0 overflow-hidden rounded-lg border border-slate-300 bg-slate-950 shadow-inner">
+                  <img
+                    src={film.thumbnail}
+                    alt={film.title}
+                    className="h-full w-full object-cover opacity-90 transition-transform duration-200 group-hover:scale-105 group-hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent pointer-events-none" />
+                  <span className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/60 px-1 py-0.5 text-[9px] font-bold text-sky-300 backdrop-blur-xs">
+                    <Eye className="w-2.5 h-2.5" /> Xem 3D
+                  </span>
                 </div>
 
-                <p className="text-[11px] font-medium text-slate-500 truncate">
-                  BS: {film.doctor}
-                </p>
+                {/* Info Column */}
+                <div className="flex flex-col justify-between flex-1 min-w-0">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-block rounded px-2 py-0.5 text-[10px] font-extrabold border ${film.badgeClass}`}
+                      >
+                        {film.type}
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                        {film.date}
+                      </span>
+                    </div>
+
+                    <h3 className="text-xs font-extrabold text-slate-900 group-hover:text-sky-700 transition-colors line-clamp-2 leading-tight">
+                      {film.title}
+                    </h3>
+                  </div>
+
+                  <p className="text-[11px] font-medium text-slate-500 truncate">
+                    BS: {film.doctor}
+                  </p>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="py-8 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+              <p className="text-xs font-semibold text-slate-500">Chưa có phim X-quang nào cho bệnh nhân này.</p>
+              <button
+                type="button"
+                onClick={onOpenUploadModal}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200"
+              >
+                <Upload className="w-3.5 h-3.5" /> Tải phim lên ngay
+              </button>
             </div>
-          ))}
+          )}
         </div>
       </div>
 

@@ -1,22 +1,24 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Camera,
   AlertTriangle,
   RefreshCw,
   Save,
-  Trash2,
   Shield,
   ChevronDown,
   FileText,
+  Loader2,
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
+import { patientsApi, uploadApi } from '../../services/api';
 
 interface PatientEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   patient: {
     id: string;
+    patientCode?: string;
     name: string;
     phone: string;
     email: string;
@@ -27,6 +29,7 @@ interface PatientEditModalProps {
     doctor: string;
     treatment: string;
     aiTrust: number;
+    avatarUrl?: string;
   };
 }
 
@@ -52,23 +55,46 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [syncToggle, setSyncToggle] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string>(patient.avatarUrl || '');
 
   const [form, setForm] = useState({
     name: patient.name,
     phone: patient.phone,
     email: patient.email,
-    dob: patient.dob,
-    gender: patient.gender === 'Nam' ? 'male' : 'female',
-    address: patient.address,
+    dob: patient.dob && patient.dob !== 'Chưa cập nhật' ? patient.dob : '',
+    gender: patient.gender === 'Nam' || patient.gender === 'male' ? 'male' : 'female',
+    address: patient.address !== 'TP. Hồ Chí Minh' ? patient.address : '',
     memberTier: 'Khách hàng VIP (1.250 đ',
     treatmentStatus: patient.treatment,
     assignedDoctor: patient.doctor,
     bloodType: 'O+',
-    allergy: 'Dị ứng thuốc tê nhóm Procaine / Cần trọng khi kê đơn',
-    medicalHistory: ['bp', 'heart'] as string[],
-    notes:
-      'Bệnh nhân kỹ tính, ưu tiên sắp xếp lịch hẹn vào buổi sáng các ngày trong tuần',
+    allergy: '',
+    medicalHistory: [] as string[],
+    notes: '',
+    avatarUrl: patient.avatarUrl || '',
   });
+
+  // Re-sync form when patient prop changes
+  useEffect(() => {
+    setForm({
+      name: patient.name,
+      phone: patient.phone,
+      email: patient.email,
+      dob: patient.dob && patient.dob !== 'Chưa cập nhật' ? patient.dob : '',
+      gender: patient.gender === 'Nam' || patient.gender === 'male' ? 'male' : 'female',
+      address: patient.address !== 'TP. Hồ Chí Minh' ? patient.address : '',
+      memberTier: 'Khách hàng VIP (1.250 đ',
+      treatmentStatus: patient.treatment,
+      assignedDoctor: patient.doctor,
+      bloodType: 'O+',
+      allergy: '',
+      medicalHistory: [],
+      notes: '',
+      avatarUrl: patient.avatarUrl || '',
+    });
+    setAvatarPreview(patient.avatarUrl || '');
+  }, [patient]);
 
   const medicalOptions = [
     { id: 'bp', label: 'Huyết áp ổn định' },
@@ -93,6 +119,31 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
       >
     ) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview locally immediately
+    const localUrl = URL.createObjectURL(file);
+    setAvatarPreview(localUrl);
+
+    try {
+      setIsUploadingAvatar(true);
+      const result = await uploadApi.uploadImage(file, 'patients');
+      setForm((f) => ({ ...f, avatarUrl: result.url }));
+      setAvatarPreview(result.url);
+      toast('Ảnh đại diện đã được tải lên thành công!');
+    } catch (err) {
+      console.error('Lỗi khi upload ảnh:', err);
+      toast('Có lỗi khi tải ảnh lên, vui lòng thử lại!', 'error');
+      setAvatarPreview(patient.avatarUrl || '');
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -136,7 +187,7 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
                   Cập nhật thông tin liên hệ, tiền sử dùng thuốc và trạng thái
                   phân loại thành viên cho bệnh nhân{' '}
                   <span className="font-bold text-slate-600">{patient.name}</span>{' '}
-                  <span className="font-bold text-sky-500">(#{patient.id})</span>
+                  <span className="font-bold text-sky-500">(#{patient.patientCode || patient.id})</span>
                 </p>
               </div>
             </div>
@@ -162,14 +213,24 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
                 <div className="flex items-center gap-4">
                   <div className="relative group shrink-0">
                     <div className="w-16 h-16 rounded-2xl bg-slate-200 overflow-hidden border-4 border-white shadow-md">
-                      <img
-                        src="https://i.pravatar.cc/100?u=patient"
-                        alt={patient.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
+                      {isUploadingAvatar ? (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                          <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+                        </div>
+                      ) : avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt={patient.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-sky-100 text-sky-600 font-black text-xl">
+                          {patient.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -179,27 +240,32 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
                       <Camera className="w-4 h-4 text-white" />
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-[11px] font-bold text-sky-600 hover:text-sky-700 transition-colors"
-                  >
-                    Đổi ảnh đại diện
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                      className="text-[11px] font-bold text-sky-600 hover:text-sky-700 transition-colors disabled:opacity-50"
+                    >
+                      {isUploadingAvatar ? 'Đang tải lên...' : 'Đổi ảnh đại diện'}
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-0.5">JPG, PNG, tối đa 5MB. Ảnh lưu trên Cloudinary.</p>
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    onChange={handleAvatarChange}
                   />
                 </div>
 
                 {/* Patient code (read-only) */}
                 <div>
                   <Label text="Mã bệnh nhân" />
-                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-bold text-slate-500 select-none">
-                    <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    {patient.id}
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-sky-100 bg-sky-50/60 text-sm font-bold text-sky-700 select-none">
+                    <Shield className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    {patient.patientCode || patient.id}
                   </div>
                 </div>
 
@@ -332,18 +398,8 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label text="Bác sĩ phụ trách" />
-                    <div className="relative">
-                      <select
-                        value={form.assignedDoctor}
-                        onChange={set('assignedDoctor')}
-                        className={selectCls}
-                      >
-                        <option>Dr. Lê Văn Hùng</option>
-                        <option>TS.BS. Nguyễn Minh Anh</option>
-                        <option>BS. CKII. Trần Thu Hương</option>
-                        <option>BS. Phạm Quốc Huy</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-100 bg-slate-50 text-sm font-semibold text-slate-600 select-none">
+                      {patient.doctor || 'Chưa phân công'}
                     </div>
                   </div>
                   <div>
@@ -367,7 +423,7 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
 
                 {/* Allergy warning */}
                 <div>
-                  <Label text="Cảnh báo dị ứng" />
+                  <Label text="Cảnh báo dị ứng / tiền sử bệnh" />
                   <div className="relative rounded-xl border border-amber-200 bg-amber-50/60 overflow-hidden">
                     <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -465,34 +521,49 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
           </div>
 
           {/* ── Footer ── */}
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-slate-100 shrink-0">
+          <div className="flex items-center justify-end gap-2 px-4 sm:px-6 py-4 border-t border-slate-100 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all text-center"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all text-center cursor-pointer"
             >
               Hủy bỏ
             </button>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <button
+            <button
                 type="button"
-                onClick={() => {
-                  toast(`Đã chuyển hồ sơ bệnh nhân ${patient.name} vào kho lưu trữ.`, 'info');
-                  onClose();
+                onClick={async () => {
+                  try {
+                    const birthYear = form.dob ? parseInt(form.dob.split('-')[0], 10) : undefined;
+                    const dobAlert = form.dob ? `DOB:${form.dob}` : '';
+                    const addressAlert = form.address ? `Address:${form.address}` : '';
+                    const allergyAlert = form.allergy ? `Allergy:${form.allergy}` : '';
+                    const alerts = [dobAlert, addressAlert, allergyAlert].filter(Boolean).join(' | ');
+
+                    const updateData: any = {
+                      fullName: form.name,
+                      phone: form.phone,
+                      email: form.email || undefined,
+                      birthYear: birthYear || undefined,
+                      gender: form.gender === 'male' ? 'Nam' : 'Nữ',
+                      medicalAlerts: alerts || undefined,
+                    };
+
+                    // Include avatar URL if changed
+                    if (form.avatarUrl && form.avatarUrl !== patient.avatarUrl) {
+                      updateData.avatarUrl = form.avatarUrl;
+                    }
+
+                    await patientsApi.update(patient.id, updateData);
+                    toast(`Đã lưu thay đổi hồ sơ bệnh nhân ${form.name} thành công!`);
+                    onClose();
+                  } catch (err: any) {
+                    console.error('Lỗi khi lưu bệnh nhân:', err);
+                    toast('Có lỗi xảy ra khi lưu hồ sơ bệnh nhân!', 'error');
+                  }
                 }}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Xóa / Lưu trữ hồ sơ
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  toast(`Đã lưu thay đổi hồ sơ bệnh nhân ${patient.name} thành công!`);
-                  onClose();
-                }}
-                className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all"
+                disabled={isUploadingAvatar}
+                className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5" />
                 Lưu thay đổi
@@ -500,7 +571,6 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
       <style>{`
         @keyframes patientModalIn {

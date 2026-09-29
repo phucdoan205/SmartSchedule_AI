@@ -16,6 +16,13 @@ interface DataTableProps<T> {
   title?: string;
   actionButton?: React.ReactNode;
   itemsPerPage?: number;
+  serverSide?: boolean;
+  page?: number;
+  totalPages?: number;
+  totalCount?: number;
+  onPageChange?: (page: number) => void;
+  onSearchChange?: (search: string) => void;
+  isLoading?: boolean;
 }
 
 export function DataTable<T extends { id?: string | number }>({
@@ -26,22 +33,51 @@ export function DataTable<T extends { id?: string | number }>({
   title,
   actionButton,
   itemsPerPage = 6,
+  serverSide = false,
+  page = 1,
+  totalPages: serverTotalPages,
+  totalCount: serverTotalCount,
+  onPageChange,
+  onSearchChange,
+  isLoading = false,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [clientCurrentPage, setClientCurrentPage] = useState(1);
   const pageSize = itemsPerPage;
 
-  const filteredData = data.filter((item) => {
-    if (!searchTerm) return true;
-    if (searchField && item[searchField]) {
-      return String(item[searchField]).toLowerCase().includes(searchTerm.toLowerCase());
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
+    if (serverSide) {
+      if (onSearchChange) onSearchChange(val);
+    } else {
+      setClientCurrentPage(1);
     }
-    return JSON.stringify(item).toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  };
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentItems = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const handlePageChange = (newPage: number) => {
+    if (serverSide) {
+      if (onPageChange) onPageChange(newPage);
+    } else {
+      setClientCurrentPage(newPage);
+    }
+  };
+
+  // Client-side calculations
+  const filteredData = serverSide
+    ? data
+    : data.filter((item) => {
+        if (!searchTerm) return true;
+        if (searchField && item[searchField]) {
+          return String(item[searchField]).toLowerCase().includes(searchTerm.toLowerCase());
+        }
+        return JSON.stringify(item).toLowerCase().includes(searchTerm.toLowerCase());
+      });
+
+  const totalPages = serverSide ? (serverTotalPages || 1) : (Math.ceil(filteredData.length / itemsPerPage) || 1);
+  const activePage = serverSide ? page : clientCurrentPage;
+  const startIndex = (activePage - 1) * itemsPerPage;
+  const currentItems = serverSide ? data : filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const totalDisplayCount = serverSide ? (serverTotalCount ?? data.length) : filteredData.length;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
@@ -55,10 +91,7 @@ export function DataTable<T extends { id?: string | number }>({
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
               className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all bg-slate-50/50"
             />
@@ -77,7 +110,15 @@ export function DataTable<T extends { id?: string | number }>({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto no-scrollbar">
+      <div className="overflow-x-auto no-scrollbar relative min-h-[160px]">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10">
+            <div className="flex items-center gap-2 text-xs font-bold text-sky-600 bg-white px-4 py-2 rounded-xl shadow-md border border-slate-100">
+              <span className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin"></span>
+              Đang tải dữ liệu...
+            </div>
+          </div>
+        )}
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -102,7 +143,7 @@ export function DataTable<T extends { id?: string | number }>({
             ) : (
               <tr>
                 <td colSpan={columns.length} className="text-center py-10 text-slate-400 font-medium">
-                  Không tìm thấy dữ liệu phù hợp.
+                  {isLoading ? 'Đang tải dữ liệu...' : 'Không tìm thấy dữ liệu phù hợp.'}
                 </td>
               </tr>
             )}
@@ -113,31 +154,31 @@ export function DataTable<T extends { id?: string | number }>({
       {/* Pagination Footer */}
       <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
         <div>
-          Hiển thị <span className="font-semibold text-slate-700">{filteredData.length > 0 ? startIndex + 1 : 0}</span> đến{' '}
+          Hiển thị <span className="font-semibold text-slate-700">{totalDisplayCount > 0 ? startIndex + 1 : 0}</span> đến{' '}
           <span className="font-semibold text-slate-700">
-            {Math.min(startIndex + itemsPerPage, filteredData.length)}
+            {Math.min(startIndex + itemsPerPage, totalDisplayCount)}
           </span>{' '}
-          trong <span className="font-semibold text-slate-700">{filteredData.length}</span> kết quả
+          trong <span className="font-semibold text-slate-700">{totalDisplayCount}</span> kết quả
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={activePage <= 1 || isLoading}
+            onClick={() => handlePageChange(Math.max(activePage - 1, 1))}
             className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
           <span className="px-3 py-1 font-semibold text-slate-700">
-            {currentPage} / {totalPages}
+            {activePage} / {totalPages}
           </span>
 
           <button
             type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={activePage >= totalPages || isLoading}
+            onClick={() => handlePageChange(Math.min(activePage + 1, totalPages))}
             className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
           >
             <ChevronRight className="w-4 h-4" />

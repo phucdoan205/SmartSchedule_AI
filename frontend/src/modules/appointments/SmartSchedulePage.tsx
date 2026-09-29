@@ -10,6 +10,9 @@ import {
   Building2,
   XCircle,
   Edit3,
+  ChevronDown,
+  ChevronRight,
+  FileDown,
 } from 'lucide-react';
 import { appointmentsApi, staffApi, servicesApi, branchesApi } from '../../services/api';
 import { DataTable, type Column } from '../../components/common/DataTable';
@@ -31,6 +34,14 @@ export const SmartSchedulePage: React.FC = () => {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  // Collapsed kanban columns (Completed & Cancelled start collapsed to reduce clutter)
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set(['Completed', 'Cancelled']));
+  const toggleCollapse = (colId: string) =>
+    setCollapsedColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(colId)) next.delete(colId); else next.add(colId);
+      return next;
+    });
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [patientDob, setPatientDob] = useState('');
@@ -255,6 +266,40 @@ export const SmartSchedulePage: React.FC = () => {
     }
   };
 
+  // Export appointments to CSV/Excel
+  const handleExportExcel = () => {
+    const headers = ['Mã lịch hẹn', 'Bệnh nhân', 'Điện thoại', 'Bác sĩ', 'Dịch vụ', 'Chi nhánh', 'Ngày', 'Giờ', 'Trạng thái'];
+    const statusLabel: Record<string, string> = {
+      Pending: 'Chờ khám',
+      Confirmed: 'Đã xác nhận',
+      InProgress: 'Đang điều trị',
+      Completed: 'Hoàn thành',
+      Cancelled: 'Đã hủy',
+    };
+    const rows = filteredAppointments.map((a) => [
+      a.id,
+      a.patientName,
+      a.patientPhone,
+      a.doctorName,
+      a.service,
+      a.branch,
+      a.dateStr || '',
+      a.timeStr || '',
+      statusLabel[a.status] || a.status,
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `danh-sach-lich-hen-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast('Đã xuất danh sách lịch hẹn ra file Excel!');
+  };
+
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -306,6 +351,15 @@ export const SmartSchedulePage: React.FC = () => {
             <button id="btn-view-kanban" type="button" onClick={() => setViewMode('kanban')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${viewMode === 'kanban' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}><Kanban className="w-3.5 h-3.5" /> Bảng Kéo Thả</button>
             <button id="btn-view-table" type="button" onClick={() => setViewMode('table')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${viewMode === 'table' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}><List className="w-3.5 h-3.5" /> Danh Sách Bảng</button>
           </div>
+          <button
+            id="btn-export-excel"
+            type="button"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            title="Xuất danh sách lịch hẹn ra file Excel (CSV)"
+          >
+            <FileDown className="w-4 h-4" /> Xuất Excel
+          </button>
           <button id="btn-create-appointment" type="button" onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"><Plus className="w-4 h-4" /> Đặt Lịch Mới</button>
         </div>
       </div>
@@ -328,6 +382,8 @@ export const SmartSchedulePage: React.FC = () => {
         <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:overflow-x-visible sm:snap-none lg:grid-cols-5" style={{ WebkitOverflowScrolling: 'touch' }}>
           {kanbanColumns.map((col) => {
             const allItems = filteredAppointments.filter((a) => a.status === col.id);
+            const isCollapsed = collapsedColumns.has(col.id);
+            const canCollapse = col.id === 'Completed' || col.id === 'Cancelled';
             return (
               <div
                 key={col.id}
@@ -336,7 +392,9 @@ export const SmartSchedulePage: React.FC = () => {
                   e.dataTransfer.dropEffect = 'move';
                 }}
                 onDrop={() => handleDrop(col.id)}
-                className={`${col.containerBg} border-t-4 ${col.borderTop} border ${col.borderBase} rounded-2xl p-3 flex flex-col shadow-xs transition-all min-w-[82vw] sm:min-w-0 snap-start flex-shrink-0 h-[640px]`}
+                className={`${col.containerBg} border-t-4 ${col.borderTop} border ${col.borderBase} rounded-2xl p-3 flex flex-col shadow-xs transition-all min-w-[82vw] sm:min-w-0 snap-start flex-shrink-0 ${
+                  isCollapsed ? 'h-auto' : 'h-[640px]'
+                }`}
               >
                 {/* Sticky Header */}
                 <div className="flex items-center justify-between pb-2.5 border-b border-black/5 mb-2 shrink-0">
@@ -345,13 +403,26 @@ export const SmartSchedulePage: React.FC = () => {
                     <span className="hidden lg:inline">{col.titleFull}</span>
                     <span className="lg:hidden">{col.title}</span>
                   </span>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${col.badgeClass} shrink-0`}>
-                    {allItems.length}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${col.badgeClass} shrink-0`}>
+                      {allItems.length}
+                    </span>
+                    {canCollapse && (
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapse(col.id)}
+                        className={`p-1 rounded-lg hover:bg-black/10 transition-colors cursor-pointer ${col.headerText}`}
+                        title={isCollapsed ? 'Mở rộng cột' : 'Thu gọn cột'}
+                      >
+                        {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Cards Container with smooth inner scroll for >= 5 items */}
-                <div className="space-y-2.5 flex-1 overflow-y-auto pr-1">
+                {/* Cards Container - only shown when not collapsed */}
+                {!isCollapsed && (
+                  <div className="space-y-2.5 flex-1 overflow-y-auto pr-1">
                   {allItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 opacity-40">
                       <XCircle className="w-7 h-7 mb-1" />
@@ -428,9 +499,10 @@ export const SmartSchedulePage: React.FC = () => {
                     ))
                   )}
                 </div>
+                )}
 
-                {/* Footer notification when >= 5 items */}
-                {allItems.length >= 5 && (
+                {/* Footer notification when >= 5 items and not collapsed */}
+                {!isCollapsed && allItems.length >= 5 && (
                   <div className="pt-2 border-t border-black/5 text-[10px] text-center text-slate-500 font-medium shrink-0">
                     Cuộn để xem toàn bộ {allItems.length} lịch hẹn
                   </div>
