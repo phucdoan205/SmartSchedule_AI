@@ -18,8 +18,10 @@ import {
   CheckCircle2,
   Loader2,
   CalendarDays,
+  Search,
+  Sparkles,
 } from 'lucide-react';
-import { staffApi, uploadApi } from '../../services/api';
+import { staffApi, uploadApi, dentalServicesApi } from '../../services/api';
 
 export interface DoctorEditModalProps {
   isOpen: boolean;
@@ -45,6 +47,9 @@ export interface DoctorEditModalProps {
     title?: string;
     bio?: string;
     services?: string[];
+    workDays?: string[];
+    workHours?: string;
+    lunchBreak?: string;
   } | null;
   onSave?: (updatedDoctor: any) => void;
 }
@@ -91,6 +96,13 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   const [isAddingService, setIsAddingService] = useState(false);
   const [customServiceName, setCustomServiceName] = useState('');
 
+  // Real data from DB for service picker
+  const [realServicesList, setRealServicesList] = useState<any[]>([]);
+  const [realCategoriesList, setRealCategoriesList] = useState<any[]>([]);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
+  const [serviceSearchTerm, setServiceSearchTerm] = useState<string>('');
+  const [isLoadingServices, setIsLoadingServices] = useState<boolean>(false);
+
   // Commission & default working schedule
   const [commissionRate, setCommissionRate] = useState<number | string>(
     doctor?.commissionRate !== undefined ? doctor.commissionRate : 15
@@ -116,6 +128,28 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   const [isLocked, setIsLocked] = useState(false);
   const [showToast, setShowToast] = useState<{ message: string; type: 'success' | 'warn' } | null>(null);
 
+  // Fetch real categories and services from backend
+  useEffect(() => {
+    const fetchServicesAndCategories = async () => {
+      try {
+        setIsLoadingServices(true);
+        const [cats, srvs] = await Promise.all([
+          dentalServicesApi.getCategories().catch(() => []),
+          dentalServicesApi.getAll({ isActive: true }).catch(() => []),
+        ]);
+        if (Array.isArray(cats) && cats.length > 0) setRealCategoriesList(cats);
+        if (Array.isArray(srvs) && srvs.length > 0) setRealServicesList(srvs);
+      } catch (e) {
+        console.warn('Lỗi tải danh mục & dịch vụ trong modal:', e);
+      } finally {
+        setIsLoadingServices(false);
+      }
+    };
+    if (isOpen) {
+      fetchServicesAndCategories();
+    }
+  }, [isOpen]);
+
   // Sync state whenever modal opens or doctor changes
   useEffect(() => {
     if (isOpen && doctor) {
@@ -128,9 +162,77 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       setBranch(doctor.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)');
       setSpecialty(doctor.specialty || 'Phục hình Răng sứ thẩm mỹ');
       if (doctor.bio) setBio(doctor.bio);
-      if (doctor.commissionRate !== undefined) setCommissionRate(doctor.commissionRate);
 
       const staffKey = doctor.id || doctor.code || doctor.employeeCode || '';
+
+      // 1. Synchronize services
+      const savedServices = localStorage.getItem(`staff_services_${staffKey}`);
+      if (savedServices) {
+        try {
+          const parsed = JSON.parse(savedServices);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setServices(parsed);
+          }
+        } catch (e) {}
+      } else if (doctor.services && Array.isArray(doctor.services) && doctor.services.length > 0) {
+        setServices(doctor.services);
+      } else if (doctor.code === 'NV002' || doctor.specialty?.includes('Implant')) {
+        setServices([
+          'Cấy ghép Implant Straumann',
+          'Trụ Osstem No mount (Hàn Quốc)',
+          'Trụ Osstem SA (Hàn Quốc)',
+        ]);
+      } else {
+        setServices([
+          'Sứ toàn phần Cercon (Đức)',
+          'Sứ toàn phần Emax',
+          'Mặt dán Veneer Emax',
+        ]);
+      }
+
+      // 2. Synchronize commission rate
+      const savedCommission = localStorage.getItem(`staff_commission_${staffKey}`);
+      if (savedCommission !== null) {
+        setCommissionRate(Number(savedCommission));
+      } else if (doctor.commissionRate !== undefined) {
+        setCommissionRate(Number(doctor.commissionRate));
+      } else if (doctor.code === 'NV002' || doctor.specialty?.includes('Implant')) {
+        setCommissionRate(20);
+      } else {
+        setCommissionRate(15);
+      }
+
+      // 3. Synchronize working days, hours & lunch break
+      const savedWorkDays = localStorage.getItem(`staff_workdays_${staffKey}`);
+      if (savedWorkDays) {
+        try {
+          const parsed = JSON.parse(savedWorkDays);
+          if (Array.isArray(parsed)) setWorkDays(parsed);
+        } catch (e) {}
+      } else if (doctor.workDays && Array.isArray(doctor.workDays)) {
+        setWorkDays(doctor.workDays);
+      } else {
+        setWorkDays(['T2', 'T3', 'T4', 'T5', 'T6', 'T7']);
+      }
+
+      const savedWorkHours = localStorage.getItem(`staff_workhours_${staffKey}`);
+      if (savedWorkHours) {
+        setWorkHours(savedWorkHours);
+      } else if (doctor.workHours) {
+        setWorkHours(doctor.workHours);
+      } else {
+        setWorkHours('08:00 - 17:30');
+      }
+
+      const savedLunchBreak = localStorage.getItem(`staff_lunchbreak_${staffKey}`);
+      if (savedLunchBreak) {
+        setLunchBreak(savedLunchBreak);
+      } else if (doctor.lunchBreak) {
+        setLunchBreak(doctor.lunchBreak);
+      } else {
+        setLunchBreak('12:00 - 13:30');
+      }
+
       const savedSelf = localStorage.getItem(`staff_self_schedule_${staffKey}`);
       if (savedSelf !== null) {
         setAllowSelfSchedule(savedSelf === 'true');
@@ -151,8 +253,6 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       setShowToast(null);
     }
   }, [isOpen, doctor]);
-
-  if (!isOpen) return null;
 
   const doctorDisplayName = name || doctor?.name || doctor?.fullName || 'Bác sĩ';
   const doctorShortName = doctorDisplayName.trim()
@@ -212,13 +312,14 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   const addService = (srv: string) => {
     if (srv && !services.includes(srv)) {
       setServices((prev) => [...prev, srv]);
+      setShowToast({ message: `Đã thêm dịch vụ: ${srv}`, type: 'success' });
     }
     setCustomServiceName('');
-    setIsAddingService(false);
   };
 
   // Handle Save
   const handleSave = async () => {
+    const commRateNum = Number(commissionRate) || 0;
     const updatedData = {
       ...(doctor || {}),
       name,
@@ -230,7 +331,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
       branch,
       specialty,
       services,
-      commissionRate: Number(commissionRate),
+      commissionRate: commRateNum,
       joinedDate,
       status: isLocked ? 'Locked' : status === 'active' ? 'Active' : status === 'leave' ? 'On Leave' : 'Resigned',
       isActive: !isLocked,
@@ -244,11 +345,34 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
     };
 
     const staffKey = doctor?.id || doctor?.code || doctor?.employeeCode || code;
+    const prevCommRate = Number(doctor?.commissionRate !== undefined ? doctor.commissionRate : 15);
+    if (commRateNum !== prevCommRate) {
+      const nowIso = new Date().toISOString();
+      if (staffKey) {
+        localStorage.setItem(`staff_commission_changed_at_${staffKey}`, nowIso);
+        localStorage.setItem(`staff_prev_commission_${staffKey}`, String(prevCommRate));
+      }
+      if (code) {
+        localStorage.setItem(`staff_commission_changed_at_${code}`, nowIso);
+        localStorage.setItem(`staff_prev_commission_${code}`, String(prevCommRate));
+      }
+    }
+
     if (staffKey) {
       localStorage.setItem(`staff_self_schedule_${staffKey}`, String(allowSelfSchedule));
+      localStorage.setItem(`staff_services_${staffKey}`, JSON.stringify(services));
+      localStorage.setItem(`staff_commission_${staffKey}`, String(commRateNum));
+      localStorage.setItem(`staff_workdays_${staffKey}`, JSON.stringify(workDays));
+      localStorage.setItem(`staff_workhours_${staffKey}`, String(workHours));
+      localStorage.setItem(`staff_lunchbreak_${staffKey}`, String(lunchBreak));
     }
     if (code) {
       localStorage.setItem(`staff_self_schedule_${code}`, String(allowSelfSchedule));
+      localStorage.setItem(`staff_services_${code}`, JSON.stringify(services));
+      localStorage.setItem(`staff_commission_${code}`, String(commRateNum));
+      localStorage.setItem(`staff_workdays_${code}`, JSON.stringify(workDays));
+      localStorage.setItem(`staff_workhours_${code}`, String(workHours));
+      localStorage.setItem(`staff_lunchbreak_${code}`, String(lunchBreak));
     }
 
     const docKeyEmail = (email || doctor?.email || '').toLowerCase();
@@ -271,6 +395,11 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
           bio,
           avatarUrl: avatarPreview,
           isActive: !isLocked,
+          commissionRate: commRateNum,
+          services,
+          workDays,
+          workHours,
+          lunchBreak,
         });
       }
     } catch (err) {
@@ -333,7 +462,52 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
     });
   };
 
+  const fmtVND = (n: number) => Number(n).toLocaleString('vi-VN') + 'đ';
+
+  const categoriesToDisplay = React.useMemo(() => {
+    if (realCategoriesList.length > 0) return realCategoriesList;
+    return [
+      { id: 'cat-1', slug: 'rang-su-tham-my', name: 'Răng sứ thẩm mỹ' },
+      { id: 'cat-2', slug: 'cay-ghep-implant', name: 'Cấy ghép Implant' },
+      { id: 'cat-3', slug: 'chinh-nha', name: 'Chỉnh nha & Niềng răng' },
+      { id: 'cat-4', slug: 'tong-quat', name: 'Nha khoa tổng quát' },
+    ];
+  }, [realCategoriesList]);
+
+  const filteredServicesToDisplay = React.useMemo(() => {
+    let list = realServicesList.length > 0 ? realServicesList : AVAILABLE_SERVICES.map((s, idx) => ({
+      id: `srv-${idx}`,
+      name: s,
+      code: `DV-${String(idx + 1).padStart(2, '0')}`,
+      durationMinutes: 60,
+      standardPrice: 5000000,
+      category: { name: 'Nha khoa' },
+    }));
+
+    if (selectedCategoryFilter !== 'ALL') {
+      list = list.filter((s: any) => {
+        const catIdMatch = s.categoryId === selectedCategoryFilter;
+        const catSlugMatch = s.category?.slug === selectedCategoryFilter;
+        const catNameMatch = s.category?.name?.toLowerCase().includes(selectedCategoryFilter.toLowerCase());
+        return catIdMatch || catSlugMatch || catNameMatch;
+      });
+    }
+
+    if (serviceSearchTerm.trim()) {
+      const q = serviceSearchTerm.toLowerCase();
+      list = list.filter((s: any) =>
+        s.name?.toLowerCase().includes(q) ||
+        s.code?.toLowerCase().includes(q) ||
+        s.category?.name?.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [realServicesList, selectedCategoryFilter, serviceSearchTerm]);
+
   const ALL_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -648,42 +822,162 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                 {/* Dịch vụ thực hiện */}
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-3.5">
                   <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-xs font-bold text-slate-700">
-                      Dịch vụ thực hiện
-                    </label>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700">
+                        Dịch vụ thực hiện ({services.length})
+                      </label>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Dịch vụ phụ trách thực tế của bác sĩ
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setIsAddingService((v) => !v)}
-                      className="text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors flex items-center gap-1 cursor-pointer bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200"
                     >
-                      <Plus className="w-3 h-3" />
-                      Thêm dịch vụ
+                      <Plus className="w-3.5 h-3.5" />
+                      {isAddingService ? 'Thu gọn' : 'Thêm dịch vụ'}
                     </button>
                   </div>
 
-                  {/* Add service drop-in */}
+                  {/* Add service panel with REAL categories and REAL services */}
                   {isAddingService && (
-                    <div className="mb-3 p-2.5 bg-white rounded-xl border border-sky-200 shadow-sm space-y-2">
-                      <div className="text-[11px] font-bold text-slate-600">Chọn nhanh dịch vụ:</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {AVAILABLE_SERVICES.filter((s) => !services.includes(s)).map((srv) => (
-                          <button
-                            key={srv}
-                            type="button"
-                            onClick={() => addService(srv)}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-sky-50 hover:text-sky-700 text-slate-700 transition-colors cursor-pointer"
-                          >
-                            + {srv}
-                          </button>
-                        ))}
+                    <div className="mb-3.5 p-3.5 bg-white rounded-xl border border-sky-200 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-sky-500" />
+                          <span className="text-xs font-bold text-slate-800">
+                            Danh Mục &amp; Dịch Vụ Nha Khoa Hệ Thống
+                          </span>
+                        </div>
+                        {isLoadingServices && (
+                          <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                            <Loader2 className="w-3 h-3 animate-spin text-sky-600" />
+                            Đang tải...
+                          </div>
+                        )}
                       </div>
+
+                      {/* Search box */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={serviceSearchTerm}
+                          onChange={(e) => setServiceSearchTerm(e.target.value)}
+                          placeholder="Tìm nhanh dịch vụ (VD: Cercon, Emax, Veneer, Implant, Tẩy trắng...)"
+                          className="w-full pl-8.5 pr-8 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-sky-400 bg-slate-50/50"
+                        />
+                        {serviceSearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setServiceSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Category Chips */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategoryFilter('ALL')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                            selectedCategoryFilter === 'ALL'
+                              ? 'bg-sky-600 text-white shadow-2xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          Tất cả ({filteredServicesToDisplay.length})
+                        </button>
+                        {categoriesToDisplay.map((cat: any) => {
+                          const catId = cat.id || cat.slug || cat.name;
+                          const isSelected = selectedCategoryFilter === catId;
+                          return (
+                            <button
+                              key={catId}
+                              type="button"
+                              onClick={() => setSelectedCategoryFilter(catId)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                                isSelected
+                                  ? 'bg-sky-600 text-white shadow-2xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {cat.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Services List */}
+                      <div className="max-h-52 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/30">
+                        {filteredServicesToDisplay.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-400 italic">
+                            Không tìm thấy dịch vụ phù hợp với &ldquo;{serviceSearchTerm}&rdquo;
+                          </div>
+                        ) : (
+                          filteredServicesToDisplay.map((srv: any) => {
+                            const isSelected = services.includes(srv.name);
+                            const priceNum = Number(srv.standardPrice || srv.price || 0);
+                            return (
+                              <div
+                                key={srv.id || srv.code || srv.name}
+                                className="p-2.5 flex items-center justify-between gap-3 hover:bg-white transition-colors"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-bold text-slate-800">{srv.name}</span>
+                                    {srv.code && (
+                                      <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded border border-sky-100">
+                                        {srv.code}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2.5 text-[11px] text-slate-400 mt-0.5">
+                                    <span>⏱ {srv.durationMinutes || 60}p</span>
+                                    <span>•</span>
+                                    <span className="font-bold text-teal-600">
+                                      {priceNum ? fmtVND(priceNum) : 'Liên hệ'}
+                                    </span>
+                                    {srv.category?.name && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="truncate max-w-[130px]">{srv.category.name}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isSelected ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold shrink-0">
+                                    <Check className="w-3 h-3" /> Đã chọn
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => addService(srv.name)}
+                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold shadow-2xs transition-colors shrink-0 cursor-pointer"
+                                  >
+                                    <Plus className="w-3 h-3" /> Thêm
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Custom Service Input */}
                       <div className="flex gap-2 pt-1 border-t border-slate-100">
                         <input
                           type="text"
                           value={customServiceName}
                           onChange={(e) => setCustomServiceName(e.target.value)}
-                          placeholder="Hoặc nhập tên dịch vụ mới..."
-                          className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-sky-400"
+                          placeholder="Hoặc nhập tên dịch vụ tùy chỉnh..."
+                          className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-sky-400 bg-white"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -696,9 +990,9 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                           onClick={() => {
                             if (customServiceName.trim()) addService(customServiceName.trim());
                           }}
-                          className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold"
+                          className="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold shrink-0 cursor-pointer"
                         >
-                          Thêm
+                          Thêm dịch vụ
                         </button>
                       </div>
                     </div>
@@ -724,7 +1018,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                       </span>
                     ))}
                     {services.length === 0 && (
-                      <span className="text-xs text-slate-400 italic">Chưa chọn dịch vụ nào</span>
+                      <span className="text-xs text-rose-500 italic">Chưa chọn dịch vụ nào phụ trách</span>
                     )}
                   </div>
                 </div>
@@ -750,16 +1044,28 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                         %
                       </span>
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Tự động tính hoa hồng mỗi ca khám</p>
                   </div>
 
                   {/* Khung giờ làm việc */}
                   <div className="sm:col-span-8">
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Khung giờ làm việc (Mặc định)
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-700">
+                        Khung giờ làm việc (Mặc định)
+                      </label>
+                      {workDays.length === 0 ? (
+                        <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                          Nghỉ tất cả các ngày
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          {workDays.length} ngày/tuần
+                        </span>
+                      )}
+                    </div>
 
                     {/* Day selector buttons: T2 - CN */}
-                    <div className="flex items-center gap-1 mb-2">
+                    <div className="flex items-center gap-1 mb-1.5">
                       {ALL_DAYS.map((day) => {
                         const isSelected = workDays.includes(day);
                         return (
@@ -767,7 +1073,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                             key={day}
                             type="button"
                             onClick={() => toggleWorkDay(day)}
-                            className={`px-2 py-1 rounded-md text-xs font-bold transition-all cursor-pointer select-none ${
+                            className={`flex-1 py-1 rounded-md text-xs font-bold transition-all cursor-pointer select-none text-center ${
                               isSelected
                                 ? 'bg-slate-900 text-white shadow-2xs'
                                 : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600'
@@ -778,6 +1084,43 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                           </button>
                         );
                       })}
+                    </div>
+
+                    {/* Schedule action presets (Cho phép xóa tất cả hoặc chọn nhanh) */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setWorkDays([])}
+                        className={`px-2 py-0.5 rounded border transition-colors cursor-pointer font-semibold ${
+                          workDays.length === 0
+                            ? 'bg-rose-50 border-rose-300 text-rose-700'
+                            : 'bg-white border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                        }`}
+                        title="Xóa tất cả ngày làm việc để chuyển thành nghỉ (OFF)"
+                      >
+                        ✕ Xóa lịch (Nghỉ hết)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWorkDays(['T2', 'T3', 'T4', 'T5', 'T6'])}
+                        className="px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors font-semibold cursor-pointer"
+                      >
+                        T2 - T6
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWorkDays(['T2', 'T3', 'T4', 'T5', 'T6', 'T7'])}
+                        className="px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors font-semibold cursor-pointer"
+                      >
+                        T2 - T7 (Chuẩn)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWorkDays(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'])}
+                        className="px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors font-semibold cursor-pointer"
+                      >
+                        Cả tuần (T2-CN)
+                      </button>
                     </div>
 
                     {/* Work hours card */}

@@ -282,8 +282,8 @@ const buildDefaultMatrix = (roles: SystemRoleItem[]): MatrixState => {
           subPerms[sp.code] = true;
         });
       } else if (r.code === 'doctor') {
-        // Doctor: overview, appointments, patients, schedule, services, ai_insights
-        const doctorModules = ['overview', 'appointments', 'patients', 'staff_schedule', 'services', 'ai_insights'];
+        // Doctor: overview, appointments, patients, schedule, leave, services, ai_insights
+        const doctorModules = ['overview', 'appointments', 'patients', 'staff_schedule', 'staff_leave', 'services', 'ai_insights'];
         if (doctorModules.includes(mod.code)) {
           isEnabled = true;
           mod.subPermissions.forEach((sp) => {
@@ -523,6 +523,11 @@ export const rolePermissionStore = {
     // Match module by path
     const matchedModule = SYSTEM_MODULES.find((m) => m.path === path);
     if (!matchedModule) return true; // If not in restricted modules list, permit
+
+    // Clinic schedule is always viewable for all staff roles
+    if (matchedModule.code === 'staff_schedule') {
+      return true;
+    }
 
     const roleState = matrix[roleCode]?.[matchedModule.code];
     if (!roleState) return true; // Default fallback to visible

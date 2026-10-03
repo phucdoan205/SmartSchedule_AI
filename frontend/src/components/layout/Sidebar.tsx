@@ -132,13 +132,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          // If user has self-schedule permission or doctor schedule permission, ensure schedule is accessible
-          if (item.path === '/admin/staff/schedule') {
-            const userKey = user?.id || user?.employeeCode || '';
-            const allowSelfSchedule =
-              localStorage.getItem(`staff_self_schedule_${userKey}`) !== 'false' &&
-              localStorage.getItem(`staff_self_schedule_${user?.employeeCode}`) !== 'false';
-            if (allowSelfSchedule) return true;
+          // Lịch làm việc phòng khám và Đăng ký nghỉ phép luôn mở cho toàn bộ nhân sự nội bộ
+          if (item.path === '/admin/staff/schedule' || item.path === '/admin/staff/leave') {
+            return true;
           }
           return rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path);
         }),

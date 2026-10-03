@@ -176,7 +176,19 @@ export const DoctorDetailPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [historySearch, setHistorySearch] = useState('');
-  const [showWebToggle, setShowWebToggle] = useState(true);
+  
+  // Independent toggle per review id with persistence
+  const [reviewVisibilityMap, setReviewVisibilityMap] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('public_reviews_visibility');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      'rev-1': true,
+      'rev-2': true,
+      'rev-3': true,
+    };
+  });
 
   const [doctor, setDoctor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -274,6 +286,52 @@ export const DoctorDetailPage: React.FC = () => {
         const resolvedName = data.name || data.fullName || 'Bác sĩ';
         const resolvedCode = data.code || data.employeeCode || `NV-${String(data.id).slice(0, 4)}`;
         const resolvedAvatar = data.avatar || data.avatarUrl;
+        const staffKey = data.id || resolvedCode;
+
+        // Synchronize services (priority: localStorage > API > defaults based on specialty/code)
+        let docServices = data.services;
+        const savedServices = localStorage.getItem(`staff_services_${staffKey}`);
+        if (savedServices) {
+          try {
+            const parsed = JSON.parse(savedServices);
+            if (Array.isArray(parsed) && parsed.length > 0) docServices = parsed;
+          } catch (e) {}
+        }
+        if (!docServices || docServices.length === 0) {
+          docServices = resolvedCode === 'NV002' || data.specialty?.includes('Implant')
+            ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+            : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+        }
+
+        // Synchronize commission rate
+        let docCommission = data.commissionRate;
+        const savedCommission = localStorage.getItem(`staff_commission_${staffKey}`);
+        if (savedCommission !== null && savedCommission !== '') {
+          docCommission = Number(savedCommission);
+        } else if (docCommission === undefined) {
+          docCommission = resolvedCode === 'NV002' || data.specialty?.includes('Implant') ? 20 : 15;
+        }
+
+        // Synchronize working schedule
+        let docWorkDays = data.workDays;
+        const savedWorkDays = localStorage.getItem(`staff_workdays_${staffKey}`);
+        if (savedWorkDays) {
+          try { docWorkDays = JSON.parse(savedWorkDays); } catch (e) {}
+        }
+        if (!docWorkDays || !Array.isArray(docWorkDays)) {
+          docWorkDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        }
+
+        let docWorkHours = data.workHours;
+        const savedWorkHours = localStorage.getItem(`staff_workhours_${staffKey}`);
+        if (savedWorkHours) docWorkHours = savedWorkHours;
+        if (!docWorkHours) docWorkHours = '08:00 - 17:30';
+
+        let docLunchBreak = data.lunchBreak;
+        const savedLunchBreak = localStorage.getItem(`staff_lunchbreak_${staffKey}`);
+        if (savedLunchBreak) docLunchBreak = savedLunchBreak;
+        if (!docLunchBreak) docLunchBreak = '12:00 - 13:30';
+
         setDoctor({
           id: data.id,
           code: resolvedCode,
@@ -292,12 +350,16 @@ export const DoctorDetailPage: React.FC = () => {
           avatarUrl: resolvedAvatar,
           rating: data.rating || data.doctorProfile?.rating || data.doctorProfile?.ratingAverage || 4.9,
           totalAppointments: data.totalAppointments || data.doctorProfile?.totalAppointments || data.doctorAppointments?.length || 128,
-          commissionRate: data.commissionRate ?? 15,
+          commissionRate: Number(docCommission),
           joinedDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN') : (data.joinedDate || '12/05/2021'),
           title: data.title || data.doctorProfile?.title || data.role || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt',
           bio: data.bio || data.doctorProfile?.bio || 'Chuyên gia phục hình nụ cười với hơn 8 năm kinh nghiệm...',
           doctorAppointments: data.doctorAppointments || [],
           staffSchedules: data.staffSchedules || [],
+          services: docServices,
+          workDays: docWorkDays,
+          workHours: docWorkHours,
+          lunchBreak: docLunchBreak,
         });
         loadDoctorSchedulesAndAppts(data.id);
       } else {
@@ -345,20 +407,51 @@ export const DoctorDetailPage: React.FC = () => {
     }
   }, [doctor?.id, scheduleWeekOffset]);
 
-  // Dynamically calculate shifts for 7 days
+  // Dynamically calculate shifts for 7 days linked with doctor's workDays & workHours
   const computedDoctorShifts: DayShift[] = useMemo(() => {
+    const docDays: string[] = Array.isArray(doctor?.workDays) ? doctor.workDays : ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const docHours = doctor?.workHours || '08:00 - 17:30';
+
+    const dayMap: Record<string, string> = {
+      'THỨ 2': 'T2',
+      'THỨ 3': 'T3',
+      'THỨ 4': 'T4',
+      'THỨ 5': 'T5',
+      'THỨ 6': 'T6',
+      'THỨ 7': 'T7',
+      'CN': 'CN',
+    };
+
     return currentWeekDays.map((d: any) => {
+      const shortDay = dayMap[d.label] || d.label;
+      const isScheduledWorkDay = docDays.includes(shortDay);
+
       const dayShifts = weekShiftsData.filter((s: any) => s.date?.split('T')[0] === d.dateFull);
       const dayAppts = doctorAppointmentsList.filter((a: any) => {
         const aptDate = a.startTime ? formatLocalDate(new Date(a.startTime)) : (a.date || '');
         return aptDate === d.dateFull;
       });
 
+      // If doctor does not work on this day according to workDays
+      if (!isScheduledWorkDay) {
+        return {
+          type: 'off',
+          time: 'Nghỉ hàng tuần (OFF)',
+          patients: dayAppts.length,
+          isToday: d.isToday,
+        };
+      }
+
+      // If no custom shifts recorded yet in database for this working day, fallback to default hours
       if (dayShifts.length === 0) {
-        if (d.label === 'CN') {
-          return { type: 'off', time: 'Nghỉ hàng tuần (OFF)', patients: 0, isToday: d.isToday };
-        }
-        return { type: null, patients: dayAppts.length, isToday: d.isToday };
+        return {
+          type: 'fullday',
+          time: docHours,
+          room: 'Ghế 02',
+          patients: dayAppts.length,
+          isToday: d.isToday,
+          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
+        };
       }
 
       const hasMorning = dayShifts.some((s: any) => s.shiftType === 'morning');
@@ -375,11 +468,11 @@ export const DoctorDetailPage: React.FC = () => {
       if (hasFull || (hasMorning && hasAfternoon)) {
         return {
           type: 'fullday',
-          time: 'Ca Sáng & Ca Chiều',
+          time: docHours,
           room,
           patients: dayAppts.length,
           isToday: d.isToday,
-          extraTime: d.isToday ? `${dayAppts.length || 2} ca hôm nay` : undefined,
+          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
         };
       }
       if (hasMorning) {
@@ -389,7 +482,7 @@ export const DoctorDetailPage: React.FC = () => {
           room,
           patients: dayAppts.length,
           isToday: d.isToday,
-          extraTime: d.isToday ? `${dayAppts.length || 1} ca hôm nay` : undefined,
+          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
         };
       }
       if (hasAfternoon) {
@@ -399,7 +492,7 @@ export const DoctorDetailPage: React.FC = () => {
           room,
           patients: dayAppts.length,
           isToday: d.isToday,
-          extraTime: d.isToday ? `${dayAppts.length || 2} ca hôm nay` : undefined,
+          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
         };
       }
       if (hasOvertime) {
@@ -411,45 +504,149 @@ export const DoctorDetailPage: React.FC = () => {
           isToday: d.isToday,
         };
       }
-      return { type: null, patients: dayAppts.length, isToday: d.isToday };
+      return {
+        type: 'fullday',
+        time: docHours,
+        room: 'Ghế 02',
+        patients: dayAppts.length,
+        isToday: d.isToday,
+      };
     });
-  }, [currentWeekDays, weekShiftsData, doctorAppointmentsList]);
+  }, [currentWeekDays, weekShiftsData, doctorAppointmentsList, doctor?.workDays, doctor?.workHours]);
 
   // Tab 2 stats
-  const totalShiftsCount = computedDoctorShifts.filter((s) => s.type && s.type !== 'off').length || 9;
+  const totalShiftsCount = computedDoctorShifts.filter((s) => s.type && s.type !== 'off').length || 6;
   const totalHoursCount = computedDoctorShifts.reduce((acc, s) => {
     if (s.type === 'fullday') return acc + 8.5;
     if (s.type === 'morning' || s.type === 'afternoon') return acc + 4.5;
     return acc;
   }, 0) || 40.5;
-  const totalWeekPatients = computedDoctorShifts.reduce((acc, s) => acc + (s.patients || 0), 0) || 14;
+  const totalWeekPatients = computedDoctorShifts.reduce((acc, s) => acc + (s.patients || 0), 0);
 
-  // Tab 3 treatments
+  // Tab 1: Assigned services mapped from modal & database
+  const assignedDoctorServices = useMemo(() => {
+    const assignedNames: string[] = Array.isArray(doctor?.services) ? doctor.services : [];
+    if (assignedNames.length === 0) {
+      return [];
+    }
+
+    const icons = ['🦷', '🔩', '✨', '💎', '🩺', '🔬', '🌟', '🛡️'];
+
+    return assignedNames.map((name, i) => {
+      const match = realServices.find(
+        (s) => s.name?.toLowerCase().trim() === name.toLowerCase().trim() || s.id === name
+      );
+      const duration = match?.durationMinutes || (name.includes('Implant') ? 90 : name.includes('Veneer') ? 60 : 45);
+      const price = Number(match?.standardPrice ?? match?.price ?? (name.includes('Implant') ? 18000000 : name.includes('Cercon') ? 5500000 : 5000000));
+      const category = match?.category?.name || (name.includes('Implant') ? 'Cấy ghép Implant' : 'Phục hình Thẩm mỹ');
+
+      return {
+        id: match?.id || `srv-${i}`,
+        name: match?.name || name,
+        duration,
+        price,
+        category,
+        icon: icons[i % icons.length],
+      };
+    });
+  }, [doctor?.services, realServices]);
+
+  // Tab 3 treatments: Historical snapshot commission preservation algorithm
   const displayedTreatments = useMemo(() => {
+    const activeRate = Number(doctor?.commissionRate !== undefined ? doctor.commissionRate : 15);
+    const staffKey = doctor?.id || doctor?.code || doctor?.employeeCode || 'NV001';
+    const changedAtStr = localStorage.getItem(`staff_commission_changed_at_${staffKey}`);
+    const changedAtTime = changedAtStr ? new Date(changedAtStr).getTime() : 0;
+    const prevRateStr = localStorage.getItem(`staff_prev_commission_${staffKey}`);
+    const prevRate = prevRateStr ? Number(prevRateStr) : (doctor?.code === 'NV002' ? 20 : 15);
+
+    // Load persisted treatment snapshots
+    let snapshots: Record<string, { rate: number; commission: number }> = {};
+    try {
+      const saved = localStorage.getItem('treatment_commission_snapshots');
+      if (saved) snapshots = JSON.parse(saved);
+    } catch (e) {}
+
     const raw = doctorAppointmentsList.length > 0 ? doctorAppointmentsList : (doctor?.doctorAppointments || []);
+    let updatedSnapshots = false;
+    let result: any[] = [];
+
     if (raw.length > 0) {
-      return raw.map((a: any, idx: number) => {
+      result = raw.map((a: any, idx: number) => {
         const srv = a.services?.[0]?.service;
-        const rev = srv?.standardPrice || srv?.price || 12000000;
-        const commRate = doctor?.commissionRate || 15;
-        const comm = Math.round((rev * commRate) / 100);
+        // MUST convert standardPrice (Prisma string) to Number!
+        const rev = Number(srv?.standardPrice ?? srv?.price ?? 5500000);
         const code = a.appointmentCode || `#CA-2026-${String(845 - idx).padStart(3, '0')}`;
         const rawDate = a.startTime ? new Date(a.startTime) : new Date();
         const dateStr = `${String(rawDate.getDate()).padStart(2, '0')}/${String(rawDate.getMonth() + 1).padStart(2, '0')}/${rawDate.getFullYear()}`;
+        const apptTime = rawDate.getTime();
+
+        // Check if treatment already has a preserved snapshot
+        let rateToApply = activeRate;
+        let commToApply = 0;
+
+        if (snapshots[code]) {
+          rateToApply = snapshots[code].rate;
+          commToApply = snapshots[code].commission;
+        } else {
+          // If treatment occurred before the commission rate change, preserve the historical rate (e.g. 15%)
+          // If after the change (or new ca), use the active rate (e.g. 20%)
+          if (changedAtTime > 0 && apptTime < changedAtTime) {
+            rateToApply = prevRate;
+          } else if (changedAtTime === 0) {
+            // Seed baseline for existing historical treatments
+            rateToApply = prevRate || 15;
+          } else {
+            rateToApply = activeRate;
+          }
+          commToApply = Math.round((rev * rateToApply) / 100);
+          snapshots[code] = { rate: rateToApply, commission: commToApply };
+          updatedSnapshots = true;
+        }
+
         return {
           id: code,
           date: dateStr,
           patient: a.patient?.fullName || 'Trần Thị Cẩm Tú',
           phone: a.patient?.phone ? `${a.patient.phone.slice(0, 4)} *** ${a.patient.phone.slice(-3)}` : '0933 *** 123',
-          service: srv?.name || a.notes || 'Mặt dán Veneer Emax (4 răng)',
-          duration: srv?.durationMinutes || 90,
+          service: srv?.name || a.notes || 'Tẩy Trắng Răng Chuyên Sâu Công Nghệ Laser Whitening',
+          duration: srv?.durationMinutes || 45,
           revenue: rev,
-          commission: comm,
+          commission: commToApply,
+          commissionRate: rateToApply,
+        };
+      });
+    } else {
+      result = MOCK_TREATMENT_HISTORY.map((t) => {
+        const rev = Number(t.revenue || 0);
+        let rateToApply = 15;
+        let commToApply = Math.round((rev * rateToApply) / 100);
+
+        if (snapshots[t.id]) {
+          rateToApply = snapshots[t.id].rate;
+          commToApply = snapshots[t.id].commission;
+        } else {
+          snapshots[t.id] = { rate: rateToApply, commission: commToApply };
+          updatedSnapshots = true;
+        }
+
+        return {
+          ...t,
+          revenue: rev,
+          commission: commToApply,
+          commissionRate: rateToApply,
         };
       });
     }
-    return MOCK_TREATMENT_HISTORY;
-  }, [doctor, doctorAppointmentsList]);
+
+    if (updatedSnapshots) {
+      try {
+        localStorage.setItem('treatment_commission_snapshots', JSON.stringify(snapshots));
+      } catch (e) {}
+    }
+
+    return result;
+  }, [doctor?.commissionRate, doctor?.id, doctor?.code, doctorAppointmentsList, doctor?.doctorAppointments]);
 
   const filteredTreatments = useMemo(() => {
     return displayedTreatments.filter((row: any) => {
@@ -468,35 +665,89 @@ export const DoctorDetailPage: React.FC = () => {
   }, [displayedTreatments, historySearch, historyFilter]);
 
   const totalTreatmentsCount = doctor?.totalAppointments || displayedTreatments.length || 128;
-  const totalRevenueNumber = displayedTreatments.reduce((sum: number, t: any) => sum + (t.revenue || 0), 0) || 192000000;
+  // Strict Number sum to guarantee no concatenation
+  const totalRevenueNumber = useMemo(() => {
+    return displayedTreatments.reduce((sum: number, t: any) => sum + (Number(t.revenue) || 0), 0);
+  }, [displayedTreatments]);
 
-  // Tab 4 reviews
+  // Tab 4 reviews: Seed and synchronize to public reviews for homepage
   const displayedReviews = useMemo(() => {
-    if (displayedTreatments.length > 0) {
-      return displayedTreatments.slice(0, 3).map((t: any, idx: number) => {
-        const initials = t.patient.trim().split(/\s+/).map((w: string) => w[0]).join('').slice(-2).toUpperCase();
-        const comments = [
-          `Bác sĩ ${doctor?.name || 'An'} làm rất nhẹ nhàng, không hề bị ê buốt. Form răng thiết kế tự nhiên và khớp cắn ăn nhai rất thoải mái. Cảm ơn bác sĩ nhiều!`,
-          `Rất hài lòng với màu răng sứ BS. ${doctor?.name || 'An'} tư vấn, nhìn y hệt răng thật. Bác sĩ dặn dò chu đáo sau khi lắp răng.`,
-          `Bác sĩ điều trị rất cẩn thận, giải thích rõ ràng từng bước trước khi làm. Rất an tâm khi được bác sĩ trực tiếp thăm khám!`,
-        ];
-        return {
-          id: idx + 1,
-          initials,
-          patient: t.patient,
-          patientCode: `#BN-2026-${String(88 - idx).padStart(3, '0')}`,
-          date: t.date,
-          rating: 5,
-          service: t.service,
-          comment: comments[idx % comments.length],
-          verified: true,
-          branch: typeof doctor?.branch === 'string' ? doctor.branch : doctor?.branch?.name || 'Cơ sở Biên Hòa',
-          showOnWeb: true,
-        };
-      });
-    }
-    return MOCK_REVIEWS;
-  }, [doctor, displayedTreatments]);
+    const docName = doctor?.name || doctor?.fullName || 'BS. Nguyễn Thị An';
+    const branchName = typeof doctor?.branch === 'string' ? doctor.branch : doctor?.branch?.name || 'Chi nhánh Biên Hòa';
+    const docKey = doctor?.id || doctor?.code || 'NV001';
+
+    const baseList = [
+      {
+        id: `rev-${docKey}-1`,
+        initials: 'TL',
+        patient: 'Lê Trần Tiến Luật',
+        patientCode: '#BN-2026-088',
+        date: '25/09/2026',
+        rating: 5,
+        service: 'Tẩy Trắng Răng Chuyên Sâu Công Nghệ Laser Whitening',
+        comment: `Bác sĩ ${docName} làm rất nhẹ nhàng, không hề bị ê buốt. Form răng thiết kế tự nhiên và khớp cắn ăn nhai rất thoải mái. Cảm ơn bác sĩ nhiều!`,
+        verified: true,
+        branch: branchName,
+        doctorName: docName,
+        doctorSpecialty: doctor?.specialty || 'Phục hình Răng sứ & Thẩm mỹ',
+      },
+      {
+        id: `rev-${docKey}-2`,
+        initials: 'VT',
+        patient: 'Nguyen Van Test',
+        patientCode: '#BN-2026-087',
+        date: '24/09/2026',
+        rating: 5,
+        service: 'Bọc 2 răng sứ Cercon (Đức)',
+        comment: `Rất hài lòng với màu răng sứ BS. ${docName} tư vấn, nhìn y hệt răng thật. Bác sĩ dặn dò chu đáo sau khi lắp răng.`,
+        verified: true,
+        branch: branchName,
+        doctorName: docName,
+        doctorSpecialty: doctor?.specialty || 'Phục hình Răng sứ & Thẩm mỹ',
+      },
+      {
+        id: `rev-${docKey}-3`,
+        initials: 'TH',
+        patient: 'Tran Van Hen',
+        patientCode: '#BN-2026-085',
+        date: '23/09/2026',
+        rating: 5,
+        service: 'Mặt dán Veneer Emax',
+        comment: `Bác sĩ điều trị rất cẩn thận, giải thích rõ ràng từng bước trước khi làm. Rất an tâm khi được bác sĩ trực tiếp thăm khám!`,
+        verified: true,
+        branch: branchName,
+        doctorName: docName,
+        doctorSpecialty: doctor?.specialty || 'Phục hình Răng sứ & Thẩm mỹ',
+      },
+    ];
+
+    return baseList;
+  }, [doctor]);
+
+  // Synchronize public reviews for homepage whenever visibility changes
+  const syncPublicReviews = (visMap: Record<string, boolean>) => {
+    try {
+      const publicReviews = displayedReviews
+        .filter((r) => visMap[r.id] !== false)
+        .map((r) => ({ ...r, showOnWeb: true }));
+      localStorage.setItem('public_patient_reviews', JSON.stringify(publicReviews));
+
+      const channel = new BroadcastChannel('smartschedule_sync');
+      channel.postMessage({ type: 'REVIEWS_UPDATED', visibilityMap: visMap });
+      channel.close();
+    } catch (e) {}
+  };
+
+  const handleToggleReviewVisibility = (reviewId: string) => {
+    setReviewVisibilityMap((prev) => {
+      const currentVal = prev[reviewId] ?? true;
+      const nextVal = !currentVal;
+      const updated = { ...prev, [reviewId]: nextVal };
+      localStorage.setItem('public_reviews_visibility', JSON.stringify(updated));
+      syncPublicReviews(updated);
+      return updated;
+    });
+  };
 
   const handleExportSchedule = () => {
     const targetDoc = doctor || currentDoctor;
@@ -649,7 +900,7 @@ export const DoctorDetailPage: React.FC = () => {
 
             {/* Performance */}
             <div className="w-full text-left">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Hiệu suất &amp; đánh giá</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Hiệu suất &amp; ca trực</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
                   <p className="text-[10px] text-slate-400 font-semibold mb-1">Mức hoa hồng</p>
@@ -661,6 +912,21 @@ export const DoctorDetailPage: React.FC = () => {
                     <span className="text-base font-black text-slate-800">{currentDoctor.rating}</span>
                     <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                   </div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100 col-span-2">
+                  <p className="text-[10px] text-slate-400 font-semibold mb-0.5">Khung giờ chuẩn (Mặc định)</p>
+                  <p className="text-xs font-bold text-slate-800">
+                    {currentDoctor.workDays && currentDoctor.workDays.length > 0 ? (
+                      <>
+                        {currentDoctor.workHours || '08:00 - 17:30'}
+                        <span className="block text-[10px] font-semibold text-sky-600 mt-0.5">
+                          ({currentDoctor.workDays.join(', ')})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-rose-500 font-semibold text-xs">Đang tạm nghỉ (Chưa gán ca)</span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -701,42 +967,62 @@ export const DoctorDetailPage: React.FC = () => {
                 <p className="text-xs text-sky-700 font-medium leading-relaxed">
                   ✦&nbsp; {currentDoctor.name || 'BS. An'} có tỷ lệ đặt lịch cao nhất cho dịch vụ{' '}
                   <span className="font-bold">
-                    {realServices[0]?.name || 'Mặt dán Veneer Emax'}
+                    {assignedDoctorServices[0]?.name || 'Khám & Điều trị chuyên khoa'}
                   </span> tại chi nhánh{' '}
                   <span className="font-bold">{currentDoctor.branch || 'Biên Hòa (85%).'}</span>
                 </p>
               </div>
 
-              {/* Services table header */}
-              <div className="grid grid-cols-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 pb-2 border-b border-slate-100 px-1">
-                <span>Tên dịch vụ</span>
-                <span className="text-center">Thời gian</span>
-                <span className="text-right">Đơn giá</span>
-              </div>
+              {assignedDoctorServices.length === 0 ? (
+                <div className="text-center py-10 px-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mx-auto mb-3 text-xl">
+                    ⚠️
+                  </div>
+                  <p className="text-sm font-bold text-slate-800">Bác sĩ chưa được gán dịch vụ phụ trách</p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                    Vui lòng bấm nút &ldquo;Chỉnh sửa hồ sơ&rdquo; để chọn và thêm các dịch vụ chuyên môn cho bác sĩ.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Thêm dịch vụ ngay
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Services table header */}
+                  <div className="grid grid-cols-12 text-[11px] font-bold uppercase tracking-wider text-slate-400 pb-2 border-b border-slate-100 px-1">
+                    <span className="col-span-6">Tên dịch vụ &amp; Chuyên mục</span>
+                    <span className="col-span-3 text-center">Thời gian</span>
+                    <span className="col-span-3 text-right">Đơn giá</span>
+                  </div>
 
-              {/* Service rows */}
-              <div className="divide-y divide-slate-50">
-                {(realServices.length > 0 ? realServices.slice(0, 6) : MOCK_SERVICES.slice(0, 4)).map((srv, i) => {
-                  const icons = ['🦷', '🔩', '✨', '💎', '🩺', '🔬'];
-                  const duration = srv.durationMinutes || (i === 0 ? 60 : i === 1 ? 90 : i === 2 ? 90 : 120);
-                  const price = srv.standardPrice || srv.price || (i === 0 ? 6000000 : i === 1 ? 7000000 : i === 2 ? 8000000 : 5500000);
-                  return (
-                    <div key={srv.id || i} className="grid grid-cols-3 items-center py-3.5 px-1 hover:bg-slate-50/50 rounded-xl transition-colors">
-                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                        <span className="text-base shrink-0">{icons[i % icons.length]}</span>
-                        <span className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{srv.name}</span>
+                  {/* Service rows */}
+                  <div className="divide-y divide-slate-50">
+                    {assignedDoctorServices.map((srv, i) => (
+                      <div key={srv.id || i} className="grid grid-cols-12 items-center py-3.5 px-1 hover:bg-slate-50/50 rounded-xl transition-colors">
+                        <div className="col-span-6 flex items-center gap-2.5 sm:gap-3 min-w-0">
+                          <span className="text-lg shrink-0">{srv.icon}</span>
+                          <div className="min-w-0">
+                            <span className="text-xs sm:text-sm font-semibold text-slate-800 truncate block">{srv.name}</span>
+                            <span className="text-[11px] font-medium text-slate-400 block">{srv.category}</span>
+                          </div>
+                        </div>
+                        <div className="col-span-3 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{srv.duration}p</span>
+                        </div>
+                        <div className="col-span-3 text-right text-xs sm:text-sm font-bold text-slate-800">
+                          {fmtVND(srv.price)}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
-                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{duration}p</span>
-                      </div>
-                      <div className="text-right text-xs sm:text-sm font-bold text-slate-800">
-                        {fmtVND(price)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -875,7 +1161,7 @@ export const DoctorDetailPage: React.FC = () => {
                 {[
                   { label: 'Tổng ca đã thực hiện', value: `${totalTreatmentsCount} ca`, color: 'text-sky-600', bg: 'bg-sky-50', icon: Calendar },
                   { label: 'Tỷ lệ thành công', value: '99.2%', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: CheckCircle2 },
-                  { label: 'Doanh thu tháng này', value: fmtVND(totalRevenueNumber).replace('đ', ''), suffix: 'VNĐ', color: 'text-amber-600', bg: 'bg-amber-50', icon: DollarSign },
+                  { label: 'Doanh thu tháng này', value: Number(totalRevenueNumber).toLocaleString('vi-VN'), suffix: 'VNĐ', color: 'text-amber-600', bg: 'bg-amber-50', icon: DollarSign },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4">
                     <p className="text-[10px] text-slate-400 font-semibold">{s.label}</p>
@@ -928,7 +1214,7 @@ export const DoctorDetailPage: React.FC = () => {
                   <table className="w-full text-xs min-w-[640px]">
                     <thead>
                       <tr className="border-y border-slate-100 bg-slate-50/60">
-                        {['Mã ca / Ngày', 'Bệnh nhân & SĐT', 'Dịch vụ kỹ thuật', 'Thời lượng', 'Doanh thu', `Hoa hồng (${currentDoctor.commissionRate ?? 15}%)`].map((h) => (
+                        {['Mã ca / Ngày', 'Bệnh nhân & SĐT', 'Dịch vụ kỹ thuật', 'Thời lượng', 'Doanh thu', 'Hoa hồng (VNĐ)'].map((h) => (
                           <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
                             {h}
                           </th>
@@ -949,11 +1235,29 @@ export const DoctorDetailPage: React.FC = () => {
                           <td className="px-4 py-3.5 font-medium text-slate-700 max-w-[200px]">{row.service}</td>
                           <td className="px-4 py-3.5 font-semibold text-slate-600">{row.duration} phút</td>
                           <td className="px-4 py-3.5 font-bold text-slate-800">{fmtVND(row.revenue)}</td>
-                          <td className="px-4 py-3.5 font-bold text-emerald-600">{fmtVND(row.commission)}</td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-emerald-600">{fmtVND(row.commission)}</span>
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                title={`Tỷ lệ hoa hồng áp dụng: ${row.commissionRate}%`}
+                              >
+                                {row.commissionRate}%
+                              </span>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Preservation Policy Banner */}
+                <div className="mt-3.5 px-4 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center gap-2 text-xs text-emerald-800">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium leading-relaxed">
+                    <strong>Chính sách bảo lưu thu nhập:</strong> Tiền hoa hồng được chốt snapshot theo tỷ lệ tại thời điểm thực hiện từng ca khám (ca trước ngày điều chỉnh giữ nguyên mức hoa hồng cũ {currentDoctor.code === 'NV002' ? '20%' : '15%'}, ca sau ngày điều chỉnh áp dụng mức hoa hồng mới {currentDoctor.commissionRate ?? 15}%).
+                  </span>
                 </div>
 
                 {/* Table footer */}
@@ -1052,61 +1356,71 @@ export const DoctorDetailPage: React.FC = () => {
                 </div>
 
                 <div className="divide-y divide-slate-50">
-                  {displayedReviews.map((review: any) => (
-                    <div key={review.id} className="p-5 hover:bg-slate-50/50 transition-colors">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
-                          {review.initials}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <span className="font-bold text-slate-900 text-sm">{review.patient}</span>
-                              <span className="text-[11px] text-slate-400 font-medium ml-2">{review.patientCode}</span>
-                              <p className="text-[11px] text-slate-400 mt-0.5">{review.date}</p>
-                            </div>
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              {[1, 2, 3, 4, 5].map((s) => (
-                                <Star
-                                  key={s}
-                                  className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}`}
-                                />
-                              ))}
-                            </div>
+                  {displayedReviews.map((review: any) => {
+                    const isVisible = reviewVisibilityMap[review.id] ?? true;
+                    return (
+                      <div key={review.id} className="p-5 hover:bg-slate-50/50 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                            {review.initials}
                           </div>
-
-                          <p className="text-xs font-semibold text-sky-600 mt-1.5">Dịch vụ: {review.service}</p>
-                          <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed">&ldquo;{review.comment}&rdquo;</p>
-
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
-                            <div className="flex items-center gap-3">
-                              {review.verified && (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Đã xác thực điều trị tại cơ sở {review.branch}
-                                </span>
-                              )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-bold text-slate-900 text-sm">{review.patient}</span>
+                                <span className="text-[11px] text-slate-400 font-medium ml-2">{review.patientCode}</span>
+                                <p className="text-[11px] text-slate-400 mt-0.5">{review.date}</p>
+                              </div>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <Star
+                                    key={s}
+                                    className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'}`}
+                                  />
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <button type="button" className="text-[11px] text-sky-600 hover:text-sky-700 font-semibold transition-colors cursor-pointer">
-                                Phản hồi đánh giá
-                              </button>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] text-slate-500 font-medium">Hiển thị trên Web</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowWebToggle(!showWebToggle)}
-                                  className={`relative w-9 h-5 rounded-full transition-all ${showWebToggle ? 'bg-sky-500' : 'bg-slate-200'}`}
-                                >
-                                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${showWebToggle ? 'left-4' : 'left-0.5'}`} />
+
+                            <p className="text-xs font-semibold text-sky-600 mt-1.5">Dịch vụ: {review.service}</p>
+                            <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed">&ldquo;{review.comment}&rdquo;</p>
+
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
+                              <div className="flex items-center gap-3">
+                                {review.verified && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Đã xác thực điều trị tại cơ sở {review.branch}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <button type="button" className="text-[11px] text-sky-600 hover:text-sky-700 font-semibold transition-colors cursor-pointer">
+                                  Phản hồi đánh giá
                                 </button>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
+                                    isVisible
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                                  }`}>
+                                    {isVisible ? 'Đang hiển thị trên Web' : 'Đã ẩn trên Web'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleReviewVisibility(review.id)}
+                                    className={`relative w-9 h-5 rounded-full transition-all cursor-pointer ${isVisible ? 'bg-sky-500' : 'bg-slate-200'}`}
+                                    title={isVisible ? 'Bấm để ẩn đánh giá trên trang chủ' : 'Bấm để hiển thị đánh giá trên trang chủ'}
+                                  >
+                                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${isVisible ? 'left-4' : 'left-0.5'}`} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Add review button */}

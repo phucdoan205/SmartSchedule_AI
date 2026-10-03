@@ -105,6 +105,11 @@ export class StaffController {
       bio?: string;
       avatarUrl?: string;
       isActive?: boolean;
+      commissionRate?: number;
+      services?: string[];
+      workDays?: string[];
+      workHours?: string;
+      lunchBreak?: string;
     },
   ) {
     return this.staffService.updateStaff(id, body);

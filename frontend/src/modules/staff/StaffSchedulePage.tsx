@@ -20,8 +20,11 @@ import {
   Loader2,
   Wand2,
   Trash2,
+  Eye,
+  ShieldCheck,
 } from 'lucide-react';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
 import { staffApi, staffSchedulesApi } from '../../services/api';
 import { exportToExcel } from '../../utils/excelExport';
 import { ShiftModal, type ShiftData } from './ShiftModal';
@@ -40,6 +43,33 @@ interface ScheduleItem {
 export const StaffSchedulePage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedBranchId, branches } = useBranch();
+  const { user } = useAuth();
+
+  // Role-based schedule management check
+  const canManageSchedule = useMemo(() => {
+    if (!user || !user.roles) return false;
+    const managerRoles = [
+      'SUPER_ADMIN',
+      'ADMIN',
+      'BRANCH_MANAGER',
+      'CLINIC_OWNER',
+      'OWNER',
+      'QUẢN TRỊ VIÊN',
+      'QUẢN LÝ CHI NHÁNH',
+      'CHỦ PHÒNG KHÁM',
+    ];
+    return user.roles.some((r) => managerRoles.includes(r.toUpperCase()));
+  }, [user]);
+
+  // Check if staff row is the currently logged in user
+  const isCurrentStaff = (doc: any) => {
+    if (!user) return false;
+    return (
+      user.id === doc.id ||
+      (user.employeeCode && (user.employeeCode === doc.code || user.employeeCode === doc.id)) ||
+      (user.email && doc.email && user.email.toLowerCase() === doc.email.toLowerCase())
+    );
+  };
 
   // Pagination state (Exactly 5 items per page)
   const itemsPerPage = 5;
@@ -158,15 +188,45 @@ export const StaffSchedulePage: React.FC = () => {
 
       if (Array.isArray(staffList) && staffList.length > 0) {
         setDbStaff(
-          staffList.map((s: any) => ({
-            id: s.id,
-            code: s.code || s.employeeCode || `NV${s.id.slice(0, 4)}`,
-            name: s.name || s.fullName,
-            specialty: s.specialty || s.doctorProfile?.specialty || s.department || 'Bác sĩ điều trị',
-            department: s.department || 'Khoa Tổng Quát',
-            avatar: s.avatar || s.avatarUrl,
-            branchId: s.branchId,
-          }))
+          staffList.map((s: any) => {
+            const staffKey = s.id || s.employeeCode || s.code;
+            let docWorkDays = s.workDays;
+            const savedWorkDays =
+              localStorage.getItem(`staff_workdays_${staffKey}`) ||
+              localStorage.getItem(`staff_workdays_${s.code}`) ||
+              localStorage.getItem(`staff_workdays_${s.employeeCode}`);
+            if (savedWorkDays) {
+              try {
+                const parsed = JSON.parse(savedWorkDays);
+                if (Array.isArray(parsed)) docWorkDays = parsed;
+              } catch (e) {}
+            }
+            if (!docWorkDays || !Array.isArray(docWorkDays)) {
+              docWorkDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+            }
+
+            let docWorkHours = s.workHours || '08:00 - 17:30';
+            const savedWorkHours =
+              localStorage.getItem(`staff_workhours_${staffKey}`) ||
+              localStorage.getItem(`staff_workhours_${s.code}`) ||
+              localStorage.getItem(`staff_workhours_${s.employeeCode}`);
+            if (savedWorkHours) {
+              docWorkHours = savedWorkHours;
+            }
+
+            return {
+              id: s.id,
+              code: s.code || s.employeeCode || `NV${s.id.slice(0, 4)}`,
+              name: s.name || s.fullName,
+              specialty: s.specialty || s.doctorProfile?.specialty || s.department || 'Bác sĩ điều trị',
+              department: s.department || 'Khoa Tổng Quát',
+              avatar: s.avatar || s.avatarUrl,
+              branchId: s.branchId,
+              email: s.email,
+              workDays: docWorkDays,
+              workHours: docWorkHours,
+            };
+          })
         );
       }
 
@@ -228,7 +288,7 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Filter staff by search, department, and branch
   const filteredStaff = useMemo(() => {
-    return dbStaff.filter((doc) => {
+    const list = dbStaff.filter((doc) => {
       const matchSearch =
         doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -237,7 +297,18 @@ export const StaffSchedulePage: React.FC = () => {
         selectedDept === 'all' || doc.department.toLowerCase().includes(selectedDept.toLowerCase());
       return matchSearch && matchDept;
     });
-  }, [dbStaff, searchQuery, selectedDept]);
+
+    // If staff user is viewing, prioritize placing their row at the top!
+    if (!canManageSchedule && user) {
+      return [...list].sort((a, b) => {
+        const aIsSelf = isCurrentStaff(a) ? -1 : 1;
+        const bIsSelf = isCurrentStaff(b) ? -1 : 1;
+        return aIsSelf - bIsSelf;
+      });
+    }
+
+    return list;
+  }, [dbStaff, searchQuery, selectedDept, canManageSchedule, user]);
 
   // Paginated staff (Exactly 5 per page)
   const totalPages = Math.ceil(filteredStaff.length / itemsPerPage) || 1;
@@ -248,12 +319,17 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, shift: ScheduleItem) => {
+    if (!canManageSchedule) {
+      e.preventDefault();
+      return;
+    }
     setDraggedShift(shift);
     e.dataTransfer.setData('text/plain', shift.id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent, staffId: string, date: string) => {
+    if (!canManageSchedule) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (!dropTarget || dropTarget.staffId !== staffId || dropTarget.date !== date) {
@@ -268,8 +344,7 @@ export const StaffSchedulePage: React.FC = () => {
   const handleDrop = async (e: React.DragEvent, targetStaffId: string, targetDate: string) => {
     e.preventDefault();
     setDropTarget(null);
-
-    if (!draggedShift) return;
+    if (!canManageSchedule || !draggedShift) return;
 
     if (draggedShift.staffId === targetStaffId && draggedShift.date === targetDate) {
       setDraggedShift(null);
@@ -305,8 +380,13 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Open quick standard shift picker when clicking on cell
   const handleCellClick = (staffId: string, date: string) => {
+    if (!canManageSchedule) return;
     const staff = dbStaff.find((d) => d.id === staffId);
     const dayCol = weekColumns.find((c) => c.dateFull === date);
+    if (dayCol && staff?.workDays && !staff.workDays.includes(dayCol.dayKey)) {
+      showToast(`${staff.name} có lịch nghỉ cố định vào ${dayCol.label} theo quy định!`);
+      return;
+    }
     setQuickPicker({
       staffId,
       staffName: staff?.name || 'Nhân sự',
@@ -405,6 +485,7 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Xóa sạch toàn bộ ca làm việc trong tuần đang xem nếu lỡ áp dụng nhầm
   const handleClearWeekShifts = async () => {
+    if (!canManageSchedule) return;
     if (shifts.length === 0) {
       showToast('Tuần này hiện không có ca làm việc nào để xóa!');
       return;
@@ -441,6 +522,7 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Auto-generate standard weekly schedule for all staff in branch
   const handleAutoGenerateWeek = async () => {
+    if (!canManageSchedule) return;
     try {
       setIsGenerating(true);
       const res = await staffSchedulesApi.autoGenerate({
@@ -449,7 +531,7 @@ export const StaffSchedulePage: React.FC = () => {
       });
       await loadData();
       broadcastSync();
-      showToast(res?.message || 'Đã áp dụng khung giờ tiêu chuẩn T2-T7 cho toàn bộ nhân sự!');
+      showToast(res?.message || 'Đã áp dụng khung giờ tiêu chuẩn cho toàn bộ nhân sự!');
     } catch (err: any) {
       showToast('Tự động tạo ca thất bại: ' + (err.message || 'Lỗi server'));
     } finally {
@@ -459,6 +541,7 @@ export const StaffSchedulePage: React.FC = () => {
 
   // Save from advanced ShiftModal
   const handleSaveShiftFromModal = async (data: ShiftData) => {
+    if (!canManageSchedule) return;
     const isMorning = data.shiftType === 'morning';
     const isAfternoon = data.shiftType === 'afternoon';
     const startTime = data.startTime || (isMorning ? '08:00' : isAfternoon ? '13:30' : '08:00');
@@ -495,6 +578,7 @@ export const StaffSchedulePage: React.FC = () => {
   // Delete a shift
   const handleDeleteShift = async (e: React.MouseEvent, shiftId: string) => {
     e.stopPropagation();
+    if (!canManageSchedule) return;
     setShifts((prev) => prev.filter((s) => s.id !== shiftId));
     try {
       await staffSchedulesApi.delete(shiftId);
@@ -618,37 +702,41 @@ export const StaffSchedulePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Button: Áp dụng ca tiêu chuẩn tuần này */}
-          <button
-            type="button"
-            onClick={handleAutoGenerateWeek}
-            disabled={isGenerating || isClearing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Tự động gán ca sáng 08:00-12:00 và ca chiều 13:30-17:30 từ T2 đến T7"
-          >
-            {isGenerating ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
-            ) : (
-              <Wand2 className="w-3.5 h-3.5 text-sky-600" />
-            )}
-            <span>Áp dụng ca tiêu chuẩn tuần này</span>
-          </button>
+          {/* Button: Áp dụng ca tiêu chuẩn tuần này (Chỉ Quản trị viên / Quản lý) */}
+          {canManageSchedule && (
+            <button
+              type="button"
+              onClick={handleAutoGenerateWeek}
+              disabled={isGenerating || isClearing}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Tự động gán ca sáng 08:00-12:00 và ca chiều 13:30-17:30 theo khung làm việc tiêu chuẩn của nhân sự"
+            >
+              {isGenerating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+              ) : (
+                <Wand2 className="w-3.5 h-3.5 text-sky-600" />
+              )}
+              <span>Áp dụng ca tiêu chuẩn tuần này</span>
+            </button>
+          )}
 
-          {/* Button: Xóa sạch ca tuần này */}
-          <button
-            type="button"
-            onClick={handleClearWeekShifts}
-            disabled={isGenerating || isClearing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-            title="Xóa sạch toàn bộ ca trực trong tuần này nếu lỡ áp dụng nhầm hoặc muốn phân chia lại"
-          >
-            {isClearing ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
-            ) : (
-              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-            )}
-            <span>Xóa sạch ca tuần này</span>
-          </button>
+          {/* Button: Xóa sạch ca tuần này (Chỉ Quản trị viên / Quản lý) */}
+          {canManageSchedule && (
+            <button
+              type="button"
+              onClick={handleClearWeekShifts}
+              disabled={isGenerating || isClearing}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Xóa sạch toàn bộ ca trực trong tuần này nếu lỡ áp dụng nhầm hoặc muốn phân chia lại"
+            >
+              {isClearing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              )}
+              <span>Xóa sạch ca tuần này</span>
+            </button>
+          )}
 
           {/* Export button */}
           <button
@@ -660,21 +748,59 @@ export const StaffSchedulePage: React.FC = () => {
             <span>Xuất bảng phân ca</span>
           </button>
 
-          {/* Add Shift Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setModalInitialStaffId(undefined);
-              setModalInitialDate(undefined);
-              setIsShiftModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Thêm ca trực</span>
-          </button>
+          {/* Add Shift Button (Chỉ Quản trị viên / Quản lý) */}
+          {canManageSchedule ? (
+            <button
+              type="button"
+              onClick={() => {
+                setModalInitialStaffId(undefined);
+                setModalInitialDate(undefined);
+                setIsShiftModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Thêm ca trực</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200">
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <span>Chế độ chỉ xem</span>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ─── Read-Only Mode Banner for Doctors & Staff ───────────────────── */}
+      {!canManageSchedule && (
+        <div className="bg-sky-50/90 border border-sky-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-sky-100 text-sky-700 shrink-0">
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold text-sky-900">
+                  Chế độ xem lịch trực phòng khám (Chỉ xem)
+                </h4>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-200/70 text-sky-800">
+                  Dành cho Nhân sự
+                </span>
+              </div>
+              <p className="text-[11px] text-sky-700 mt-0.5 leading-relaxed">
+                Bạn đang xem bảng ca làm việc chung của phòng khám. Hàng có huy hiệu <strong>"Lịch của bạn"</strong> là ca trực cá nhân của bạn. Để đổi ca hoặc xin nghỉ, vui lòng vào tab <strong>Hồ sơ cá nhân</strong> hoặc gửi đơn xin nghỉ phép.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/profile')}
+            className="self-start sm:self-auto shrink-0 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            Vào hồ sơ cá nhân
+          </button>
+        </div>
+      )}
 
       {/* ─── Filter & Legend Bar ─────────────────────────────────────────── */}
       <div className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -706,9 +832,15 @@ export const StaffSchedulePage: React.FC = () => {
             <option value="Lễ tân">Lễ tân &amp; Điều phối</option>
           </select>
 
-          <span className="hidden lg:inline text-[11px] font-semibold text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100">
-            💡 Nhấp vào ô bất kỳ để gán nhanh Ca Sáng (08:00 - 12:00) hoặc Ca Chiều (13:30 - 17:30)
-          </span>
+          {canManageSchedule ? (
+            <span className="hidden lg:inline text-[11px] font-semibold text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100">
+              💡 Nhấp vào ô bất kỳ để gán nhanh Ca Sáng (08:00 - 12:00) hoặc Ca Chiều (13:30 - 17:30)
+            </span>
+          ) : (
+            <span className="hidden lg:inline text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+              ℹ️ Bảng phân ca do Quản lý phòng khám điều phối
+            </span>
+          )}
         </div>
 
         {/* Right: Legend */}
@@ -808,197 +940,242 @@ export const StaffSchedulePage: React.FC = () => {
 
               {/* Table Body (5 Staff Per Page) */}
               <tbody className="divide-y divide-slate-100 text-xs">
-                {paginatedStaff.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-50/30 transition-colors">
-                    {/* Sticky Staff Info Cell */}
-                    <td className="py-3 px-4 sticky left-0 bg-white z-10 border-r border-slate-200 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        {doc.avatar ? (
-                          <img
-                            src={doc.avatar}
-                            alt={doc.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 font-extrabold text-sm flex items-center justify-center shrink-0">
-                            {doc.name.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <div
-                            className="font-extrabold text-slate-800 text-xs truncate hover:text-sky-600 cursor-pointer"
-                            title={doc.name}
-                            onClick={() => navigate(`/admin/staff/${doc.id}`)}
-                          >
-                            {doc.name}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-medium truncate">
-                            {doc.specialty}
+                {paginatedStaff.map((doc) => {
+                  const isSelf = isCurrentStaff(doc);
+
+                  return (
+                    <tr
+                      key={doc.id}
+                      className={`transition-colors ${
+                        isSelf
+                          ? 'bg-sky-50/40 ring-1 ring-inset ring-sky-300/80 hover:bg-sky-50/60'
+                          : 'hover:bg-slate-50/30'
+                      }`}
+                    >
+                      {/* Sticky Staff Info Cell */}
+                      <td
+                        className={`py-3 px-4 sticky left-0 z-10 border-r border-slate-200 shadow-xs ${
+                          isSelf ? 'bg-sky-50/95' : 'bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {doc.avatar ? (
+                            <img
+                              src={doc.avatar}
+                              alt={doc.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 font-extrabold text-sm flex items-center justify-center shrink-0">
+                              {doc.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className="font-extrabold text-slate-800 text-xs truncate hover:text-sky-600 cursor-pointer"
+                                title={doc.name}
+                                onClick={() => navigate(`/admin/staff/${doc.id}`)}
+                              >
+                                {doc.name}
+                              </span>
+                              {isSelf && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-sky-600 text-white text-[9px] font-extrabold shadow-2xs">
+                                  Lịch của bạn
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-400 font-medium truncate">
+                              {doc.specialty}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* 7 Days Cells for this staff */}
-                    {weekColumns.map((col) => {
-                      const cellShifts = shifts.filter(
-                        (s) => s.staffId === doc.id && s.date === col.dateFull
-                      );
+                      {/* 7 Days Cells for this staff */}
+                      {weekColumns.map((col) => {
+                        const isWorkDay = doc.workDays?.includes(col.dayKey);
+                        const cellShifts = shifts.filter(
+                          (s) => s.staffId === doc.id && s.date === col.dateFull
+                        );
 
-                      const isOver =
-                        dropTarget?.staffId === doc.id && dropTarget?.date === col.dateFull;
+                        const isOver =
+                          canManageSchedule &&
+                          dropTarget?.staffId === doc.id &&
+                          dropTarget?.date === col.dateFull;
 
-                      return (
-                        <td
-                          key={col.dayKey}
-                          onDragOver={(e) => handleDragOver(e, doc.id, col.dateFull)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop(e, doc.id, col.dateFull)}
-                          onClick={() => handleCellClick(doc.id, col.dateFull)}
-                          className={`p-2 align-top border-r border-slate-100 last:border-r-0 min-h-[105px] transition-all relative group cursor-pointer ${
-                            col.isToday ? 'bg-sky-50/20' : ''
-                          } ${
-                            isOver
-                              ? 'bg-sky-100/60 ring-2 ring-sky-400 ring-inset rounded-lg'
-                              : 'hover:bg-slate-50/60'
-                          }`}
-                        >
-                          {/* Shifts list in this cell */}
-                          <div className="space-y-1.5 min-h-[85px] flex flex-col justify-start">
-                            {cellShifts.map((shift) => {
-                              const isShiftDragging = draggedShift?.id === shift.id;
-
-                              if (shift.shiftType === 'morning') {
-                                return (
-                                  <div
-                                    key={shift.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, shift)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`p-2 rounded-xl border border-sky-200/90 bg-sky-50/90 text-sky-900 transition-all select-none cursor-grab active:cursor-grabbing hover:shadow-xs group/card relative ${
-                                      isShiftDragging ? 'opacity-40 scale-95' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-extrabold text-[11px] text-sky-800 flex items-center gap-1">
-                                        <Sun className="w-3 h-3 text-sky-600" />
-                                        Ca Sáng
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => handleDeleteShift(e, shift.id)}
-                                        className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity p-0.5"
-                                        title="Xóa ca trực"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                    <div className="text-[10px] text-sky-600 font-semibold mt-0.5">
-                                      {shift.startTime || '08:00'} - {shift.endTime || '12:00'}
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              if (shift.shiftType === 'afternoon') {
-                                return (
-                                  <div
-                                    key={shift.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, shift)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`p-2 rounded-xl bg-slate-900 text-white transition-all select-none cursor-grab active:cursor-grabbing hover:shadow-xs group/card relative ${
-                                      isShiftDragging ? 'opacity-40 scale-95' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-extrabold text-[11px] text-slate-100 flex items-center gap-1">
-                                        <Moon className="w-3 h-3 text-slate-300" />
-                                        Ca Chiều
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => handleDeleteShift(e, shift.id)}
-                                        className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity p-0.5"
-                                        title="Xóa ca trực"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                    <div className="text-[10px] text-slate-300 font-medium mt-0.5">
-                                      {shift.startTime || '13:30'} - {shift.endTime || '17:30'}
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              if (shift.shiftType === 'leave') {
-                                return (
-                                  <div
-                                    key={shift.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, shift)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`p-2 rounded-xl border border-rose-200 bg-rose-50/80 text-rose-800 transition-all select-none cursor-grab active:cursor-grabbing hover:shadow-xs group/card relative text-center ${
-                                      isShiftDragging ? 'opacity-40 scale-95' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-center gap-1 font-extrabold text-[11px] text-rose-700">
-                                      <Plane className="w-3 h-3 text-rose-500" />
-                                      <span>Nghỉ phép</span>
-                                    </div>
-                                    <div className="text-[10px] text-rose-500 font-medium mt-0.5">
-                                      {shift.statusLabel || '(Đã duyệt)'}
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              // Overtime
-                              return (
-                                <div
-                                  key={shift.id}
-                                  draggable
-                                  onDragStart={(e) => handleDragStart(e, shift)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`p-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 transition-all select-none cursor-grab active:cursor-grabbing hover:shadow-xs group/card relative ${
-                                    isShiftDragging ? 'opacity-40 scale-95' : ''
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-extrabold text-[11px] text-amber-800 flex items-center gap-1">
-                                      <AlertCircle className="w-3 h-3 text-amber-600" />
-                                      Tăng ca
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleDeleteShift(e, shift.id)}
-                                      className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity p-0.5"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                  <div className="text-[10px] text-amber-700 font-medium mt-0.5">
-                                    {shift.startTime || '18:00'} - {shift.endTime || '20:30'}
-                                  </div>
+                        return (
+                          <td
+                            key={col.dayKey}
+                            onDragOver={(e) => canManageSchedule && handleDragOver(e, doc.id, col.dateFull)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => canManageSchedule && handleDrop(e, doc.id, col.dateFull)}
+                            onClick={() => canManageSchedule && handleCellClick(doc.id, col.dateFull)}
+                            className={`p-2 align-top border-r border-slate-100 last:border-r-0 min-h-[105px] transition-all relative ${
+                              canManageSchedule ? 'group cursor-pointer' : ''
+                            } ${col.isToday ? 'bg-sky-50/20' : ''} ${
+                              isOver
+                                ? 'bg-sky-100/60 ring-2 ring-sky-400 ring-inset rounded-lg'
+                                : canManageSchedule
+                                ? 'hover:bg-slate-50/60'
+                                : ''
+                            }`}
+                          >
+                            {/* Shifts list in this cell */}
+                            <div className="space-y-1.5 min-h-[85px] flex flex-col justify-start">
+                              {!isWorkDay ? (
+                                /* Ngày nghỉ hàng tuần theo quy chế (OFF) */
+                                <div className="h-full min-h-[85px] flex flex-col items-center justify-center py-3 bg-slate-50/70 rounded-xl border border-dashed border-slate-200 text-center select-none">
+                                  <span className="text-[11px] font-bold text-slate-400">Nghỉ hàng tuần</span>
+                                  <span className="text-[10px] font-semibold text-slate-400/80">(OFF)</span>
                                 </div>
-                              );
-                            })}
+                              ) : cellShifts.length > 0 ? (
+                                cellShifts.map((shift) => {
+                                  const isShiftDragging = draggedShift?.id === shift.id;
 
-                            {/* Empty Cell Quick Add hint */}
-                            {cellShifts.length === 0 && (
-                              <div className="h-full flex-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity py-4">
-                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-dashed border-slate-300">
-                                  <Plus className="w-3 h-3 text-sky-500" /> Gán ca chuẩn
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                                  if (shift.shiftType === 'morning') {
+                                    return (
+                                      <div
+                                        key={shift.id}
+                                        draggable={canManageSchedule}
+                                        onDragStart={(e) => handleDragStart(e, shift)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`p-2 rounded-xl border border-sky-200/90 bg-sky-50/90 text-sky-900 transition-all select-none group/card relative ${
+                                          canManageSchedule ? 'cursor-grab active:cursor-grabbing hover:shadow-xs' : ''
+                                        } ${isShiftDragging ? 'opacity-40 scale-95' : ''}`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-extrabold text-[11px] text-sky-800 flex items-center gap-1">
+                                            <Sun className="w-3 h-3 text-sky-600" />
+                                            Ca Sáng
+                                          </span>
+                                          {canManageSchedule && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => handleDeleteShift(e, shift.id)}
+                                              className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity p-0.5 cursor-pointer"
+                                              title="Xóa ca trực"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-sky-600 font-semibold mt-0.5">
+                                          {shift.startTime || '08:00'} - {shift.endTime || '12:00'}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (shift.shiftType === 'afternoon') {
+                                    return (
+                                      <div
+                                        key={shift.id}
+                                        draggable={canManageSchedule}
+                                        onDragStart={(e) => handleDragStart(e, shift)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`p-2 rounded-xl bg-slate-900 text-white transition-all select-none group/card relative ${
+                                          canManageSchedule ? 'cursor-grab active:cursor-grabbing hover:shadow-xs' : ''
+                                        } ${isShiftDragging ? 'opacity-40 scale-95' : ''}`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-extrabold text-[11px] text-slate-100 flex items-center gap-1">
+                                            <Moon className="w-3 h-3 text-slate-300" />
+                                            Ca Chiều
+                                          </span>
+                                          {canManageSchedule && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => handleDeleteShift(e, shift.id)}
+                                              className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity p-0.5 cursor-pointer"
+                                              title="Xóa ca trực"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-slate-300 font-medium mt-0.5">
+                                          {shift.startTime || '13:30'} - {shift.endTime || '17:30'}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  if (shift.shiftType === 'leave') {
+                                    return (
+                                      <div
+                                        key={shift.id}
+                                        draggable={canManageSchedule}
+                                        onDragStart={(e) => handleDragStart(e, shift)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`p-2 rounded-xl border border-rose-200 bg-rose-50/80 text-rose-800 transition-all select-none group/card relative text-center ${
+                                          canManageSchedule ? 'cursor-grab active:cursor-grabbing hover:shadow-xs' : ''
+                                        } ${isShiftDragging ? 'opacity-40 scale-95' : ''}`}
+                                      >
+                                        <div className="flex items-center justify-center gap-1 font-extrabold text-[11px] text-rose-700">
+                                          <Plane className="w-3 h-3 text-rose-500" />
+                                          <span>Nghỉ phép</span>
+                                        </div>
+                                        <div className="text-[10px] text-rose-500 font-medium mt-0.5">
+                                          {shift.statusLabel || '(Đã duyệt)'}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+
+                                  // Overtime
+                                  return (
+                                    <div
+                                      key={shift.id}
+                                      draggable={canManageSchedule}
+                                      onDragStart={(e) => handleDragStart(e, shift)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className={`p-2 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 transition-all select-none group/card relative ${
+                                        canManageSchedule ? 'cursor-grab active:cursor-grabbing hover:shadow-xs' : ''
+                                      } ${isShiftDragging ? 'opacity-40 scale-95' : ''}`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-extrabold text-[11px] text-amber-800 flex items-center gap-1">
+                                          <AlertCircle className="w-3 h-3 text-amber-600" />
+                                          Tăng ca
+                                        </span>
+                                        {canManageSchedule && (
+                                          <button
+                                            type="button"
+                                            onClick={(e) => handleDeleteShift(e, shift.id)}
+                                            className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity p-0.5 cursor-pointer"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-amber-700 font-medium mt-0.5">
+                                        {shift.startTime || '18:00'} - {shift.endTime || '20:30'}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                /* Empty cell on a working day */
+                                canManageSchedule ? (
+                                  <div className="h-full flex-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity py-4">
+                                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-dashed border-slate-300">
+                                      <Plus className="w-3 h-3 text-sky-500" /> Gán ca chuẩn
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="h-full min-h-[85px] flex items-center justify-center text-slate-300 text-[11px] font-semibold italic select-none">
+                                    Chưa xếp ca
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

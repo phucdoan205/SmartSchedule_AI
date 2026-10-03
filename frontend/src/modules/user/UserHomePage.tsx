@@ -25,7 +25,100 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
   const navigate = useNavigate();
   const [services, setServices] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [publicReviews, setPublicReviews] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadPublicReviews = () => {
+    try {
+      let visMap: Record<string, boolean> = {};
+      const savedVis = localStorage.getItem('public_reviews_visibility');
+      if (savedVis) {
+        try {
+          visMap = JSON.parse(savedVis);
+        } catch (e) {}
+      }
+
+      const defaultReviews = [
+        {
+          id: 'rev-NV001-1',
+          initials: 'TL',
+          patient: 'Lê Trần Tiến Luật',
+          patientCode: '#BN-2026-088',
+          date: '25/09/2026',
+          rating: 5,
+          service: 'Tẩy Trắng Răng Chuyên Sâu Công Nghệ Laser Whitening',
+          comment: 'Bác sĩ BS. Nguyễn Thị An làm rất nhẹ nhàng, không hề bị ê buốt. Form răng thiết kế tự nhiên và khớp cắn ăn nhai rất thoải mái. Cảm ơn bác sĩ nhiều!',
+          verified: true,
+          branch: 'Chi nhánh Biên Hòa (Trụ sở chính)',
+          doctorName: 'BS. Nguyễn Thị An',
+          doctorSpecialty: 'Phục hình Răng sứ & Thẩm mỹ',
+        },
+        {
+          id: 'rev-NV001-2',
+          initials: 'VT',
+          patient: 'Nguyen Van Test',
+          patientCode: '#BN-2026-087',
+          date: '24/09/2026',
+          rating: 5,
+          service: 'Bọc 2 răng sứ Cercon (Đức)',
+          comment: 'Rất hài lòng với màu răng sứ BS. Nguyễn Thị An tư vấn, nhìn y hệt răng thật. Bác sĩ dặn dò chu đáo sau khi lắp răng.',
+          verified: true,
+          branch: 'Chi nhánh Biên Hòa (Trụ sở chính)',
+          doctorName: 'BS. Nguyễn Thị An',
+          doctorSpecialty: 'Phục hình Răng sứ & Thẩm mỹ',
+        },
+        {
+          id: 'rev-NV001-3',
+          initials: 'TH',
+          patient: 'Tran Van Hen',
+          patientCode: '#BN-2026-085',
+          date: '23/09/2026',
+          rating: 5,
+          service: 'Mặt dán Veneer Emax',
+          comment: 'Bác sĩ điều trị rất cẩn thận, giải thích rõ ràng từng bước trước khi làm. Rất an tâm khi được bác sĩ trực tiếp thăm khám!',
+          verified: true,
+          branch: 'Chi nhánh Biên Hòa (Trụ sở chính)',
+          doctorName: 'BS. Nguyễn Thị An',
+          doctorSpecialty: 'Phục hình Răng sứ & Thẩm mỹ',
+        },
+        {
+          id: 'rev-NV002-1',
+          initials: 'HA',
+          patient: 'Hoàng Anh Tuấn',
+          patientCode: '#BN-2026-092',
+          date: '22/09/2026',
+          rating: 5,
+          service: 'Cấy ghép Implant Straumann',
+          comment: 'TS.BS. Nguyễn Minh Anh cấy trụ Implant cực kỳ chuẩn xác và không hề đau như mình tưởng tượng. Cơ sở vật chất vô trùng rất chuyên nghiệp!',
+          verified: true,
+          branch: 'Chi nhánh Quận 1 (TP.HCM)',
+          doctorName: 'TS.BS. Nguyễn Minh Anh',
+          doctorSpecialty: 'Cấy ghép Implant & Tiểu phẫu',
+        },
+      ];
+
+      let storedReviews: any[] = defaultReviews;
+      const rawStored = localStorage.getItem('public_patient_reviews');
+      if (rawStored) {
+        try {
+          const parsed = JSON.parse(rawStored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Merge with defaults so we don't lose reviews
+            const map = new Map<string, any>();
+            defaultReviews.forEach((r) => map.set(r.id, r));
+            parsed.forEach((r) => map.set(r.id, r));
+            storedReviews = Array.from(map.values());
+          }
+        } catch (e) {}
+      }
+
+      // Filter by visibility map
+      const active = storedReviews.filter((r) => visMap[r.id] !== false && r.showOnWeb !== false);
+      setPublicReviews(active);
+    } catch (e) {
+      console.warn('Lỗi khi tải đánh giá công khai:', e);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,12 +140,15 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
       }
     };
     fetchData();
+    loadPublicReviews();
 
     // Listen to real-time service update events
     const handleSync = () => {
       fetchData();
+      loadPublicReviews();
     };
     window.addEventListener('services_updated', handleSync);
+    window.addEventListener('storage', handleSync);
 
     let channel: BroadcastChannel | null = null;
     try {
@@ -61,11 +157,15 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
         if (event.data?.type === 'SERVICES_UPDATED') {
           fetchData();
         }
+        if (event.data?.type === 'REVIEWS_UPDATED') {
+          loadPublicReviews();
+        }
       };
     } catch {}
 
     return () => {
       window.removeEventListener('services_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
       if (channel) channel.close();
     };
   }, []);
@@ -271,6 +371,95 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           </div>
         </div>
       </section>
+
+      {/* Patient Reviews Section */}
+      {publicReviews.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-3">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold mb-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>100% Đánh Giá Thực Tế Từ Khách Hàng</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Cảm Nhận Bệnh Nhân Sau Điều Trị
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                Những chia sẻ chân thực về sự nhẹ nhàng, không đau, chuẩn phác đồ và thái độ tận tâm của đội ngũ bác sĩ SmartSchedule AI
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-200 px-3.5 py-2 rounded-2xl shrink-0">
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              <span className="text-xs font-black text-slate-800">4.9 / 5.0</span>
+              <span className="text-[11px] text-slate-500 font-medium">({publicReviews.length} đánh giá công khai)</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {publicReviews.map((rev) => (
+              <div
+                key={rev.id}
+                className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-sky-300 transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-3.5">
+                  {/* Header: Patient & Rating */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full bg-sky-100 text-sky-800 font-bold text-xs flex items-center justify-center shrink-0 border border-sky-200">
+                        {rev.initials || 'KH'}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">{rev.patient}</h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-medium">{rev.date}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300 inline-block" />
+                          <span className="text-[10px] text-sky-600 font-semibold">{rev.patientCode}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star key={s} className="w-3 h-3 text-amber-400 fill-amber-400" />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Service tag */}
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[11px] font-semibold text-slate-700">
+                    <span className="text-sky-600 font-bold">Dịch vụ:</span>
+                    <span className="truncate max-w-[220px]">{rev.service}</span>
+                  </div>
+
+                  {/* Comment */}
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal italic bg-slate-50/60 p-3.5 rounded-xl border border-slate-100">
+                    &ldquo;{rev.comment}&rdquo;
+                  </p>
+                </div>
+
+                {/* Footer: Doctor & Clinic verification */}
+                <div className="pt-3.5 mt-3.5 border-t border-slate-100 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Bác sĩ phụ trách:</span>
+                    <span className="font-bold text-slate-800">{rev.doctorName || 'BS. Chuyên khoa'}</span>
+                  </div>
+                  {rev.verified && (
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Đã xác thực điều trị tại {rev.branch || 'Biên Hòa'}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Callout AI Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">

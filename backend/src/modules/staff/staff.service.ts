@@ -1,6 +1,36 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+
+const METADATA_FILE = path.join(process.cwd(), 'data', 'staff_metadata.json');
+
+function getStaffMetadataMap(): Record<string, any> {
+  try {
+    if (fs.existsSync(METADATA_FILE)) {
+      const content = fs.readFileSync(METADATA_FILE, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch (e) {
+    console.error('Error reading staff_metadata.json:', e);
+  }
+  return {};
+}
+
+function saveStaffMetadata(key: string, data: any) {
+  try {
+    const dir = path.dirname(METADATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const map = getStaffMetadataMap();
+    map[key] = { ...(map[key] || {}), ...data };
+    fs.writeFileSync(METADATA_FILE, JSON.stringify(map, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error saving staff_metadata.json:', e);
+  }
+}
 
 @Injectable()
 export class StaffService {
@@ -92,7 +122,9 @@ export class StaffService {
       orderBy: { employeeCode: 'asc' },
     });
 
+    const metadataMap = getStaffMetadataMap();
     return staff.map((s) => {
+      const meta = metadataMap[s.id] || metadataMap[s.employeeCode] || {};
       const roleName = s.userRoles[0]?.role?.name || 'STAFF';
       let displayRole = 'Bác sĩ chuyên khoa';
       if (roleName === 'SUPER_ADMIN') displayRole = 'Quản trị viên';
@@ -115,6 +147,14 @@ export class StaffService {
         : roleName === 'TECHNICIAN' ? 'Phòng Mổ & Tiệt khuẩn'
         : 'Nha khoa tổng quát';
 
+      const defaultServices = s.employeeCode === 'NV002' || s.doctorProfile?.specialty?.includes('Implant')
+        ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+        : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+
+      const commissionRate = meta.commissionRate !== undefined
+        ? Number(meta.commissionRate)
+        : (s.doctorProfile?.specialty?.includes('Implant') ? 20 : 15);
+
       return {
         id: s.id,
         code: s.employeeCode || `NV-${s.id.slice(0, 4)}`,
@@ -136,7 +176,11 @@ export class StaffService {
         totalAppointments:
           s._count?.doctorAppointments ||
           (s.doctorProfile?.totalReviews ? Math.round(s.doctorProfile.totalReviews * 1.2) : 50),
-        commissionRate: s.doctorProfile?.specialty?.includes('Implant') ? 20 : 15,
+        commissionRate,
+        services: meta.services || defaultServices,
+        workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+        workHours: meta.workHours || '08:00 - 17:30',
+        lunchBreak: meta.lunchBreak || '12:00 - 13:30',
         salaryBase: 25000000,
         allowance: 3000000,
         experienceYears: s.doctorProfile?.experienceYears || 5,
@@ -195,6 +239,17 @@ export class StaffService {
     else if (roleName === 'TECHNICIAN') displayRole = 'Kỹ thuật viên';
     else if (roleName === 'RECEPTIONIST') displayRole = 'Lễ tân';
 
+    const metadataMap = getStaffMetadataMap();
+    const meta = metadataMap[doctor.id] || metadataMap[doctor.employeeCode] || {};
+
+    const defaultServices = doctor.employeeCode === 'NV002' || doctor.doctorProfile?.specialty?.includes('Implant')
+      ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+      : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+
+    const commissionRate = meta.commissionRate !== undefined
+      ? Number(meta.commissionRate)
+      : (doctor.doctorProfile?.specialty?.includes('Implant') ? 20 : 15);
+
     return {
       id: doctor.id,
       code: doctor.employeeCode,
@@ -214,7 +269,11 @@ export class StaffService {
       status: doctor.isActive ? 'Active' : 'Inactive',
       rating: doctor.doctorProfile?.ratingAverage || 4.9,
       totalAppointments: doctor.doctorAppointments.length || 128,
-      commissionRate: doctor.doctorProfile?.specialty?.includes('Implant') ? 20 : 15,
+      commissionRate,
+      services: meta.services || defaultServices,
+      workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+      workHours: meta.workHours || '08:00 - 17:30',
+      lunchBreak: meta.lunchBreak || '12:00 - 13:30',
       salaryBase: 25000000,
       allowance: 3000000,
       experienceYears: doctor.doctorProfile?.experienceYears || 10,
@@ -238,6 +297,11 @@ export class StaffService {
       bio?: string;
       avatarUrl?: string;
       isActive?: boolean;
+      commissionRate?: number;
+      services?: string[];
+      workDays?: string[];
+      workHours?: string;
+      lunchBreak?: string;
     },
   ) {
     const existing = await this.prisma.user.findFirst({
@@ -248,6 +312,57 @@ export class StaffService {
 
     if (!existing) {
       throw new NotFoundException(`Nhân sự ${id} không tồn tại`);
+    }
+
+    if (
+      data.commissionRate !== undefined ||
+      data.services !== undefined ||
+      data.workDays !== undefined ||
+      data.workHours !== undefined ||
+      data.lunchBreak !== undefined
+    ) {
+      saveStaffMetadata(existing.id, {
+        commissionRate: data.commissionRate !== undefined ? Number(data.commissionRate) : undefined,
+        services: data.services,
+        workDays: data.workDays,
+        workHours: data.workHours,
+        lunchBreak: data.lunchBreak,
+      });
+      if (existing.employeeCode) {
+        saveStaffMetadata(existing.employeeCode, {
+          commissionRate: data.commissionRate !== undefined ? Number(data.commissionRate) : undefined,
+          services: data.services,
+          workDays: data.workDays,
+          workHours: data.workHours,
+          lunchBreak: data.lunchBreak,
+        });
+      }
+
+      if (data.workDays && Array.isArray(data.workDays)) {
+        try {
+          const dayKeysMap: Record<number, string> = {
+            0: 'CN',
+            1: 'T2',
+            2: 'T3',
+            3: 'T4',
+            4: 'T5',
+            5: 'T6',
+            6: 'T7',
+          };
+          const allUserSchedules = await this.prisma.staffSchedule.findMany({
+            where: { userId: existing.id },
+          });
+          for (const sc of allUserSchedules) {
+            const d = new Date(sc.workDate);
+            const dayKey = dayKeysMap[d.getUTCDay()];
+            if (dayKey && !data.workDays.includes(dayKey)) {
+              await this.prisma.staffSchedule.delete({ where: { id: sc.id } });
+            }
+          }
+        } catch (e) {
+          console.warn('Error clearing non-workday schedules:', e);
+        }
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -446,14 +561,24 @@ export class StaffService {
     });
 
     const created: any[] = [];
+    const metadataMap = getStaffMetadataMap();
+    const dayKeys = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
     // Sinh ca từ T2 đến T7
     for (let dayOffset = 0; dayOffset < 6; dayOffset++) {
       const shiftDate = new Date(monday);
       shiftDate.setDate(monday.getDate() + dayOffset);
       const dateOnly = new Date(shiftDate.toISOString().split('T')[0] + 'T00:00:00.000Z');
+      const currentDayKey = dayKeys[dayOffset];
 
       for (const u of staff) {
+        const meta = metadataMap[u.id] || metadataMap[u.employeeCode] || {};
+        const docWorkDays: string[] = meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        if (!docWorkDays.includes(currentDayKey)) {
+          // Bác sĩ không làm việc vào ngày này theo cấu hình cá nhân
+          continue;
+        }
+
         // Kiểm tra xem đã có ca trực chưa
         const exists = await this.prisma.staffSchedule.findFirst({
           where: {

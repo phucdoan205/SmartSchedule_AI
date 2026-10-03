@@ -28,7 +28,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { apiClient, staffSchedulesApi } from '../../services/api';
+import { apiClient, staffApi, staffSchedulesApi } from '../../services/api';
 import { toast } from '../../context/ToastContext';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -153,12 +153,58 @@ export const AdminProfilePage: React.FC = () => {
     CN: 'off',
   });
 
+  // User's configured standard working days
+  const [userWorkDays, setUserWorkDays] = useState<string[]>(() => {
+    const userKey = user?.id || user?.employeeCode || '';
+    const saved =
+      localStorage.getItem(`staff_workdays_${userKey}`) ||
+      localStorage.getItem(`staff_workdays_${user?.employeeCode}`) ||
+      localStorage.getItem(`staff_workdays_${user?.id}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  });
+
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
   // Fetch real schedules for user from backend
   const loadUserSchedules = async () => {
     if (!user?.id || profileDays.length === 0) return;
     try {
+      const userKey = user?.id || user?.employeeCode || '';
+      let currentWorkDays: string[] = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      const savedWorkDays =
+        localStorage.getItem(`staff_workdays_${userKey}`) ||
+        localStorage.getItem(`staff_workdays_${user?.employeeCode}`) ||
+        localStorage.getItem(`staff_workdays_${user?.id}`);
+      if (savedWorkDays) {
+        try {
+          const parsed = JSON.parse(savedWorkDays);
+          if (Array.isArray(parsed)) {
+            currentWorkDays = parsed;
+            setUserWorkDays(parsed);
+          }
+        } catch (e) {}
+      } else if ((user as any)?.workDays && Array.isArray((user as any).workDays)) {
+        currentWorkDays = (user as any).workDays;
+        setUserWorkDays((user as any).workDays);
+      }
+
+      // Ưu tiên dữ liệu khung giờ làm việc từ backend (nguồn chuẩn, đồng bộ mọi thiết bị)
+      try {
+        const profile: any = await staffApi.getDoctorById(user.id);
+        if (profile && Array.isArray(profile.workDays)) {
+          currentWorkDays = profile.workDays;
+          setUserWorkDays(profile.workDays);
+        }
+      } catch (e) {
+        // fallback localStorage
+      }
+
       const start = profileDays[0].dateFull;
       const end = profileDays[6].dateFull;
       const schedules = await staffSchedulesApi.getAll({
@@ -173,6 +219,12 @@ export const AdminProfilePage: React.FC = () => {
 
       if (Array.isArray(schedules) && schedules.length > 0) {
         profileDays.forEach((pDay: any) => {
+          // If this day is NOT in the user's scheduled workDays, it MUST be OFF!
+          if (!currentWorkDays.includes(pDay.dayKey)) {
+            newShifts[pDay.dayKey] = 'off';
+            return;
+          }
+
           const dayShifts = schedules.filter((s: any) => s.date?.split('T')[0] === pDay.dateFull);
           if (dayShifts.length > 0) {
             const hasMorning = dayShifts.some((s: any) => s.shiftType === 'morning');
@@ -192,11 +244,20 @@ export const AdminProfilePage: React.FC = () => {
       } else {
         const saved = localStorage.getItem(`user_weekly_shifts_${user?.employeeCode}_${profileDays[0].dateFull}`);
         if (saved) {
-          try { setWeeklyShifts(JSON.parse(saved)); return; } catch {}
+          try {
+            const parsed = JSON.parse(saved);
+            ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach((d) => {
+              if (!currentWorkDays.includes(d)) parsed[d] = 'off';
+            });
+            setWeeklyShifts(parsed);
+            return;
+          } catch {}
         }
-        setWeeklyShifts({
-          T2: 'fullday', T3: 'fullday', T4: 'fullday', T5: 'morning', T6: 'afternoon', T7: 'morning', CN: 'off'
+        const defaultWeekShifts: Record<string, string> = {};
+        ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].forEach((d) => {
+          defaultWeekShifts[d] = currentWorkDays.includes(d) ? 'fullday' : 'off';
         });
+        setWeeklyShifts(defaultWeekShifts);
       }
     } catch (err) {
       console.warn('Lỗi khi tải lịch nhân sự:', err);
@@ -223,6 +284,7 @@ export const AdminProfilePage: React.FC = () => {
           if (fromStorage !== null) {
             setAllowSelfSchedule(fromStorage === 'true');
           }
+          loadUserSchedules();
         }
         if (msg.data?.type === 'SCHEDULE_UPDATED') {
           loadUserSchedules();
@@ -569,6 +631,7 @@ export const AdminProfilePage: React.FC = () => {
         ] as { key: Tab; label: string; icon: React.FC<any> }[]).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
+            id={`profile-tab-${key}`}
             type="button"
             onClick={() => { setActiveTab(key); setIsEditing(false); }}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -950,13 +1013,14 @@ export const AdminProfilePage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
               {profileDays.map(({ dayKey, label, dateStr }: any) => {
-                const currentShift = weeklyShifts[dayKey] || 'off';
+                const isWorkDay = userWorkDays.includes(dayKey);
+                const currentShift = isWorkDay ? (weeklyShifts[dayKey] || 'off') : 'off';
 
                 return (
                   <div
                     key={dayKey}
                     className={`rounded-2xl border p-3.5 flex flex-col justify-between transition-all ${
-                      currentShift === 'off'
+                      !isWorkDay || currentShift === 'off'
                         ? 'bg-slate-50/60 border-slate-200/70 text-slate-400'
                         : currentShift === 'fullday'
                         ? 'bg-sky-50/50 border-sky-200 text-sky-900'
@@ -980,41 +1044,54 @@ export const AdminProfilePage: React.FC = () => {
 
                       {/* Display current badge */}
                       <div className="mb-3">
-                        {currentShift === 'fullday' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
-                            <Clock className="w-3 h-3" /> Cả ngày (08:00 - 17:30)
-                          </span>
-                        )}
-                        {currentShift === 'morning' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            <Sun className="w-3 h-3" /> Ca sáng (08:00 - 12:00)
-                          </span>
-                        )}
-                        {currentShift === 'afternoon' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
-                            <Sun className="w-3 h-3" /> Ca chiều (13:30 - 17:30)
-                          </span>
-                        )}
-                        {currentShift === 'overtime' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
-                            <Moon className="w-3 h-3" /> Tăng ca (18:00 - 20:30)
-                          </span>
-                        )}
-                        {currentShift === 'leave' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                            <Plane className="w-3 h-3" /> Nghỉ phép
-                          </span>
-                        )}
-                        {currentShift === 'off' && (
+                        {!isWorkDay ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
-                            Không trực / Nghỉ
+                            Nghỉ hàng tuần (OFF)
                           </span>
+                        ) : (
+                          <>
+                            {currentShift === 'fullday' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                                <Clock className="w-3 h-3" /> Cả ngày (08:00 - 17:30)
+                              </span>
+                            )}
+                            {currentShift === 'morning' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <Sun className="w-3 h-3" /> Ca sáng (08:00 - 12:00)
+                              </span>
+                            )}
+                            {currentShift === 'afternoon' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
+                                <Sun className="w-3 h-3" /> Ca chiều (13:30 - 17:30)
+                              </span>
+                            )}
+                            {currentShift === 'overtime' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                                <Moon className="w-3 h-3" /> Tăng ca (18:00 - 20:30)
+                              </span>
+                            )}
+                            {currentShift === 'leave' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                <Plane className="w-3 h-3" /> Nghỉ phép
+                              </span>
+                            )}
+                            {currentShift === 'off' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                                Không trực / Nghỉ
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
-                    {/* Selector — Only interactive when allowSelfSchedule is TRUE */}
-                    {allowSelfSchedule ? (
+                    {/* Selector — Only interactive when allowSelfSchedule is TRUE AND isWorkDay */}
+                    {!isWorkDay ? (
+                      <div className="pt-2 border-t border-slate-200/50 flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        <span>Nghỉ theo quy chế phòng khám</span>
+                      </div>
+                    ) : allowSelfSchedule ? (
                       <div className="space-y-1 pt-2 border-t border-slate-200/50">
                         <label className="text-[10px] font-semibold text-slate-500">Chọn ca trực:</label>
                         <select
