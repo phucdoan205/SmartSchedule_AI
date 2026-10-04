@@ -197,8 +197,8 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Thêm Nhân Sự / Bác Sĩ Mới"
-      subtitle="Nhập đầy đủ thông tin để tạo hồ sơ bác sĩ hoặc cán bộ y tế vào hệ thống"
+      title="Thêm Nhân Sự Mới"
+      subtitle="Nhập đầy đủ thông tin để tạo hồ sơ nhân sự vào hệ thống"
       maxWidth="lg"
       footer={
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full">

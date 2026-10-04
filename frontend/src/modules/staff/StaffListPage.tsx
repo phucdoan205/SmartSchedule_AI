@@ -201,7 +201,7 @@ export const StaffListPage: React.FC = () => {
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-              QUẢN TRỊ BÁC SĨ & NHÂN SỰ
+              QUẢN TRỊ NHÂN SỰ
             </span>
             {selectedBranch && (
               <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 flex items-center gap-1">
@@ -211,7 +211,7 @@ export const StaffListPage: React.FC = () => {
             )}
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Danh sách Bác sĩ &amp; Nhân sự
+            Danh sách Nhân sự
           </h1>
         </div>
 
@@ -221,7 +221,7 @@ export const StaffListPage: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-98 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Thêm bác sĩ &amp; nhân sự mới</span>
+          <span>Thêm nhân sự mới</span>
         </button>
       </div>
 
