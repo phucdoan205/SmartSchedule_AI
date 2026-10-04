@@ -95,7 +95,8 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     iconName: 'DollarSign',
     subPermissions: [
       { id: 'p_sal_view', code: 'salary_view', name: 'Xem bảng tính lương cơ bản & hoa hồng' },
-      { id: 'p_sal_edit', code: 'salary_edit', name: 'Điều chỉnh tỷ lệ hoa hồng & chốt lương' },
+      { id: 'p_sal_edit', code: 'salary_edit', name: 'Điều chỉnh phụ cấp, thưởng & tỷ lệ hoa hồng' },
+      { id: 'p_sal_manage', code: 'salary_manage', name: 'Quyền kế toán: Duyệt & Chốt sổ lương toàn viện' },
     ],
   },
   {
@@ -105,8 +106,9 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     path: '/admin/staff/leave',
     iconName: 'FileSpreadsheet',
     subPermissions: [
-      { id: 'p_lve_view', code: 'leave_view', name: 'Xem danh sách đơn xin nghỉ phép' },
-      { id: 'p_lve_appr', code: 'leave_approve', name: 'Phê duyệt / Từ chối đơn nghỉ phép' },
+      { id: 'p_lve_view', code: 'leave_view', name: 'Xem & Tạo đơn xin nghỉ cá nhân' },
+      { id: 'p_lve_all', code: 'leave_view_all', name: 'Xem lịch sử đơn nghỉ phép toàn phòng khám' },
+      { id: 'p_lve_appr', code: 'leave_approve', name: 'Phê duyệt / Từ chối đơn nghỉ phép của nhân sự' },
     ],
   },
   {
@@ -245,6 +247,14 @@ export const DEFAULT_ROLES: SystemRoleItem[] = [
     isSystem: true,
   },
   {
+    id: 'role_accountant',
+    code: 'ke_toan',
+    name: 'Kế Toán',
+    subtitle: '(Tài chính & Lương thưởng)',
+    iconName: 'DollarSign',
+    isSystem: true,
+  },
+  {
     id: 'role_manager',
     code: 'manager',
     name: 'Quản lý chi nhánh',
@@ -334,9 +344,22 @@ const buildDefaultMatrix = (roles: SystemRoleItem[]): MatrixState => {
             subPerms[sp.code] = false;
           });
         }
+      } else if (r.code === 'ke_toan' || r.code === 'accountant' || r.name.toLowerCase().includes('kế toán')) {
+        // Kế toán: overview, staff, staff_schedule, staff_salary, staff_leave, finance, branches
+        const acctModules = ['overview', 'staff', 'staff_schedule', 'staff_salary', 'staff_leave', 'finance', 'branches'];
+        if (acctModules.includes(mod.code)) {
+          isEnabled = true;
+          mod.subPermissions.forEach((sp) => {
+            subPerms[sp.code] = true;
+          });
+        } else {
+          mod.subPermissions.forEach((sp) => {
+            subPerms[sp.code] = false;
+          });
+        }
       } else if (r.code === 'manager') {
-        // Manager: overview, appointments, patients, staff, schedule, branches, services, finance
-        const mgrModules = ['overview', 'appointments', 'patients', 'staff', 'staff_schedule', 'branches', 'services', 'finance'];
+        // Manager: overview, appointments, patients, staff, schedule, branches, services, finance, leave
+        const mgrModules = ['overview', 'appointments', 'patients', 'staff', 'staff_schedule', 'staff_leave', 'branches', 'services', 'finance'];
         if (mgrModules.includes(mod.code)) {
           isEnabled = true;
           mod.subPermissions.forEach((sp) => {
@@ -590,6 +613,36 @@ export const rolePermissionStore = {
       return true;
     }
     return this.hasSubPermission(roleNameOrCode, 'services_toggle') || this.hasSubPermission(roleNameOrCode, 'services_edit');
+  },
+
+  canViewAllLeaves(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'manager' || lower === 'quản lý chi nhánh') {
+      return true;
+    }
+    if (lower === 'ke_toan' || lower === 'accountant' || lower.includes('kế toán')) {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'leave_view_all') || this.hasSubPermission(roleNameOrCode, 'leave_approve');
+  },
+
+  canApproveLeave(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'manager' || lower === 'quản lý chi nhánh') {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'leave_approve');
+  },
+
+  canManagePayroll(roleNameOrCode?: string): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'ke_toan' || lower === 'accountant' || lower.includes('kế toán')) {
+      return true;
+    }
+    return this.hasSubPermission(roleNameOrCode, 'salary_manage') || this.hasSubPermission(roleNameOrCode, 'salary_edit');
   },
 
   subscribe(listener: Listener) {

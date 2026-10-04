@@ -27,6 +27,7 @@ const getDisplayRole = (doc: any) => {
   if (roleRaw === 'RECEPTIONIST' || r.includes('Lễ tân')) return 'Lễ tân';
   if (roleRaw === 'TECHNICIAN' || r.includes('Kỹ thuật')) return 'Kỹ thuật viên';
   if (roleRaw === 'NURSE' || r.includes('Điều dưỡng')) return 'Điều dưỡng';
+  if (roleRaw === 'ACCOUNTANT' || roleRaw.includes('KẾ TOÁN') || roleRaw.includes('KE TOAN') || r.toLowerCase().includes('kế toán')) return 'Kế toán';
   if (roleRaw === 'DOCTOR' || r.includes('Bác sĩ') || doc.name?.startsWith('BS.') || doc.name?.startsWith('TS.BS.')) return 'Bác sĩ chuyên khoa';
   return r || 'Nhân sự';
 };
@@ -130,8 +131,8 @@ export const StaffListPage: React.FC = () => {
     });
   }, [doctorsList, selectedBranchId, selectedBranch, roleFilter, searchTerm]);
 
-  // Pagination (5 items per page as requested in Requirement 4)
-  const itemsPerPage = 5;
+  // Pagination (10 items per page as requested)
+  const itemsPerPage = 10;
   const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage) || 1;
   const paginatedDoctors = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -232,17 +233,6 @@ export const StaffListPage: React.FC = () => {
             <div className="space-y-1">
               <p className="text-xs font-semibold text-slate-500">Tổng số nhân sự</p>
               <h3 className="text-2xl font-black text-slate-900">{metrics.total} nhân viên</h3>
-              <div className="flex items-center gap-3 pt-2 text-xs font-medium text-slate-500">
-                <span>
-                  <strong className="text-slate-700">{metrics.docs}</strong> Bác sĩ
-                </span>
-                <span>
-                  <strong className="text-slate-700">{metrics.nurses}</strong> Phụ tá
-                </span>
-                <span>
-                  <strong className="text-slate-700">{metrics.receptionists}</strong> Lễ tân
-                </span>
-              </div>
             </div>
             <div className="text-slate-200">
               <Users className="w-12 h-12 stroke-1" />

@@ -346,3 +346,20 @@ export const rolesApi = {
   },
 };
 
+// Appointment API
+export const appointmentApi = {
+  getAppointments: async (params?: any) => {
+    const res = await apiClient.get('/appointments', { params });
+    return res.data;
+  },
+  createAppointment: async (data: any) => {
+    const res = await apiClient.post('/appointments', data);
+    return res.data;
+  },
+  updateAppointment: async (id: string, data: any) => {
+    const res = await apiClient.patch(`/appointments/${id}`, data);
+    return res.data;
+  },
+};
+
+

@@ -126,28 +126,45 @@ export class StaffService {
     return staff.map((s) => {
       const meta = metadataMap[s.id] || metadataMap[s.employeeCode] || {};
       const roleName = s.userRoles[0]?.role?.name || 'STAFF';
+      const roleDesc = s.userRoles[0]?.role?.description;
+      const rLower = roleName.toLowerCase();
+
       let displayRole = 'Bác sĩ chuyên khoa';
-      if (roleName === 'SUPER_ADMIN') displayRole = 'Quản trị viên';
-      else if (roleName === 'BRANCH_MANAGER') displayRole = 'Quản lý chi nhánh';
-      else if (roleName === 'NURSE') displayRole = 'Điều dưỡng';
-      else if (roleName === 'TECHNICIAN') displayRole = 'Kỹ thuật viên';
-      else if (roleName === 'RECEPTIONIST') displayRole = 'Lễ tân';
+      if (roleName === 'SUPER_ADMIN' || rLower.includes('admin') || rLower.includes('quản trị')) displayRole = 'Quản trị viên';
+      else if (roleName === 'BRANCH_MANAGER' || rLower.includes('quản lý') || rLower.includes('giám đốc') || rLower === 'manager') displayRole = 'Quản lý chi nhánh';
+      else if (rLower.includes('kế toán') || rLower.includes('accountant') || rLower.includes('ketoan')) displayRole = 'Kế toán';
+      else if (roleName === 'NURSE' || rLower.includes('điều dưỡng') || rLower.includes('phụ tá')) displayRole = 'Điều dưỡng';
+      else if (roleName === 'TECHNICIAN' || rLower.includes('kỹ thuật')) displayRole = 'Kỹ thuật viên';
+      else if (roleName === 'RECEPTIONIST' || rLower.includes('lễ tân') || rLower.includes('tiếp tân')) displayRole = 'Lễ tân';
+      else if (rLower.includes('bác sĩ') || roleName === 'DOCTOR') displayRole = 'Bác sĩ chuyên khoa';
+      else if (roleDesc) displayRole = roleDesc;
+      else displayRole = roleName;
+
+      const isAccountant = rLower.includes('kế toán') || rLower.includes('accountant') || rLower.includes('ketoan');
+      const isNurse = roleName === 'NURSE' || rLower.includes('điều dưỡng') || rLower.includes('phụ tá');
+      const isTech = roleName === 'TECHNICIAN' || rLower.includes('kỹ thuật');
+      const isRecep = roleName === 'RECEPTIONIST' || rLower.includes('lễ tân') || rLower.includes('tiếp tân');
+      const isAdmin = roleName === 'SUPER_ADMIN' || roleName === 'BRANCH_MANAGER' || rLower.includes('quản');
+      const isClinicalRole = (roleName === 'DOCTOR' || rLower.includes('bác sĩ')) && !isAccountant && !isNurse && !isTech && !isRecep && !isAdmin;
 
       const specialty =
         s.doctorProfile?.specialty ||
-        (roleName === 'RECEPTIONIST' ? 'Lễ tân & Điều phối'
-        : roleName === 'NURSE' ? 'Điều dưỡng & Phụ tá'
-        : roleName === 'TECHNICIAN' ? 'Vô trùng & Kỹ thuật'
+        (isAccountant ? 'Kế toán & Quản lý Lương'
+        : isRecep ? 'Lễ tân & Điều phối'
+        : isNurse ? 'Điều dưỡng & Phụ tá'
+        : isTech ? 'Vô trùng & Kỹ thuật'
+        : isAdmin ? 'Quản lý vận hành'
         : 'Nha khoa chuyên sâu');
 
       const department =
         s.doctorProfile?.specialty ? `Khoa ${s.doctorProfile.specialty}`
-        : roleName === 'RECEPTIONIST' ? 'Bộ phận Tiếp tân & CSKH'
-        : roleName === 'NURSE' ? 'Bộ phận Điều dưỡng'
-        : roleName === 'TECHNICIAN' ? 'Phòng Mổ & Tiệt khuẩn'
+        : isAccountant ? 'Phòng Tài chính - Kế toán'
+        : isRecep ? 'Bộ phận Tiếp tân & CSKH'
+        : isNurse ? 'Bộ phận Điều dưỡng'
+        : isTech ? 'Phòng Mổ & Tiệt khuẩn'
+        : isAdmin ? 'Ban Quản trị Cơ sở'
         : 'Nha khoa tổng quát';
 
-      const isClinicalRole = roleName === 'DOCTOR' || roleName === 'STAFF';
       const defaultServices = isClinicalRole
         ? (s.employeeCode === 'NV002' || s.doctorProfile?.specialty?.includes('Implant')
           ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
@@ -158,10 +175,28 @@ export class StaffService {
         ? Number(meta.commissionRate)
         : (isClinicalRole ? (s.doctorProfile?.specialty?.includes('Implant') ? 20 : 15) : 0);
 
-      const rating = isClinicalRole || roleName === 'NURSE' ? (s.doctorProfile?.ratingAverage || 4.9) : 0;
-      const totalAppointments = isClinicalRole || roleName === 'NURSE'
+      const rating = isClinicalRole || isNurse ? (s.doctorProfile?.ratingAverage || 4.9) : 0;
+      const totalAppointments = isClinicalRole || isNurse
         ? (s._count?.doctorAppointments || (s.doctorProfile?.totalReviews ? Math.round(s.doctorProfile.totalReviews * 1.2) : 50))
         : 0;
+
+      const salaryBase = isClinicalRole
+        ? 25000000
+        : isAccountant
+        ? 18000000
+        : isTech
+        ? 15000000
+        : isNurse
+        ? 12000000
+        : 10000000;
+
+      const allowance = isClinicalRole
+        ? 5000000
+        : isAccountant
+        ? 3000000
+        : isTech || isNurse
+        ? 2500000
+        : 2000000;
 
       return {
         id: s.id,
@@ -184,11 +219,11 @@ export class StaffService {
         totalAppointments,
         commissionRate,
         services: meta.services || defaultServices,
-        workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
+        workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6'],
         workHours: meta.workHours || '08:00 - 17:30',
         lunchBreak: meta.lunchBreak || '12:00 - 13:30',
-        salaryBase: 25000000,
-        allowance: 3000000,
+        salaryBase,
+        allowance,
         experienceYears: s.doctorProfile?.experienceYears || 5,
         bio: s.doctorProfile?.bio,
         licenseNumber: s.doctorProfile?.licenseNumber,
@@ -238,17 +273,30 @@ export class StaffService {
     }
 
     const roleName = doctor.userRoles[0]?.role?.name || 'DOCTOR';
+    const roleDesc = doctor.userRoles[0]?.role?.description;
+    const rLower = roleName.toLowerCase();
+
     let displayRole = 'Bác sĩ chuyên khoa';
-    if (roleName === 'SUPER_ADMIN') displayRole = 'Quản trị viên';
-    else if (roleName === 'BRANCH_MANAGER') displayRole = 'Quản lý chi nhánh';
-    else if (roleName === 'NURSE') displayRole = 'Điều dưỡng';
-    else if (roleName === 'TECHNICIAN') displayRole = 'Kỹ thuật viên';
-    else if (roleName === 'RECEPTIONIST') displayRole = 'Lễ tân';
+    if (roleName === 'SUPER_ADMIN' || rLower.includes('admin') || rLower.includes('quản trị')) displayRole = 'Quản trị viên';
+    else if (roleName === 'BRANCH_MANAGER' || rLower.includes('quản lý') || rLower.includes('giám đốc') || rLower === 'manager') displayRole = 'Quản lý chi nhánh';
+    else if (rLower.includes('kế toán') || rLower.includes('accountant') || rLower.includes('ketoan')) displayRole = 'Kế toán';
+    else if (roleName === 'NURSE' || rLower.includes('điều dưỡng') || rLower.includes('phụ tá')) displayRole = 'Điều dưỡng';
+    else if (roleName === 'TECHNICIAN' || rLower.includes('kỹ thuật')) displayRole = 'Kỹ thuật viên';
+    else if (roleName === 'RECEPTIONIST' || rLower.includes('lễ tân') || rLower.includes('tiếp tân')) displayRole = 'Lễ tân';
+    else if (rLower.includes('bác sĩ') || roleName === 'DOCTOR') displayRole = 'Bác sĩ chuyên khoa';
+    else if (roleDesc) displayRole = roleDesc;
+    else displayRole = roleName;
+
+    const isAccountant = rLower.includes('kế toán') || rLower.includes('accountant') || rLower.includes('ketoan');
+    const isNurse = roleName === 'NURSE' || rLower.includes('điều dưỡng') || rLower.includes('phụ tá');
+    const isTech = roleName === 'TECHNICIAN' || rLower.includes('kỹ thuật');
+    const isRecep = roleName === 'RECEPTIONIST' || rLower.includes('lễ tân') || rLower.includes('tiếp tân');
+    const isAdmin = roleName === 'SUPER_ADMIN' || roleName === 'BRANCH_MANAGER' || rLower.includes('quản');
+    const isClinicalRole = (roleName === 'DOCTOR' || rLower.includes('bác sĩ')) && !isAccountant && !isNurse && !isTech && !isRecep && !isAdmin;
 
     const metadataMap = getStaffMetadataMap();
     const meta = metadataMap[doctor.id] || metadataMap[doctor.employeeCode] || {};
 
-    const isClinicalRole = roleName === 'DOCTOR' || roleName === 'STAFF';
     const defaultServices = isClinicalRole
       ? (doctor.employeeCode === 'NV002' || doctor.doctorProfile?.specialty?.includes('Implant')
         ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
@@ -261,24 +309,24 @@ export class StaffService {
 
     const specialty =
       doctor.doctorProfile?.specialty ||
-      (roleName === 'RECEPTIONIST' ? 'Lễ tân & Điều phối'
-      : roleName === 'NURSE' ? 'Điều dưỡng & Phụ tá'
-      : roleName === 'TECHNICIAN' ? 'Vô trùng & Kỹ thuật'
-      : roleName === 'SUPER_ADMIN' ? 'Quản trị hệ thống'
-      : roleName === 'BRANCH_MANAGER' ? 'Quản lý cơ sở'
-      : 'Phục hình Răng sứ & Thẩm mỹ');
+      (isAccountant ? 'Kế toán & Quản lý Lương'
+      : isRecep ? 'Lễ tân & Điều phối'
+      : isNurse ? 'Điều dưỡng & Phụ tá'
+      : isTech ? 'Vô trùng & Kỹ thuật'
+      : isAdmin ? 'Ban Quản trị & Vận hành'
+      : 'Nha khoa chuyên sâu');
 
     const department =
       doctor.doctorProfile?.specialty ? `Khoa ${doctor.doctorProfile.specialty}`
-      : roleName === 'RECEPTIONIST' ? 'Bộ phận Tiếp tân & CSKH'
-      : roleName === 'NURSE' ? 'Bộ phận Điều dưỡng'
-      : roleName === 'TECHNICIAN' ? 'Phòng Mổ & Tiệt khuẩn'
-      : roleName === 'SUPER_ADMIN' ? 'Ban Giám Đốc'
-      : roleName === 'BRANCH_MANAGER' ? 'Ban Quản Lý Chi Nhánh'
+      : isAccountant ? 'Phòng Tài chính - Kế toán'
+      : isRecep ? 'Bộ phận Tiếp tân & CSKH'
+      : isNurse ? 'Bộ phận Điều dưỡng'
+      : isTech ? 'Phòng Mổ & Tiệt khuẩn'
+      : isAdmin ? 'Ban Giám Đốc'
       : 'Nha khoa tổng quát';
 
-    const rating = isClinicalRole || roleName === 'NURSE' ? (doctor.doctorProfile?.ratingAverage || 4.9) : 0;
-    const totalAppointments = isClinicalRole || roleName === 'NURSE' ? (doctor.doctorAppointments.length || 128) : 0;
+    const rating = isClinicalRole || isNurse ? (doctor.doctorProfile?.ratingAverage || 4.9) : 0;
+    const totalAppointments = isClinicalRole || isNurse ? (doctor.doctorAppointments.length || 128) : 0;
 
     return {
       id: doctor.id,
@@ -712,9 +760,24 @@ export class StaffService {
         },
       });
 
-      const role = await tx.role.findUnique({
-        where: { name: data.roleName },
+      let role = await tx.role.findFirst({
+        where: {
+          OR: [
+            { name: data.roleName },
+            { name: { equals: data.roleName, mode: 'insensitive' } },
+            { displayName: { equals: data.roleName, mode: 'insensitive' } },
+          ],
+        },
       });
+
+      if (!role && data.roleName) {
+        const lower = data.roleName.toLowerCase();
+        if (lower.includes('kế toán') || lower.includes('accountant')) {
+          role = await tx.role.findFirst({ where: { name: { contains: 'Kế', mode: 'insensitive' } } });
+        } else if (lower.includes('bác sĩ') || lower.includes('doctor')) {
+          role = await tx.role.findFirst({ where: { name: 'DOCTOR' } });
+        }
+      }
 
       if (role) {
         await tx.userRole.create({
@@ -725,7 +788,13 @@ export class StaffService {
         });
       }
 
-      if (data.roleName === 'DOCTOR' && data.specialty) {
+      const roleUpper = (role?.name || data.roleName || '').toUpperCase();
+      const isClinicalDoctor =
+        roleUpper === 'DOCTOR' ||
+        role?.name?.toLowerCase().includes('bác sĩ') ||
+        data.roleName?.toLowerCase().includes('bác sĩ');
+
+      if (isClinicalDoctor && data.specialty) {
         await tx.doctorProfile.create({
           data: {
             userId: user.id,

@@ -304,7 +304,8 @@ export const DoctorDetailPage: React.FC = () => {
           data.role === 'Bác sĩ' ||
           resolvedName.startsWith('BS.') ||
           resolvedName.startsWith('TS.BS.') ||
-          (!data.roleRaw && !data.role?.includes('Lễ tân') && !data.role?.includes('Kỹ thuật') && !data.role?.includes('Quản') && !data.role?.includes('Điều dưỡng'));
+          resolvedName.startsWith('BS.CKI') ||
+          (data.role?.toLowerCase().includes('bác sĩ') && !data.role?.toLowerCase().includes('kế toán'));
 
         if (!docServices || docServices.length === 0) {
           if (isDocRole) {
@@ -811,16 +812,33 @@ export const DoctorDetailPage: React.FC = () => {
 
   const currentDoctor = doctor || MOCK_DOCTORS[0];
 
+  const isAccountant = useMemo(() => {
+    if (!currentDoctor) return false;
+    const rRaw = ((currentDoctor.roleRaw || '') as string).toUpperCase();
+    const r = ((currentDoctor.role || '') as string).toLowerCase();
+    const name = (currentDoctor.name || currentDoctor.fullName || '').toLowerCase();
+    return (
+      rRaw === 'ACCOUNTANT' ||
+      rRaw.includes('KẾ TOÁN') ||
+      rRaw.includes('KE TOAN') ||
+      r.includes('kế toán') ||
+      r.includes('tài chính') ||
+      name.includes('dinh')
+    );
+  }, [currentDoctor]);
+
   const isDoctor = useMemo(() => {
-    if (!currentDoctor) return true;
+    if (!currentDoctor) return false;
     const rRaw = ((currentDoctor.roleRaw || '') as string).toUpperCase();
     const r = ((currentDoctor.role || '') as string).toLowerCase();
     const name = currentDoctor.name || currentDoctor.fullName || '';
     if (rRaw === 'DOCTOR') return true;
-    if (['TECHNICIAN', 'RECEPTIONIST', 'SUPER_ADMIN', 'BRANCH_MANAGER', 'NURSE'].includes(rRaw)) return false;
-    if (r.includes('kỹ thuật') || r.includes('lễ tân') || r.includes('quản lý') || r.includes('quản trị') || r.includes('điều dưỡng')) return false;
-    if (name.startsWith('KTV.') || name.startsWith('LT.')) return false;
-    return true;
+    if (['TECHNICIAN', 'RECEPTIONIST', 'SUPER_ADMIN', 'BRANCH_MANAGER', 'NURSE', 'ACCOUNTANT'].includes(rRaw)) return false;
+    if (rRaw.includes('KẾ TOÁN') || rRaw.includes('KE TOAN')) return false;
+    if (r.includes('kỹ thuật') || r.includes('lễ tân') || r.includes('quản lý') || r.includes('quản trị') || r.includes('điều dưỡng') || r.includes('kế toán')) return false;
+    if (name.startsWith('KTV.') || name.startsWith('LT.') || name.startsWith('ĐD.') || name.includes('Đoàn Thị Dinh')) return false;
+    if (name.startsWith('BS.') || name.startsWith('TS.BS.') || name.startsWith('ThS.BS.') || name.startsWith('BS.CKI') || name.startsWith('BS.CKII') || r.includes('bác sĩ')) return true;
+    return false;
   }, [currentDoctor]);
 
   const isNurse = useMemo(() => {
@@ -846,13 +864,20 @@ export const DoctorDetailPage: React.FC = () => {
         { id: 'reviews', label: 'Đánh giá từ bệnh nhân' },
       ];
     }
+    if (isAccountant) {
+      return [
+        { id: 'schedule', label: 'Lịch trực & Làm việc tuần này' },
+        { id: 'duties', label: 'Nhiệm vụ & Nghiệp vụ Kế toán' },
+        { id: 'attendance', label: 'Lương & Chấm công tháng' },
+      ];
+    }
     // Non-clinical: Kỹ thuật viên, Lễ tân, Quản trị viên, Quản lý
     return [
       { id: 'schedule', label: 'Lịch trực tuần này' },
       { id: 'duties', label: 'Thông tin nhiệm vụ & Chuyên môn' },
       { id: 'attendance', label: 'Lịch sử ca làm & Chấm công' },
     ];
-  }, [isDoctor, isNurse]);
+  }, [isDoctor, isNurse, isAccountant]);
 
   useEffect(() => {
     if (!isDoctor && activeTab === 'services') {
@@ -1552,7 +1577,46 @@ export const DoctorDetailPage: React.FC = () => {
                     Quy trình chuyên môn &amp; Danh mục trách nhiệm
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {currentDoctor.name?.startsWith('KTV') || currentDoctor.role?.includes('Kỹ thuật') || (currentDoctor.roleRaw || '').includes('TECH') ? (
+                    {isAccountant ? (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Quản trị Quỹ lương &amp; Hoa hồng Thủ thuật</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Tính toán lương cứng, hoa hồng theo từng ca điều trị (Implant, Răng sứ), phụ cấp chuyên môn, thưởng KPI và chốt bảng lương định kỳ hàng tháng cho toàn viện.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Kiểm soát Dòng tiền, Thu - Chi &amp; Đối soát Viện phí</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Đối soát tiền mặt, chuyển khoản ngân hàng và quẹt thẻ POS hàng ngày; kiểm tra chênh lệch thu viện phí thực tế so với phần mềm quản lý.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Công nợ Labo &amp; Nhà cung cấp Vật tư Y tế</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Quản lý hóa đơn nhập trụ Implant, vật liệu sứ Emax/Cercon, thuốc tê nha khoa; thanh toán công nợ theo kỳ hạn cho các xưởng chế tác Labo.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Hóa đơn Điện tử VAT &amp; Báo cáo Tài chính</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Xuất hóa đơn GTGT cho khách hàng theo yêu cầu, lập báo cáo kết quả hoạt động kinh doanh (P&amp;L) và kê khai thuế định kỳ theo đúng quy định.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : currentDoctor.name?.startsWith('KTV') || currentDoctor.role?.includes('Kỹ thuật') || (currentDoctor.roleRaw || '').includes('TECH') ? (
                       <>
                         <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
                           <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />

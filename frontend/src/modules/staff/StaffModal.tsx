@@ -85,17 +85,56 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
     try {
       setIsSubmitting(true);
       const chosenBranch = branches.find((b) => b.id === branchId) || branches[0];
-      const empCode = `NV${Math.floor(100 + Math.random() * 900)}`;
+      // Calculate next sequential employee code (NV014, NV015, etc.)
+      let nextNumber = 14;
+      try {
+        const existingStaff = await staffApi.getAllStaff();
+        if (Array.isArray(existingStaff)) {
+          let maxNum = 0;
+          existingStaff.forEach((s: any) => {
+            const c = (s.code || s.employeeCode || '').trim();
+            const match = c.match(/^NV(\d+)$/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+          if (maxNum > 0) nextNumber = maxNum + 1;
+        }
+      } catch (err) {
+        console.warn('Could not fetch existing staff codes:', err);
+      }
+      const empCode = `NV${String(nextNumber).padStart(3, '0')}`;
 
-      // Map role to backend enum
+      // Map role to backend enum / system role
       let roleName = 'DOCTOR';
       const lowerRole = role.toLowerCase();
-      if (lowerRole.includes('điều dưỡng') || lowerRole.includes('phụ tá')) roleName = 'NURSE';
-      else if (lowerRole.includes('kỹ thuật')) roleName = 'TECHNICIAN';
-      else if (lowerRole.includes('lễ tân') || lowerRole.includes('tiếp tân')) roleName = 'RECEPTIONIST';
-      else if (lowerRole.includes('quản lý')) roleName = 'BRANCH_MANAGER';
+      const isAccountantRole = lowerRole.includes('kế toán') || lowerRole.includes('accountant') || lowerRole.includes('tài chính');
+      const isNurseRole = lowerRole.includes('điều dưỡng') || lowerRole.includes('phụ tá');
+      const isTechRole = lowerRole.includes('kỹ thuật');
+      const isRecepRole = lowerRole.includes('lễ tân') || lowerRole.includes('tiếp tân');
+      const isManagerRole = lowerRole.includes('quản lý');
+      const isDoctorRole = lowerRole.includes('bác sĩ') || lowerRole.includes('chuyên khoa');
 
-      const userEmail = email.trim() || `nv${Date.now()}@smartschedule.ai`;
+      if (isAccountantRole) {
+        roleName = 'Kế Toán';
+      } else if (isNurseRole) {
+        roleName = 'NURSE';
+      } else if (isTechRole) {
+        roleName = 'TECHNICIAN';
+      } else if (isRecepRole) {
+        roleName = 'RECEPTIONIST';
+      } else if (isManagerRole) {
+        roleName = 'BRANCH_MANAGER';
+      } else if (isDoctorRole) {
+        roleName = 'DOCTOR';
+      } else {
+        const matchedRole = roles.find((r) => r.name.toLowerCase() === lowerRole || r.code.toLowerCase() === lowerRole);
+        roleName = matchedRole ? matchedRole.name : role;
+      }
+
+      const isClinical = isDoctorRole || roleName === 'DOCTOR';
+      const userEmail = email.trim() || `nv${empCode.toLowerCase()}@smartschedule.ai`;
       const finalAvatar = avatarUrl || doctorImg1;
 
       await staffApi.createStaff({
@@ -106,7 +145,7 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         branchId: chosenBranch?.id || branchId,
         roleName,
         avatarUrl: finalAvatar,
-        specialty: specialty.trim() || role,
+        specialty: specialty.trim() || (isAccountantRole ? 'Kế toán & Quản lý Lương' : role),
         experienceYears: 5,
         bio: `Nhân sự chuyên môn tại ${chosenBranch?.name || 'phòng khám'}.`,
       });
@@ -119,20 +158,20 @@ export const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, onSave 
         fullName: name.trim(),
         avatar: finalAvatar,
         avatarUrl: finalAvatar,
-        role,
-        specialty: specialty.trim() || role,
-        department: `Khoa ${specialty.trim() || role}`,
+        role: isAccountantRole ? 'Kế toán' : role,
+        specialty: specialty.trim() || (isAccountantRole ? 'Kế toán & Quản lý Lương' : role),
+        department: isAccountantRole ? 'Phòng Tài chính - Kế toán' : `Khoa ${specialty.trim() || role}`,
         branch: chosenBranch?.name || 'Chi nhánh Biên Hòa',
         branchId: chosenBranch?.id || branchId,
         phone: phone.trim(),
         email: userEmail,
         status: 'Active',
-        rating: 5.0,
+        rating: isClinical ? 5.0 : 0,
         totalAppointments: 0,
         salaryBase,
-        allowance: 3000000,
+        allowance: isAccountantRole ? 3000000 : 2500000,
         commission: 0,
-        commissionRate: 15,
+        commissionRate: isClinical ? 15 : 0,
       };
 
       if (onSave) {
