@@ -19,6 +19,25 @@ import { staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
 import { exportToExcel } from '../../utils/excelExport';
 
+const getDisplayRole = (doc: any) => {
+  const roleRaw = ((doc.roleRaw || '') as string).toUpperCase();
+  const r = (doc.role || '') as string;
+  if (roleRaw === 'SUPER_ADMIN' || r.includes('Quản trị')) return 'Quản trị viên';
+  if (roleRaw === 'BRANCH_MANAGER' || r.includes('Quản lý')) return 'Quản lý chi nhánh';
+  if (roleRaw === 'RECEPTIONIST' || r.includes('Lễ tân')) return 'Lễ tân';
+  if (roleRaw === 'TECHNICIAN' || r.includes('Kỹ thuật')) return 'Kỹ thuật viên';
+  if (roleRaw === 'NURSE' || r.includes('Điều dưỡng')) return 'Điều dưỡng';
+  if (roleRaw === 'DOCTOR' || r.includes('Bác sĩ') || doc.name?.startsWith('BS.') || doc.name?.startsWith('TS.BS.')) return 'Bác sĩ chuyên khoa';
+  return r || 'Nhân sự';
+};
+
+const isClinicalStaff = (doc: any) => {
+  const roleRaw = ((doc.roleRaw || '') as string).toUpperCase();
+  const r = ((doc.role || '') as string).toLowerCase();
+  if (roleRaw === 'DOCTOR' || r.includes('bác sĩ') || doc.name?.startsWith('BS.') || doc.name?.startsWith('TS.BS.')) return true;
+  return false;
+};
+
 export const StaffListPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedBranchId, selectedBranch } = useBranch();
@@ -382,8 +401,12 @@ export const StaffListPage: React.FC = () => {
                     {/* Chức vụ & Chuyên khoa */}
                     <td className="px-5 py-3.5 font-medium text-slate-600">
                       <div>
-                        <span className="font-semibold text-slate-800 block">{doc.specialty}</span>
-                        <span className="text-[10px] text-slate-400">{doc.department}</span>
+                        <span className="font-bold text-slate-900 text-xs block">
+                          {getDisplayRole(doc)}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium block mt-0.5">
+                          {doc.specialty || doc.department || '—'}
+                        </span>
                       </div>
                     </td>
 
@@ -394,13 +417,17 @@ export const StaffListPage: React.FC = () => {
 
                     {/* Tỷ lệ hoa hồng */}
                     <td className="px-5 py-3.5 font-bold text-slate-700">
-                      {doc.commissionRate ?? 15}%
+                      {isClinicalStaff(doc) ? (
+                        <span>{doc.commissionRate ?? 15}%</span>
+                      ) : (
+                        <span className="text-slate-400 font-normal italic text-xs">Không áp dụng</span>
+                      )}
                     </td>
 
                     {/* Đánh giá trung bình */}
                     <td className="px-5 py-3.5">
-                      {(doc.role as any) === 'Lễ tân' || (doc.role as any) === 'RECEPTIONIST' || doc.rating === 0 ? (
-                        <span className="text-slate-400 italic">Không áp dụng</span>
+                      {!isClinicalStaff(doc) || doc.rating === 0 ? (
+                        <span className="text-slate-400 italic text-xs">Không áp dụng</span>
                       ) : (
                         <div className="flex items-center gap-1 font-semibold text-slate-800">
                           <span className="font-bold">{doc.rating}</span>

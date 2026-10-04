@@ -594,6 +594,7 @@ export const StaffSchedulePage: React.FC = () => {
     const excelRows: any[] = [];
     filteredStaff.forEach((doc) => {
       weekColumns.forEach((col) => {
+        const isWorkDay = doc.workDays?.includes(col.dayKey);
         const cellShifts = shifts.filter((s) => s.staffId === doc.id && s.date === col.dateFull);
         if (cellShifts.length > 0) {
           cellShifts.forEach((s) => {
@@ -616,6 +617,18 @@ export const StaffSchedulePage: React.FC = () => {
               'Phòng / Ghế': s.room || 'Phòng khám tiêu chuẩn',
             });
           });
+        } else if (isWorkDay) {
+          excelRows.push({
+            'Mã nhân sự': doc.code || doc.id,
+            'Họ và tên': doc.name,
+            'Chuyên môn': doc.specialty,
+            'Khoa phòng': doc.department,
+            'Thứ': col.label,
+            'Ngày': col.dateStr,
+            'Ca trực': 'Ca tiêu chuẩn (Mặc định)',
+            'Khung giờ': doc.workHours || '08:00 - 17:30',
+            'Phòng / Ghế': 'Ghế tiêu chuẩn',
+          });
         } else {
           excelRows.push({
             'Mã nhân sự': doc.code || doc.id,
@@ -624,7 +637,7 @@ export const StaffSchedulePage: React.FC = () => {
             'Khoa phòng': doc.department,
             'Thứ': col.label,
             'Ngày': col.dateStr,
-            'Ca trực': col.isSunday ? 'Nghỉ hàng tuần (OFF)' : 'Chưa phân ca',
+            'Ca trực': 'Nghỉ hàng tuần (OFF)',
             'Khung giờ': '—',
             'Phòng / Ghế': '—',
           });
@@ -637,16 +650,27 @@ export const StaffSchedulePage: React.FC = () => {
     showToast('Đã xuất file Excel bảng phân ca thành công!');
   };
 
-  // Calculate statistics
+  // Calculate statistics (including standard shifts on working days)
   const totalStaffCount = filteredStaff.length;
   const totalHours = useMemo(() => {
-    return shifts.reduce((acc, s) => {
-      if (s.shiftType === 'morning') return acc + 4;
-      if (s.shiftType === 'afternoon') return acc + 4; // 13:30 - 17:30 = 4h
-      if (s.shiftType === 'overtime') return acc + 2.5;
-      return acc;
-    }, 0);
-  }, [shifts]);
+    let hours = 0;
+    filteredStaff.forEach((doc) => {
+      weekColumns.forEach((col) => {
+        const isWorkDay = doc.workDays?.includes(col.dayKey);
+        const cellShifts = shifts.filter((s) => s.staffId === doc.id && s.date === col.dateFull);
+        if (cellShifts.length > 0) {
+          cellShifts.forEach((s) => {
+            if (s.shiftType === 'morning') hours += 4;
+            else if (s.shiftType === 'afternoon') hours += 4; // 13:30 - 17:30 = 4h
+            else if (s.shiftType === 'overtime') hours += 2.5;
+          });
+        } else if (isWorkDay) {
+          hours += 8; // Default standard full-day shift
+        }
+      });
+    });
+    return hours;
+  }, [filteredStaff, weekColumns, shifts]);
 
   return (
     <div className="space-y-4 pb-8 min-h-screen">
@@ -1156,18 +1180,34 @@ export const StaffSchedulePage: React.FC = () => {
                                   );
                                 })
                               ) : (
-                                /* Empty cell on a working day */
-                                canManageSchedule ? (
-                                  <div className="h-full flex-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity py-4">
-                                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-dashed border-slate-300">
-                                      <Plus className="w-3 h-3 text-sky-500" /> Gán ca chuẩn
+                                /* Ngày làm việc chưa có ca riêng -> Tự động hiển thị Ca tiêu chuẩn mặc định */
+                                <div
+                                  className={`p-2 rounded-xl border border-dashed border-sky-300/80 bg-sky-50/70 text-sky-900 transition-all select-none group/default relative ${
+                                    canManageSchedule ? 'hover:border-sky-400 hover:bg-sky-100/60 hover:shadow-2xs cursor-pointer' : ''
+                                  }`}
+                                  title={canManageSchedule ? 'Ca làm việc tiêu chuẩn (Nhấp để gán ca chi tiết)' : 'Ca làm việc tiêu chuẩn'}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-extrabold text-[11px] text-sky-800 flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-sky-600" />
+                                      Ca tiêu chuẩn
+                                    </span>
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-100/90 text-sky-700 border border-sky-200/60">
+                                      Mặc định
                                     </span>
                                   </div>
-                                ) : (
-                                  <div className="h-full min-h-[85px] flex items-center justify-center text-slate-300 text-[11px] font-semibold italic select-none">
-                                    Chưa xếp ca
+                                  <div className="text-[10px] text-sky-700 font-semibold mt-0.5">
+                                    {doc.workHours || '08:00 - 17:30'}
                                   </div>
-                                )
+                                  <div className="text-[9px] text-slate-400 font-medium mt-0.5 flex items-center justify-between">
+                                    <span>Ghế tiêu chuẩn</span>
+                                    {canManageSchedule && (
+                                      <span className="opacity-0 group-hover/default:opacity-100 text-sky-600 text-[9px] font-bold">
+                                        + Phân ca
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </td>

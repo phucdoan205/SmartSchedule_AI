@@ -11,8 +11,7 @@
       "T3",
       "T4",
       "T5",
-      "T6",
-      "T7"
+      "T6"
     ],
     "workHours": "08:00 - 17:30",
     "lunchBreak": "12:00 - 13:30"
@@ -29,7 +28,76 @@
       "T3",
       "T4",
       "T5",
+      "T6"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "ddfeac1b-4e4a-48db-aa3e-a67185a4c90a": {
+    "commissionRate": 0,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
       "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV004": {
+    "commissionRate": 0,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "13716c92-b723-4852-bfbf-cb5f179fe7fb": {
+    "commissionRate": 0,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV003": {
+    "commissionRate": 0,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
       "T7"
     ],
     "workHours": "08:00 - 17:30",

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   X,
   Stethoscope,
@@ -40,6 +40,7 @@ export interface DoctorEditModalProps {
     specialty?: string;
     branch?: string;
     role?: string;
+    roleRaw?: string;
     department?: string;
     status?: string;
     commissionRate?: number;
@@ -127,6 +128,19 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   // Account locked status
   const [isLocked, setIsLocked] = useState(false);
   const [showToast, setShowToast] = useState<{ message: string; type: 'success' | 'warn' } | null>(null);
+
+  // Role detection: is doctor vs non-clinical staff
+  const isDoctor = useMemo(() => {
+    if (!doctor) return true;
+    const rRaw = ((doctor.roleRaw || '') as string).toUpperCase();
+    const r = ((doctor.role || '') as string).toLowerCase();
+    const docName = (doctor.name || doctor.fullName || name || '');
+    if (rRaw === 'DOCTOR') return true;
+    if (['TECHNICIAN', 'RECEPTIONIST', 'SUPER_ADMIN', 'BRANCH_MANAGER', 'NURSE'].includes(rRaw)) return false;
+    if (r.includes('kỹ thuật') || r.includes('lễ tân') || r.includes('quản lý') || r.includes('quản trị') || r.includes('điều dưỡng')) return false;
+    if (docName.startsWith('KTV.') || docName.startsWith('LT.')) return false;
+    return true;
+  }, [doctor, name]);
 
   // Fetch real categories and services from backend
   useEffect(() => {
@@ -551,10 +565,10 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
               </div>
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">
-                  Chỉnh Sửa Hồ Sơ Bác Sĩ &amp; Nhân Sự
+                  {isDoctor ? 'Chỉnh Sửa Hồ Sơ Bác Sĩ & Chuyên Gia' : 'Chỉnh Sửa Hồ Sơ Nhân Sự'}
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Cập nhật thông tin định danh, chuyên khoa điều trị, tỷ lệ hoa hồng và khung giờ làm việc chuẩn cho{' '}
+                  Cập nhật thông tin định danh, chuyên môn{isDoctor ? ', tỷ lệ hoa hồng' : ''} và khung giờ làm việc chuẩn cho{' '}
                   <span className="font-bold text-slate-800">{doctorDisplayName}</span>{' '}
                   <span className="text-sky-600 font-semibold">(#{code})</span>
                 </p>
@@ -808,18 +822,44 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                         onChange={(e) => setSpecialty(e.target.value)}
                         className="w-full px-3 py-2 pr-8 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 appearance-none focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all cursor-pointer"
                       >
-                        <option>Phục hình Răng sứ thẩm mỹ</option>
-                        <option>Cấy ghép Implant Nha Khoa</option>
-                        <option>Chỉnh nha - Niềng răng</option>
-                        <option>Nha khoa tổng quát & Điều trị tủy</option>
-                        <option>Phẫu thuật Tạo hình Hàm mặt</option>
+                        {isDoctor ? (
+                          <>
+                            <option>Phục hình Răng sứ thẩm mỹ</option>
+                            <option>Cấy ghép Implant Nha Khoa</option>
+                            <option>Chỉnh nha - Niềng răng</option>
+                            <option>Nha khoa tổng quát & Điều trị tủy</option>
+                            <option>Phẫu thuật Tạo hình Hàm mặt</option>
+                          </>
+                        ) : ((doctor as any)?.roleRaw === 'TECHNICIAN' || doctor?.role?.includes('Kỹ thuật') || name.startsWith('KTV.')) ? (
+                          <>
+                            <option>Vô trùng & Kỹ thuật</option>
+                            <option>Thiết bị phòng mổ & Tiệt khuẩn</option>
+                            <option>Kỹ thuật hình ảnh X-quang & CT 3D</option>
+                            <option>Quản lý vật tư & Dụng cụ phẫu thuật</option>
+                            <option>Phục hình thạch cao & Labo</option>
+                          </>
+                        ) : ((doctor as any)?.roleRaw === 'RECEPTIONIST' || doctor?.role?.includes('Lễ tân') || name.startsWith('LT.')) ? (
+                          <>
+                            <option>Lễ tân & Điều phối</option>
+                            <option>Tiếp đón & Chăm sóc khách hàng</option>
+                            <option>Thu ngân & Thanh toán viện phí</option>
+                            <option>Quản lý hồ sơ & Lịch hẹn</option>
+                          </>
+                        ) : (
+                          <>
+                            <option>Điều hành & Quản lý chi nhánh</option>
+                            <option>Quản trị hệ thống & Vận hành</option>
+                            <option>Điều phối nhân sự & Kế hoạch</option>
+                          </>
+                        )}
                       </select>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 </div>
 
-                {/* Dịch vụ thực hiện */}
+                {/* Dịch vụ thực hiện (Chỉ áp dụng cho Bác sĩ) */}
+                {isDoctor && (
                 <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-3.5">
                   <div className="flex items-center justify-between mb-2.5">
                     <div>
@@ -1022,33 +1062,36 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                     )}
                   </div>
                 </div>
+                )}
 
                 {/* Hoa hồng (%) & Khung giờ làm việc (Mặc định) */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                  {/* Hoa hồng */}
-                  <div className="sm:col-span-4">
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      Hoa hồng (%)
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={commissionRate}
-                        onChange={(e) => setCommissionRate(e.target.value)}
-                        className="w-full px-3 py-2 pr-7 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 text-center focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
-                        placeholder="15"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
-                        %
-                      </span>
+                  {/* Hoa hồng (Chỉ áp dụng cho Bác sĩ) */}
+                  {isDoctor && (
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        Hoa hồng (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={commissionRate}
+                          onChange={(e) => setCommissionRate(e.target.value)}
+                          className="w-full px-3 py-2 pr-7 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 text-center focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
+                          placeholder="15"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">Tự động tính hoa hồng mỗi ca khám</p>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1">Tự động tính hoa hồng mỗi ca khám</p>
-                  </div>
+                  )}
 
                   {/* Khung giờ làm việc */}
-                  <div className="sm:col-span-8">
+                  <div className={isDoctor ? 'sm:col-span-8' : 'sm:col-span-12'}>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-bold text-slate-700">
                         Khung giờ làm việc (Mặc định)
@@ -1243,7 +1286,8 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                   </button>
                 </div>
 
-                {/* Cổng Đặt lịch trực tuyến */}
+                {/* Cổng Đặt lịch trực tuyến (Chỉ áp dụng cho Bác sĩ) */}
+                {isDoctor && (
                 <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
@@ -1274,6 +1318,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                     />
                   </button>
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -1307,7 +1352,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                 ) : (
                   <>
                     <Lock className="w-3.5 h-3.5 text-rose-500" />
-                    <span>Khóa tài khoản bác sĩ</span>
+                    <span>{isDoctor ? 'Khóa tài khoản bác sĩ' : 'Khóa tài khoản nhân sự'}</span>
                   </>
                 )}
               </button>

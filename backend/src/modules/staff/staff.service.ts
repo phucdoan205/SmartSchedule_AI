@@ -147,13 +147,21 @@ export class StaffService {
         : roleName === 'TECHNICIAN' ? 'Phòng Mổ & Tiệt khuẩn'
         : 'Nha khoa tổng quát';
 
-      const defaultServices = s.employeeCode === 'NV002' || s.doctorProfile?.specialty?.includes('Implant')
-        ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
-        : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+      const isClinicalRole = roleName === 'DOCTOR' || roleName === 'STAFF';
+      const defaultServices = isClinicalRole
+        ? (s.employeeCode === 'NV002' || s.doctorProfile?.specialty?.includes('Implant')
+          ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+          : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'])
+        : [];
 
       const commissionRate = meta.commissionRate !== undefined
         ? Number(meta.commissionRate)
-        : (s.doctorProfile?.specialty?.includes('Implant') ? 20 : 15);
+        : (isClinicalRole ? (s.doctorProfile?.specialty?.includes('Implant') ? 20 : 15) : 0);
+
+      const rating = isClinicalRole || roleName === 'NURSE' ? (s.doctorProfile?.ratingAverage || 4.9) : 0;
+      const totalAppointments = isClinicalRole || roleName === 'NURSE'
+        ? (s._count?.doctorAppointments || (s.doctorProfile?.totalReviews ? Math.round(s.doctorProfile.totalReviews * 1.2) : 50))
+        : 0;
 
       return {
         id: s.id,
@@ -172,10 +180,8 @@ export class StaffService {
         branch: s.branch?.name || 'Chi nhánh Biên Hòa',
         branchId: s.branchId,
         status: s.isActive ? 'Active' : 'Inactive',
-        rating: s.doctorProfile?.ratingAverage || 4.9,
-        totalAppointments:
-          s._count?.doctorAppointments ||
-          (s.doctorProfile?.totalReviews ? Math.round(s.doctorProfile.totalReviews * 1.2) : 50),
+        rating,
+        totalAppointments,
         commissionRate,
         services: meta.services || defaultServices,
         workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
@@ -242,13 +248,37 @@ export class StaffService {
     const metadataMap = getStaffMetadataMap();
     const meta = metadataMap[doctor.id] || metadataMap[doctor.employeeCode] || {};
 
-    const defaultServices = doctor.employeeCode === 'NV002' || doctor.doctorProfile?.specialty?.includes('Implant')
-      ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
-      : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+    const isClinicalRole = roleName === 'DOCTOR' || roleName === 'STAFF';
+    const defaultServices = isClinicalRole
+      ? (doctor.employeeCode === 'NV002' || doctor.doctorProfile?.specialty?.includes('Implant')
+        ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+        : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'])
+      : [];
 
     const commissionRate = meta.commissionRate !== undefined
       ? Number(meta.commissionRate)
-      : (doctor.doctorProfile?.specialty?.includes('Implant') ? 20 : 15);
+      : (isClinicalRole ? (doctor.doctorProfile?.specialty?.includes('Implant') ? 20 : 15) : 0);
+
+    const specialty =
+      doctor.doctorProfile?.specialty ||
+      (roleName === 'RECEPTIONIST' ? 'Lễ tân & Điều phối'
+      : roleName === 'NURSE' ? 'Điều dưỡng & Phụ tá'
+      : roleName === 'TECHNICIAN' ? 'Vô trùng & Kỹ thuật'
+      : roleName === 'SUPER_ADMIN' ? 'Quản trị hệ thống'
+      : roleName === 'BRANCH_MANAGER' ? 'Quản lý cơ sở'
+      : 'Phục hình Răng sứ & Thẩm mỹ');
+
+    const department =
+      doctor.doctorProfile?.specialty ? `Khoa ${doctor.doctorProfile.specialty}`
+      : roleName === 'RECEPTIONIST' ? 'Bộ phận Tiếp tân & CSKH'
+      : roleName === 'NURSE' ? 'Bộ phận Điều dưỡng'
+      : roleName === 'TECHNICIAN' ? 'Phòng Mổ & Tiệt khuẩn'
+      : roleName === 'SUPER_ADMIN' ? 'Ban Giám Đốc'
+      : roleName === 'BRANCH_MANAGER' ? 'Ban Quản Lý Chi Nhánh'
+      : 'Nha khoa tổng quát';
+
+    const rating = isClinicalRole || roleName === 'NURSE' ? (doctor.doctorProfile?.ratingAverage || 4.9) : 0;
+    const totalAppointments = isClinicalRole || roleName === 'NURSE' ? (doctor.doctorAppointments.length || 128) : 0;
 
     return {
       id: doctor.id,
@@ -262,13 +292,13 @@ export class StaffService {
       avatarUrl: doctor.avatarUrl,
       role: displayRole,
       roleRaw: roleName,
-      specialty: doctor.doctorProfile?.specialty || 'Phục hình Răng sứ & Thẩm mỹ',
-      department: doctor.doctorProfile?.specialty ? `Khoa ${doctor.doctorProfile.specialty}` : 'Nha khoa',
+      specialty,
+      department,
       branch: doctor.branch?.name || 'Chi nhánh Biên Hòa',
       branchId: doctor.branchId,
       status: doctor.isActive ? 'Active' : 'Inactive',
-      rating: doctor.doctorProfile?.ratingAverage || 4.9,
-      totalAppointments: doctor.doctorAppointments.length || 128,
+      rating,
+      totalAppointments,
       commissionRate,
       services: meta.services || defaultServices,
       workDays: meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'],

@@ -26,6 +26,11 @@ import {
   Moon,
   Plane,
   ArrowRight,
+  Stethoscope,
+  Sparkles,
+  TrendingUp,
+  Coffee,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient, staffApi, staffSchedulesApi } from '../../services/api';
@@ -163,20 +168,72 @@ export const AdminProfilePage: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {}
     }
-    return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    return ['T2', 'T3', 'T4', 'T5', 'T6'];
   });
 
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
+  const [userWorkHours, setUserWorkHours] = useState<string>('08:00 - 17:30');
+  const [userLunchBreak, setUserLunchBreak] = useState<string>('12:00 - 13:30');
+  const [assignedServices, setAssignedServices] = useState<string[]>([]);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+
+  // Load staff profile details (specialty, services, workHours, workDays, commissionRate)
+  const loadDoctorProfile = async () => {
+    if (!user?.id) return;
+    const userKey = user.id || user.employeeCode || '';
+    try {
+      const profile: any = await staffApi.getDoctorById(user.id);
+      if (profile) {
+        setDoctorProfile(profile);
+        if (Array.isArray(profile.workDays) && profile.workDays.length > 0) {
+          setUserWorkDays(profile.workDays);
+        }
+        if (profile.workHours) setUserWorkHours(profile.workHours);
+        if (profile.lunchBreak) setUserLunchBreak(profile.lunchBreak);
+        if (Array.isArray(profile.services) && profile.services.length > 0) {
+          setAssignedServices(profile.services);
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi khi tải thông tin chi tiết nhân sự:', e);
+    }
+
+    // LocalStorage fallbacks
+    const savedServices =
+      localStorage.getItem(`staff_services_${userKey}`) ||
+      localStorage.getItem(`staff_services_${user?.employeeCode}`);
+    if (savedServices) {
+      try {
+        const parsed = JSON.parse(savedServices);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAssignedServices(parsed);
+        }
+      } catch {}
+    }
+    const savedHours =
+      localStorage.getItem(`staff_workhours_${userKey}`) ||
+      localStorage.getItem(`staff_workhours_${user?.employeeCode}`);
+    if (savedHours) setUserWorkHours(savedHours);
+
+    const savedLunch =
+      localStorage.getItem(`staff_lunchbreak_${userKey}`) ||
+      localStorage.getItem(`staff_lunchbreak_${user?.employeeCode}`);
+    if (savedLunch) setUserLunchBreak(savedLunch);
+  };
+
+  useEffect(() => {
+    loadDoctorProfile();
+  }, [user?.id]);
 
   // Fetch real schedules for user from backend
   const loadUserSchedules = async () => {
     if (!user?.id || profileDays.length === 0) return;
     try {
       const userKey = user?.id || user?.employeeCode || '';
-      let currentWorkDays: string[] = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+      let currentWorkDays: string[] = userWorkDays;
       const savedWorkDays =
         localStorage.getItem(`staff_workdays_${userKey}`) ||
         localStorage.getItem(`staff_workdays_${user?.employeeCode}`) ||
@@ -184,7 +241,7 @@ export const AdminProfilePage: React.FC = () => {
       if (savedWorkDays) {
         try {
           const parsed = JSON.parse(savedWorkDays);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             currentWorkDays = parsed;
             setUserWorkDays(parsed);
           }
@@ -197,9 +254,17 @@ export const AdminProfilePage: React.FC = () => {
       // Ưu tiên dữ liệu khung giờ làm việc từ backend (nguồn chuẩn, đồng bộ mọi thiết bị)
       try {
         const profile: any = await staffApi.getDoctorById(user.id);
-        if (profile && Array.isArray(profile.workDays)) {
-          currentWorkDays = profile.workDays;
-          setUserWorkDays(profile.workDays);
+        if (profile) {
+          setDoctorProfile(profile);
+          if (Array.isArray(profile.workDays) && profile.workDays.length > 0) {
+            currentWorkDays = profile.workDays;
+            setUserWorkDays(profile.workDays);
+          }
+          if (profile.workHours) setUserWorkHours(profile.workHours);
+          if (profile.lunchBreak) setUserLunchBreak(profile.lunchBreak);
+          if (Array.isArray(profile.services) && profile.services.length > 0) {
+            setAssignedServices(profile.services);
+          }
         }
       } catch (e) {
         // fallback localStorage
@@ -238,6 +303,9 @@ export const AdminProfilePage: React.FC = () => {
             else if (hasMorning) newShifts[pDay.dayKey] = 'morning';
             else if (hasAfternoon) newShifts[pDay.dayKey] = 'afternoon';
             else if (hasOvertime) newShifts[pDay.dayKey] = 'overtime';
+          } else {
+            // Ngày làm việc tiêu chuẩn chưa có ca điều chỉnh riêng -> Đồng bộ ca tiêu chuẩn mặc định
+            newShifts[pDay.dayKey] = 'fullday';
           }
         });
         setWeeklyShifts(newShifts);
@@ -270,7 +338,7 @@ export const AdminProfilePage: React.FC = () => {
     }
   }, [activeTab, profileWeekOffset, user?.id]);
 
-  // Listen for broadcast sync of permission and schedule updates
+  // Listen for broadcast sync of permission, profile, and schedule updates
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -284,6 +352,7 @@ export const AdminProfilePage: React.FC = () => {
           if (fromStorage !== null) {
             setAllowSelfSchedule(fromStorage === 'true');
           }
+          loadDoctorProfile();
           loadUserSchedules();
         }
         if (msg.data?.type === 'SCHEDULE_UPDATED') {
@@ -598,6 +667,13 @@ export const AdminProfilePage: React.FC = () => {
                 <CheckCircle2 className="w-3 h-3" /> Đã xác minh
               </span>
             </div>
+            {doctorProfile?.specialty && (
+              <p className="text-xs font-bold text-sky-700 flex items-center gap-1.5 pt-0.5">
+                <Stethoscope className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                {doctorProfile.specialty}
+                {doctorProfile.department && <span className="text-slate-400 font-medium">• {doctorProfile.department}</span>}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
               {user.employeeCode && (
                 <span className="flex items-center gap-1">
@@ -651,7 +727,7 @@ export const AdminProfilePage: React.FC = () => {
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
             <User className="w-4 h-4 text-sky-600" />
-            <h3 className="text-sm font-extrabold text-slate-900">Thông tin tài khoản</h3>
+            <h3 className="text-sm font-extrabold text-slate-900">Thông tin tài khoản &amp; Phân công</h3>
             {isEditing && (
               <span className="ml-auto text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" /> Đang chỉnh sửa
@@ -759,7 +835,121 @@ export const AdminProfilePage: React.FC = () => {
                 </p>
               </div>
             )}
+
+            {/* Chuyên môn / Chuyên khoa — readonly */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                <Stethoscope className="w-3.5 h-3.5 text-slate-400" /> Chuyên môn / Chuyên khoa
+              </label>
+              <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-800">
+                  {doctorProfile?.specialty || (user as any)?.specialty || 'Bác sĩ chuyên khoa'}
+                </span>
+                <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                  Đồng bộ chuẩn
+                </span>
+              </div>
+            </div>
+
+            {/* Khoa / Bộ phận công tác — readonly */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-slate-400" /> Khoa / Bộ phận
+              </label>
+              <p className="px-3.5 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-800 border border-slate-100">
+                {doctorProfile?.department || 'Nha khoa chuyên sâu'}
+              </p>
+            </div>
+
+            {/* Mức hoa hồng ca trực (nếu có cấu hình) */}
+            {doctorProfile?.commissionRate !== undefined && doctorProfile.commissionRate > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-slate-400" /> Mức hoa hồng ca trực
+                </label>
+                <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+                  <span className="text-sm font-black text-emerald-800">{doctorProfile.commissionRate}% / ca điều trị</span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Quy chế nội bộ
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Khung giờ làm việc & Phân ca chuẩn */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-sky-600" />
+                <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                  Khung giờ làm việc chuẩn &amp; Lịch trực tuần
+                </h4>
+              </div>
+              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+                Tự động đồng bộ
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Giờ làm việc</p>
+                <p className="text-xs font-black text-slate-800 mt-0.5">{userWorkHours || '08:00 - 17:30'}</p>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Nghỉ trưa</p>
+                <p className="text-xs font-black text-slate-800 mt-0.5">{userLunchBreak || '12:00 - 13:30'}</p>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Ngày trực trong tuần</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((d) => {
+                    const isWork = userWorkDays.includes(d);
+                    return (
+                      <span
+                        key={d}
+                        className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                          isWork
+                            ? 'bg-sky-100 text-sky-800 border-sky-300'
+                            : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                        }`}
+                      >
+                        {d}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dịch vụ phụ trách (nếu có) */}
+          {assignedServices.length > 0 && (
+            <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Dịch vụ chuyên môn phụ trách ({assignedServices.length})
+                  </h4>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Do Quản trị viên phân công
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {assignedServices.map((srv, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50/80 text-amber-900 border border-amber-200/80 shadow-2xs"
+                  >
+                    <span>🦷</span>
+                    <span>{srv}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Save button inside tab for convenience */}
           {isEditing && (
@@ -1052,7 +1242,7 @@ export const AdminProfilePage: React.FC = () => {
                           <>
                             {currentShift === 'fullday' && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
-                                <Clock className="w-3 h-3" /> Cả ngày (08:00 - 17:30)
+                                <Clock className="w-3 h-3" /> Cả ngày ({userWorkHours || '08:00 - 17:30'})
                               </span>
                             )}
                             {currentShift === 'morning' && (
@@ -1101,7 +1291,7 @@ export const AdminProfilePage: React.FC = () => {
                           }
                           className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
                         >
-                          <option value="fullday">Cả ngày (08:00 - 17:30)</option>
+                          <option value="fullday">Cả ngày ({userWorkHours || '08:00 - 17:30'})</option>
                           <option value="morning">Ca Sáng (08:00 - 12:00)</option>
                           <option value="afternoon">Ca Chiều (13:30 - 17:30)</option>
                           <option value="overtime">Tăng ca (18:00 - 20:30)</option>

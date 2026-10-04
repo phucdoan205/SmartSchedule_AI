@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   TrendingUp,
   Loader2,
+  Briefcase,
 } from 'lucide-react';
 import { MOCK_DOCTORS, MOCK_SERVICES } from '../../services/mockData';
 import { ShiftModal } from './ShiftModal';
@@ -171,7 +172,7 @@ const ShiftBadge: React.FC<{ type: ShiftType; time?: string; room?: string; pati
 export const DoctorDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'services' | 'schedule' | 'history' | 'reviews'>('services');
+  const [activeTab, setActiveTab] = useState<string>('services');
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
@@ -297,10 +298,22 @@ export const DoctorDetailPage: React.FC = () => {
             if (Array.isArray(parsed) && parsed.length > 0) docServices = parsed;
           } catch (e) {}
         }
+        const isDocRole =
+          data.roleRaw === 'DOCTOR' ||
+          data.role === 'Bác sĩ chuyên khoa' ||
+          data.role === 'Bác sĩ' ||
+          resolvedName.startsWith('BS.') ||
+          resolvedName.startsWith('TS.BS.') ||
+          (!data.roleRaw && !data.role?.includes('Lễ tân') && !data.role?.includes('Kỹ thuật') && !data.role?.includes('Quản') && !data.role?.includes('Điều dưỡng'));
+
         if (!docServices || docServices.length === 0) {
-          docServices = resolvedCode === 'NV002' || data.specialty?.includes('Implant')
-            ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
-            : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+          if (isDocRole) {
+            docServices = resolvedCode === 'NV002' || data.specialty?.includes('Implant')
+              ? ['Cấy ghép Implant Straumann', 'Trụ Osstem No mount (Hàn Quốc)', 'Trụ Osstem SA (Hàn Quốc)']
+              : ['Sứ toàn phần Cercon (Đức)', 'Sứ toàn phần Emax', 'Mặt dán Veneer Emax'];
+          } else {
+            docServices = [];
+          }
         }
 
         // Synchronize commission rate
@@ -309,7 +322,7 @@ export const DoctorDetailPage: React.FC = () => {
         if (savedCommission !== null && savedCommission !== '') {
           docCommission = Number(savedCommission);
         } else if (docCommission === undefined) {
-          docCommission = resolvedCode === 'NV002' || data.specialty?.includes('Implant') ? 20 : 15;
+          docCommission = isDocRole ? (resolvedCode === 'NV002' || data.specialty?.includes('Implant') ? 20 : 15) : 0;
         }
 
         // Synchronize working schedule
@@ -340,20 +353,23 @@ export const DoctorDetailPage: React.FC = () => {
           fullName: resolvedName,
           initials: resolvedName
             ? resolvedName.trim().split(/\s+/).map((w: string) => w[0]).join('').slice(-2).toUpperCase()
-            : 'BS',
-          specialty: data.specialty || data.doctorProfile?.specialty || data.department || 'Phục hình Răng sứ & Thẩm mỹ',
+            : 'NV',
+          role: data.role || (isDocRole ? 'Bác sĩ chuyên khoa' : 'Nhân sự'),
+          roleRaw: data.roleRaw,
+          specialty: data.specialty || data.doctorProfile?.specialty || data.department || (isDocRole ? 'Phục hình Răng sứ & Thẩm mỹ' : 'Kỹ thuật chuyên trách'),
+          department: data.department || (data.doctorProfile?.specialty ? `Khoa ${data.doctorProfile.specialty}` : 'Nha khoa'),
           branch: data.branch?.name || data.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)',
           branchId: data.branchId,
           phone: data.phone || '090 123 4567',
-          email: data.email || 'doctor@smartschedule.ai',
+          email: data.email || 'staff@smartschedule.ai',
           avatar: resolvedAvatar,
           avatarUrl: resolvedAvatar,
-          rating: data.rating || data.doctorProfile?.rating || data.doctorProfile?.ratingAverage || 4.9,
-          totalAppointments: data.totalAppointments || data.doctorProfile?.totalAppointments || data.doctorAppointments?.length || 128,
+          rating: isDocRole || data.roleRaw === 'NURSE' ? (data.rating || data.doctorProfile?.rating || data.doctorProfile?.ratingAverage || 4.9) : 0,
+          totalAppointments: isDocRole || data.roleRaw === 'NURSE' ? (data.totalAppointments || data.doctorProfile?.totalAppointments || data.doctorAppointments?.length || 128) : 0,
           commissionRate: Number(docCommission),
           joinedDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN') : (data.joinedDate || '12/05/2021'),
-          title: data.title || data.doctorProfile?.title || data.role || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt',
-          bio: data.bio || data.doctorProfile?.bio || 'Chuyên gia phục hình nụ cười với hơn 8 năm kinh nghiệm...',
+          title: data.title || data.doctorProfile?.title || data.role || (isDocRole ? 'Bác sĩ Chuyên khoa - Răng Hàm Mặt' : 'Nhân sự phòng khám'),
+          bio: data.bio || data.doctorProfile?.bio || (isDocRole ? 'Chuyên gia phục hình nụ cười với hơn 8 năm kinh nghiệm...' : 'Nhân sự tận tâm, chuyên nghiệp tại hệ thống SmartSchedule.'),
           doctorAppointments: data.doctorAppointments || [],
           staffSchedules: data.staffSchedules || [],
           services: docServices,
@@ -793,23 +809,65 @@ export const DoctorDetailPage: React.FC = () => {
     { star: 1, pct: 0, count: 0 },
   ];
 
-  const tabs = [
-    { id: 'services', label: 'Dịch vụ phụ trách' },
-    { id: 'schedule', label: 'Lịch trực tuần này' },
-    { id: 'history', label: 'Lịch sử ca điều trị' },
-    { id: 'reviews', label: 'Đánh giá từ bệnh nhân' },
-  ] as const;
+  const currentDoctor = doctor || MOCK_DOCTORS[0];
+
+  const isDoctor = useMemo(() => {
+    if (!currentDoctor) return true;
+    const rRaw = ((currentDoctor.roleRaw || '') as string).toUpperCase();
+    const r = ((currentDoctor.role || '') as string).toLowerCase();
+    const name = currentDoctor.name || currentDoctor.fullName || '';
+    if (rRaw === 'DOCTOR') return true;
+    if (['TECHNICIAN', 'RECEPTIONIST', 'SUPER_ADMIN', 'BRANCH_MANAGER', 'NURSE'].includes(rRaw)) return false;
+    if (r.includes('kỹ thuật') || r.includes('lễ tân') || r.includes('quản lý') || r.includes('quản trị') || r.includes('điều dưỡng')) return false;
+    if (name.startsWith('KTV.') || name.startsWith('LT.')) return false;
+    return true;
+  }, [currentDoctor]);
+
+  const isNurse = useMemo(() => {
+    if (!currentDoctor) return false;
+    const rRaw = ((currentDoctor.roleRaw || '') as string).toUpperCase();
+    const r = ((currentDoctor.role || '') as string).toLowerCase();
+    return rRaw === 'NURSE' || r.includes('điều dưỡng');
+  }, [currentDoctor]);
+
+  const tabs = useMemo(() => {
+    if (isDoctor) {
+      return [
+        { id: 'services', label: 'Dịch vụ phụ trách' },
+        { id: 'schedule', label: 'Lịch trực tuần này' },
+        { id: 'history', label: 'Lịch sử ca điều trị' },
+        { id: 'reviews', label: 'Đánh giá từ bệnh nhân' },
+      ];
+    }
+    if (isNurse) {
+      return [
+        { id: 'schedule', label: 'Lịch trực tuần này' },
+        { id: 'history', label: 'Ca hỗ trợ điều trị' },
+        { id: 'reviews', label: 'Đánh giá từ bệnh nhân' },
+      ];
+    }
+    // Non-clinical: Kỹ thuật viên, Lễ tân, Quản trị viên, Quản lý
+    return [
+      { id: 'schedule', label: 'Lịch trực tuần này' },
+      { id: 'duties', label: 'Thông tin nhiệm vụ & Chuyên môn' },
+      { id: 'attendance', label: 'Lịch sử ca làm & Chấm công' },
+    ];
+  }, [isDoctor, isNurse]);
+
+  useEffect(() => {
+    if (!isDoctor && activeTab === 'services') {
+      setActiveTab('schedule');
+    }
+  }, [isDoctor, activeTab]);
 
   if (loading && !doctor) {
     return (
       <div className="min-h-screen bg-slate-50/50 flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-sky-600" />
-        <p className="text-xs font-semibold text-slate-500">Đang tải hồ sơ bác sĩ...</p>
+        <p className="text-xs font-semibold text-slate-500">Đang tải hồ sơ nhân sự...</p>
       </div>
     );
   }
-
-  const currentDoctor = doctor || MOCK_DOCTORS[0];
 
   return (
     <div className="min-h-screen bg-slate-50/50">
@@ -876,7 +934,9 @@ export const DoctorDetailPage: React.FC = () => {
 
             <h2 className="text-sm font-black text-slate-900 mt-2">{currentDoctor.name || currentDoctor.fullName}</h2>
             <p className="text-[11px] font-bold text-sky-600 mt-0.5">#{currentDoctor.code || currentDoctor.employeeCode}</p>
-            <p className="text-xs text-slate-500 font-medium mt-1 leading-snug">{currentDoctor.specialty}</p>
+            <p className="text-xs text-slate-500 font-medium mt-1 leading-snug">
+              {!isDoctor && currentDoctor.role ? `${currentDoctor.role} • ${currentDoctor.specialty}` : currentDoctor.specialty}
+            </p>
             <p className="text-xs text-slate-400 mt-0.5">{currentDoctor.branch}</p>
 
             <div className="w-full h-px bg-slate-100 my-4" />
@@ -902,17 +962,46 @@ export const DoctorDetailPage: React.FC = () => {
             <div className="w-full text-left">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Hiệu suất &amp; ca trực</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Mức hoa hồng</p>
-                  <p className="text-base font-black text-slate-800">{currentDoctor.commissionRate ?? 15}%</p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Đánh giá ({currentDoctor.totalAppointments})</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-base font-black text-slate-800">{currentDoctor.rating}</span>
-                    <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  </div>
-                </div>
+                {isDoctor ? (
+                  <>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Mức hoa hồng</p>
+                      <p className="text-base font-black text-slate-800">{currentDoctor.commissionRate ?? 15}%</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Đánh giá ({currentDoctor.totalAppointments})</p>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-base font-black text-slate-800">{currentDoctor.rating}</span>
+                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                      </div>
+                    </div>
+                  </>
+                ) : isNurse ? (
+                  <>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Ca phụ tá tháng</p>
+                      <p className="text-base font-black text-slate-800">{currentDoctor.totalAppointments || 45} ca</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Đánh giá</p>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-base font-black text-slate-800">4.9</span>
+                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Ca làm / tháng</p>
+                      <p className="text-base font-black text-slate-800">24 ca</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100">
+                      <p className="text-[10px] text-slate-400 font-semibold mb-1">Chuyên cần</p>
+                      <p className="text-base font-black text-emerald-600">100%</p>
+                    </div>
+                  </>
+                )}
                 <div className="bg-slate-50 rounded-xl p-2.5 text-center border border-slate-100 col-span-2">
                   <p className="text-[10px] text-slate-400 font-semibold mb-0.5">Khung giờ chuẩn (Mặc định)</p>
                   <p className="text-xs font-bold text-slate-800">
@@ -1429,6 +1518,244 @@ export const DoctorDetailPage: React.FC = () => {
                     Tải thêm đánh giá
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TAB: Thông tin nhiệm vụ & Chuyên môn (Dành cho Kỹ thuật viên, Lễ tân, Quản lý) ── */}
+          {activeTab === 'duties' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">
+                        Vị trí đảm nhiệm: {currentDoctor.role || 'Kỹ thuật viên chuyên trách'}
+                      </h3>
+                      <p className="text-xs text-slate-400 font-medium">
+                        Khoa / Bộ phận: {currentDoctor.department || 'Phòng Mổ & Tiệt khuẩn'} • Chi nhánh: {currentDoctor.branch}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 self-start sm:self-auto">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Nhân sự chính thức
+                  </span>
+                </div>
+
+                {/* Scope of duties & checklist */}
+                <div className="mt-4">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                    Quy trình chuyên môn &amp; Danh mục trách nhiệm
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {currentDoctor.name?.startsWith('KTV') || currentDoctor.role?.includes('Kỹ thuật') || (currentDoctor.roleRaw || '').includes('TECH') ? (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Kiểm soát vô trùng &amp; Tiệt khuẩn dụng cụ</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Vận hành hệ thống lò hấp Autoclave chuẩn Class B, kiểm định chỉ thị màu sinh học và đóng gói dụng cụ phẫu thuật theo quy chuẩn Bộ Y Tế.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Chụp X-quang CT Cone Beam 3D &amp; Panorama</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Thực hiện chụp phim kỹ thuật số cận chóp, mặt nghiêng Cephalo và Cone Beam CT, dựng hình 3D xương hàm phục vụ cấy ghép Implant.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Bảo trì &amp; Vận hành trang thiết bị máy móc</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Kiểm tra áp lực khí nén, đường nước ghế nha, bảo dưỡng định kỳ máy phẫu thuật Piezotome và máy cắm Implant hàng ngày trước giờ đón khách.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Quản lý vật tư tiêu hao &amp; Giao nhận Labo</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Kiểm kê mũi khoan, vật liệu trám, trụ Implant; tiếp nhận mẫu dấu thạch cao và kiểm tra răng sứ trả về từ xưởng phục hình.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : currentDoctor.name?.startsWith('LT') || currentDoctor.role?.includes('Lễ tân') || (currentDoctor.roleRaw || '').includes('RECEP') ? (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Tiếp đón &amp; Check-in bệnh nhân</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Chào đón khách hàng tại sảnh chính, hướng dẫn thủ tục check-in theo mã hẹn và cập nhật trạng thái đã đến trên phần mềm.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Điều phối phân luồng ghế khám &amp; Bác sĩ</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Sắp xếp bệnh nhân vào đúng phòng chức năng, thông báo bác sĩ phụ trách và hỗ trợ rút ngắn thời gian chờ đợi.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Thu ngân, Viện phí &amp; Xuất hóa đơn VAT</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Xử lý thanh toán tiền mặt/chuyển khoản/thẻ tín dụng, đối soát bảo hiểm bảo lãnh và xuất hóa đơn điện tử cho bệnh nhân.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Chăm sóc khách hàng sau điều trị</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Thực hiện cuộc gọi thăm hỏi sau 24h thực hiện thủ thuật, hướng dẫn vệ sinh răng miệng và xếp lịch tái khám định kỳ.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Điều phối vận hành &amp; Nhân sự cơ sở</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Phân ca làm việc, giám sát tuân thủ nội quy phòng khám, duyệt đơn nghỉ phép và đánh giá hiệu suất nhân viên định kỳ.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-3">
+                          <CheckCircle2 className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">Báo cáo hoạt động &amp; Kiểm soát tài chính</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                              Tổng hợp doanh thu hàng ngày, báo cáo công suất sử dụng ghế điều trị và phối hợp với ban giám đốc nâng cao chất lượng dịch vụ.
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Working schedule details */}
+                <div className="mt-5 pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                    Khung giờ làm việc &amp; Cam kết quy chế
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Ca làm việc tiêu chuẩn</span>
+                      <span className="text-xs font-bold text-slate-800 block mt-0.5">{currentDoctor.workHours || '08:00 - 17:30'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Thời gian nghỉ trưa</span>
+                      <span className="text-xs font-bold text-slate-800 block mt-0.5">{currentDoctor.lunchBreak || '12:00 - 13:30'}</span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80">
+                      <span className="text-[10px] text-slate-400 font-semibold block">Ngày làm việc cố định</span>
+                      <span className="text-xs font-bold text-sky-600 block mt-0.5">
+                        {Array.isArray(currentDoctor.workDays) ? currentDoctor.workDays.join(', ') : 'T2 - T7'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TAB: Lịch sử ca làm & Chấm công (Dành cho Kỹ thuật viên, Lễ tân, Quản lý) ── */}
+          {activeTab === 'attendance' && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-5 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    Bảng chấm công &amp; Lịch sử ca làm việc
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Ghi nhận thời gian nhận ca, hoàn thành ca trực và tính chuyên cần
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tỷ lệ đúng giờ: 100%
+                  </span>
+                </div>
+              </div>
+
+              {/* Attendance metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Ca hoàn thành (Tháng)</span>
+                  <span className="text-base font-black text-slate-800 block mt-0.5">24 ca</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Tổng giờ công</span>
+                  <span className="text-base font-black text-slate-800 block mt-0.5">192 giờ</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Ca tăng ca</span>
+                  <span className="text-base font-black text-amber-600 block mt-0.5">2 ca</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] text-slate-400 font-semibold block">Nghỉ phép có lương</span>
+                  <span className="text-base font-black text-sky-600 block mt-0.5">1 ngày</span>
+                </div>
+              </div>
+
+              {/* Shift log table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
+                      <th className="py-2.5 px-3">Ngày</th>
+                      <th className="py-2.5 px-3">Loại ca</th>
+                      <th className="py-2.5 px-3">Khung giờ</th>
+                      <th className="py-2.5 px-3">Vị trí / Khu vực</th>
+                      <th className="py-2.5 px-3 text-right">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {[
+                      { date: '04/10/2026', type: 'Ca Sáng & Ca Chiều', hours: '08:00 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                      { date: '03/10/2026', type: 'Ca Sáng & Ca Chiều', hours: '08:00 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                      { date: '02/10/2026', type: 'Ca Sáng & Ca Chiều', hours: '08:00 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                      { date: '01/10/2026', type: 'Ca Sáng & Ca Chiều', hours: '08:00 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                      { date: '30/09/2026', type: 'Ca Chiều', hours: '13:30 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                      { date: '29/09/2026', type: 'Ca Sáng & Ca Chiều', hours: '08:00 - 17:30', loc: 'Trụ sở Biên Hòa', status: 'Hoàn thành' },
+                    ].map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">{row.date}</td>
+                        <td className="py-2.5 px-3 font-medium text-slate-700">{row.type}</td>
+                        <td className="py-2.5 px-3 text-slate-500 font-mono">{row.hours}</td>
+                        <td className="py-2.5 px-3 text-slate-500">{row.loc}</td>
+                        <td className="py-2.5 px-3 text-right">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
