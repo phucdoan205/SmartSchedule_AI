@@ -765,7 +765,7 @@ export class StaffService {
           OR: [
             { name: data.roleName },
             { name: { equals: data.roleName, mode: 'insensitive' } },
-            { displayName: { equals: data.roleName, mode: 'insensitive' } },
+            { description: { equals: data.roleName, mode: 'insensitive' } },
           ],
         },
       });
