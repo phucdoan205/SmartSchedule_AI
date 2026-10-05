@@ -3,24 +3,24 @@ import { FinancialOverviewView } from './FinancialOverviewView';
 import { BranchFinanceDetailView } from './BranchFinanceDetailView';
 import { ExportReportModal } from './ExportReportModal';
 import { VietQrReconciliationModal } from './VietQrReconciliationModal';
+import { useBranch } from '../../context/BranchContext';
 
 export const FinancePage: React.FC = () => {
+  const { selectedBranchId: headerBranchId, selectedBranch } = useBranch();
   const [view, setView] = useState<'overview' | 'branch_detail'>('overview');
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('b-bienhoa');
+  const [detailedBranchId, setDetailedBranchId] = useState<string>('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
 
   const handleSelectBranch = (branchId: string) => {
-    setSelectedBranchId(branchId);
+    setDetailedBranchId(branchId);
     setView('branch_detail');
   };
 
+  const activeBranchId = detailedBranchId || (headerBranchId !== 'ALL' ? headerBranchId : '');
+
   const branchNameDisplay =
-    selectedBranchId === 'b-bienhoa'
-      ? 'Chi nhánh Biên Hòa (CN01 - Trụ sở chính)'
-      : selectedBranchId === 'b-quan1'
-      ? 'Chi nhánh Quận 1 (CN02 - Chi nhánh VIP)'
-      : 'Chi nhánh Long Thành (CN03)';
+    selectedBranch?.name || (view === 'overview' ? 'Tất cả chi nhánh (Toàn hệ thống)' : 'Chi nhánh đang chọn');
 
   return (
     <div className="space-y-6">
@@ -31,7 +31,7 @@ export const FinancePage: React.FC = () => {
         />
       ) : (
         <BranchFinanceDetailView
-          branchId={selectedBranchId}
+          branchId={activeBranchId}
           onBack={() => setView('overview')}
           onOpenExportModal={() => setIsExportModalOpen(true)}
           onOpenVietQrModal={() => setIsVietQrModalOpen(true)}
@@ -42,7 +42,7 @@ export const FinancePage: React.FC = () => {
       <ExportReportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        branchName={view === 'overview' ? 'Tất cả chi nhánh (3 cơ sở)' : branchNameDisplay}
+        branchName={branchNameDisplay}
       />
 
       {/* Modal Đối Soát VietQR */}

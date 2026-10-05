@@ -5,6 +5,7 @@ import { DataTable, type Column } from '../../components/common/DataTable';
 import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 import { patientsApi, financeApi } from '../../services/api';
+import { useBranch } from '../../context/BranchContext';
 
 interface PatientRecord {
   id: string;
@@ -20,6 +21,7 @@ interface PatientRecord {
 
 export const PatientsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedBranchId } = useBranch();
   const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -46,7 +48,8 @@ export const PatientsPage: React.FC = () => {
       setIsLoading(true);
       const res = await patientsApi.getAll({
         page: targetPage,
-        limit: 5,
+        limit: 10,
+        branchId: selectedBranchId,
         search: query.trim() || undefined,
       });
 
@@ -74,7 +77,12 @@ export const PatientsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchTerm]);
+  }, [page, searchTerm, selectedBranchId]);
+
+  useEffect(() => {
+    setPage(1);
+    loadPatients(1, searchTerm);
+  }, [selectedBranchId]);
 
   useEffect(() => {
     loadPatients(page, searchTerm);
@@ -199,7 +207,7 @@ export const PatientsPage: React.FC = () => {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        itemsPerPage={5}
+        itemsPerPage={10}
         isLoading={isLoading}
         onPageChange={handlePageChange}
         onSearchChange={handleSearchChange}

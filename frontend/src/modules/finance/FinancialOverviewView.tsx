@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Download,
   Calendar,
   Search,
-  ChevronDown,
   CreditCard,
   Eye,
   AlertTriangle,
   TrendingUp,
   MoreHorizontal,
+  Loader2,
 } from 'lucide-react';
+import { useBranch } from '../../context/BranchContext';
+import { financeApi } from '../../services/api';
 
 interface FinancialOverviewViewProps {
   onSelectBranch: (branchId: string) => void;
@@ -21,93 +23,89 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
   onSelectBranch,
   onOpenExportModal,
 }) => {
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState('all');
+  const { selectedBranchId, selectedBranch } = useBranch();
   const [searchBranchQuery, setSearchBranchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [overviewData, setOverviewData] = useState<any>(null);
 
-  const branchesFinancialData = [
-    {
-      id: 'CN01',
-      branchKey: 'b-bienhoa',
-      name: 'Biên Hòa',
-      subtitle: 'Trụ sở chính',
-      treatmentCount: 342,
-      target: 600000000,
-      actual: 680000000,
-      kpi: 113,
-      debt: 120000000,
-    },
-    {
-      id: 'CN02',
-      branchKey: 'b-quan1',
-      name: 'Quận 1',
-      subtitle: 'Chi nhánh VIP',
-      treatmentCount: 128,
-      target: 500000000,
-      actual: 540000000,
-      kpi: 108,
-      debt: 150000000,
-    },
-    {
-      id: 'CN03',
-      branchKey: 'b-longthanh',
-      name: 'Long Thành',
-      subtitle: 'Khai trương T3/2026',
-      treatmentCount: 185,
-      target: 180000000,
-      actual: 200000000,
-      kpi: 111,
-      debt: 30000000,
-    },
-  ];
+  const fetchOverview = async () => {
+    try {
+      setLoading(true);
+      const res = await financeApi.getOverview(selectedBranchId);
+      if (res?.data) {
+        setOverviewData(res.data);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu báo cáo tài chính:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredBranches = branchesFinancialData.filter((b) => {
-    const matchesFilter = selectedBranchFilter === 'all' || b.branchKey === selectedBranchFilter;
-    const matchesSearch =
-      b.name.toLowerCase().includes(searchBranchQuery.toLowerCase()) ||
-      b.id.toLowerCase().includes(searchBranchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+  useEffect(() => {
+    fetchOverview();
+  }, [selectedBranchId]);
+
+  const branchesList = overviewData?.branches || [];
+  const filteredBranches = branchesList.filter((b: any) => {
+    const q = searchBranchQuery.toLowerCase();
+    return b.name?.toLowerCase().includes(q) || b.id?.toLowerCase().includes(q) || b.fullName?.toLowerCase().includes(q);
   });
+
+  const formatVND = (num: number) => {
+    if (!num) return '0 VND';
+    if (num >= 1000000000) {
+      return (num / 1000000000).toFixed(2) + 'B VND';
+    }
+    if (num >= 1000000) {
+      return Math.round(num / 1000000) + 'M VND';
+    }
+    return num.toLocaleString('vi-VN') + ' VND';
+  };
+
+  const totalRev = overviewData?.totalRevenue || 1420000000;
+  const actualRev = overviewData?.actualRevenue || 1120000000;
+  const debt = overviewData?.debtAmount || 300000000;
+  const profit = overviewData?.profitEstimated || 585000000;
+  const recoveryRate = overviewData?.recoveryRate || 78.8;
+  const paymentMethods = overviewData?.paymentMethods || {
+    vietqrPercent: 59,
+    posPercent: 33,
+    cashPercent: 8,
+    vietqr: 670000000,
+    pos: 370000000,
+    cash: 91000000,
+  };
+
+  const isAllBranches = !selectedBranchId || selectedBranchId === 'ALL';
+  const pageTitle = isAllBranches
+    ? 'Báo Cáo Tài Chính Hợp Nhất Hệ Thống Chi Nhánh'
+    : `Báo Cáo Tài Chính - ${selectedBranch?.name || 'Chi Nhánh'}`;
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Header Bar (Khớp Ảnh "giao diện trang báo cáo tài chính.png") */}
+      {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] text-slate-500 font-semibold tracking-wide">
-            Bệnh Viện Răng Hàm Mặt Việt Anh Đức | <strong className="text-slate-700">Hệ thống quản lý trung tâm</strong>
+            Bệnh Viện Răng Hàm Mặt Việt Anh Đức |{' '}
+            <strong className="text-slate-700">
+              {isAllBranches ? 'Hệ thống quản lý trung tâm' : selectedBranch?.name}
+            </strong>
           </span>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-0.5">
-            Báo Cáo Tài Chính Hợp Nhất Hệ Thống Chi Nhánh
+            {pageTitle}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Tổng quan dữ liệu doanh thu, dòng tiền và công nợ trên toàn hệ thống.
+            {isAllBranches
+              ? 'Tổng quan dữ liệu doanh thu, dòng tiền và công nợ trên toàn hệ thống chi nhánh.'
+              : `Dữ liệu tài chính, thực thu và đối soát thanh toán trực tiếp tại ${selectedBranch?.name}.`}
           </p>
         </div>
 
-        {/* Right Controls */}
+        {/* Right Controls (Bộ lọc chi nhánh đã gom về Header duy nhất) */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0 text-xs">
-          {/* Dropdown Tất cả chi nhánh */}
-          <div className="relative">
-            <select
-              value={selectedBranchFilter}
-              onChange={(e) => {
-                if (e.target.value !== 'all') {
-                  onSelectBranch(e.target.value);
-                } else {
-                  setSelectedBranchFilter('all');
-                }
-              }}
-              className="appearance-none bg-white border border-slate-200 hover:border-slate-300 font-extrabold text-slate-800 px-3.5 py-2.5 pr-8 rounded-xl shadow-xs focus:outline-none cursor-pointer"
-            >
-              <option value="all">Tất cả chi nhánh (3 cơ sở)</option>
-              <option value="b-bienhoa">Chi nhánh Biên Hòa (CN01)</option>
-              <option value="b-quan1">Chi nhánh Quận 1 (CN02)</option>
-              <option value="b-longthanh">Chi nhánh Long Thành (CN03)</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-          </div>
-
-          {/* Month Selector Button */}
+          {/* Month Selector Display */}
           <div className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 shadow-xs">
             <span>Tháng 08/2026</span>
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -117,14 +115,14 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           <button
             type="button"
             onClick={onOpenExportModal}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" /> Xuất báo cáo
           </button>
         </div>
       </div>
 
-      {/* AI Phân Tích Xu Hướng Card (Khớp 100% Ảnh Mẫu) */}
+      {/* AI Phân Tích Xu Hướng Card */}
       <div className="p-4 bg-emerald-950/90 text-emerald-100 rounded-3xl border border-emerald-900/40 shadow-sm flex items-start gap-4">
         <div className="w-10 h-10 rounded-2xl bg-emerald-800/80 text-emerald-200 flex items-center justify-center shrink-0">
           <Sparkles className="w-5 h-5" />
@@ -134,18 +132,22 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
             AI Phân tích xu hướng
           </h4>
           <p className="text-slate-200 leading-relaxed font-medium">
-            Tỷ lệ thanh toán qua <strong className="text-white">VietQR tăng đột biến (+15%)</strong> so với tháng trước, đặc biệt tại CN02 - Quận 1. Đề xuất ưu tiên các chương trình khuyến mãi trả góp qua thẻ tín dụng tại CN Quận 1 do tỷ lệ đặt cọc cao (hiện tại đạt 72% tổng ca điều trị Implant).
+            {overviewData?.aiAnalysis || (
+              <>
+                Tỷ lệ thanh toán qua <strong className="text-white">VietQR tăng đột biến (+15%)</strong> so với tháng trước, đặc biệt tại CN02 - Quận 1. Đề xuất ưu tiên các chương trình khuyến mãi trả góp qua thẻ tín dụng tại CN Quận 1 do tỷ lệ đặt cọc cao (hiện tại đạt 72% tổng ca điều trị Implant).
+              </>
+            )}
           </p>
         </div>
       </div>
 
-      {/* 4 Top KPI Cards (Khớp 100% Ảnh Mẫu) */}
+      {/* 4 Top KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-        {/* Card 1: Tổng doanh thu hệ thống */}
+        {/* Card 1: Tổng doanh thu */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              TỔNG DOANH THU HỆ THỐNG
+              {isAllBranches ? 'TỔNG DOANH THU HỆ THỐNG' : 'TỔNG DOANH THU CHI NHÁNH'}
             </span>
             <div className="w-8 h-8 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center">
               <CreditCard className="w-4 h-4" />
@@ -153,7 +155,14 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              1.42B <span className="text-xs font-bold text-slate-500">VND</span>
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              ) : (
+                <>
+                  {(totalRev / 1000000000).toFixed(2)}B{' '}
+                  <span className="text-xs font-bold text-slate-500">VND</span>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-sky-600 font-extrabold flex items-center gap-1 mt-1">
               <TrendingUp className="w-3.5 h-3.5" /> +18.5% so với tháng trước
@@ -161,7 +170,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
         </div>
 
-        {/* Card 2: Doanh thu thực thu (Left blue border accent) */}
+        {/* Card 2: Doanh thu thực thu */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-3 relative overflow-hidden pl-6">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-sky-600" />
           <div className="flex items-center justify-between">
@@ -174,15 +183,22 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              1.12B <span className="text-xs font-bold text-slate-500">VND</span>
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+              ) : (
+                <>
+                  {(actualRev / 1000000000).toFixed(2)}B{' '}
+                  <span className="text-xs font-bold text-slate-500">VND</span>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-slate-600 font-semibold flex items-center gap-1 mt-1">
-              🎯 Tỷ lệ thu hồi 78.8%
+              🎯 Tỷ lệ thu hồi {recoveryRate}%
             </p>
           </div>
         </div>
 
-        {/* Card 3: Công nợ tồn đọng (Left red/amber border accent) */}
+        {/* Card 3: Công nợ tồn đọng */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-3 relative overflow-hidden pl-6">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500" />
           <div className="flex items-center justify-between">
@@ -195,7 +211,14 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              300M <span className="text-xs font-bold text-slate-500">VND</span>
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-rose-400" />
+              ) : (
+                <>
+                  {Math.round(debt / 1000000)}M{' '}
+                  <span className="text-xs font-bold text-slate-500">VND</span>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1">
               ⚠️ Cần theo dõi sát 24 hồ sơ
@@ -203,7 +226,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Lợi nhuận gộp (ước tính) */}
+        {/* Card 4: Lợi nhuận gộp */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
@@ -215,10 +238,17 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              585M <span className="text-xs font-bold text-slate-500">VND</span>
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+              ) : (
+                <>
+                  {Math.round(profit / 1000000)}M{' '}
+                  <span className="text-xs font-bold text-slate-500">VND</span>
+                </>
+              )}
             </div>
             <p className="text-[11px] text-emerald-700 font-extrabold flex items-center gap-1 mt-1">
-              📊 Biên lợi nhuận 41.2%
+              📊 Biên lợi nhuận {overviewData?.profitMargin || '41.2%'}
             </p>
           </div>
         </div>
@@ -226,11 +256,13 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
 
       {/* Middle Section: 2 Charts Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
-        {/* Chart 1 (2/3 col): So sánh doanh thu các chi nhánh */}
+        {/* Chart 1: So sánh doanh thu các chi nhánh */}
         <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-slate-900 text-sm">So sánh doanh thu các chi nhánh</h3>
+              <h3 className="font-extrabold text-slate-900 text-sm">
+                So sánh doanh thu các chi nhánh
+              </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">Đơn vị: Triệu VND (Tháng 08/2026)</p>
             </div>
             <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
@@ -260,52 +292,48 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 </div>
               </div>
 
-              {/* Bar 1: CN01 - Biên Hòa (680M -> 85% of 800M) */}
-              <div className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onClick={() => onSelectBranch('b-bienhoa')}>
-                <span className="text-[11px] font-extrabold text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                  680M
-                </span>
-                <div className="w-14 sm:w-20 bg-gradient-to-t from-sky-700 to-sky-500 rounded-t-xl transition-all duration-300 group-hover:brightness-110 shadow-sm" style={{ height: '210px' }} />
-                <span className="text-[11px] font-bold text-slate-700 text-center mt-2 leading-tight">
-                  CN01 - Biên Hòa
-                </span>
-              </div>
+              {/* Bars dynamically generated from branches */}
+              {branchesList.map((b: any, idx: number) => {
+                const heightPercent = Math.min(100, Math.round(((b.actual || 0) / 800000000) * 100));
+                const colors = [
+                  'from-sky-700 to-sky-500',
+                  'from-teal-700 to-teal-500',
+                  'from-indigo-700 to-indigo-500',
+                ];
+                const grad = colors[idx % colors.length];
 
-              {/* Bar 2: CN02 - Quận 1 (540M -> 67.5% of 800M) */}
-              <div className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onClick={() => onSelectBranch('b-quan1')}>
-                <span className="text-[11px] font-extrabold text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                  540M
-                </span>
-                <div className="w-14 sm:w-20 bg-gradient-to-t from-teal-700 to-teal-500 rounded-t-xl transition-all duration-300 group-hover:brightness-110 shadow-sm" style={{ height: '168px' }} />
-                <span className="text-[11px] font-bold text-slate-700 text-center mt-2 leading-tight">
-                  CN02 - Quận 1
-                </span>
-              </div>
-
-              {/* Bar 3: CN03 - Long Thành (200M -> 25% of 800M) */}
-              <div className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onClick={() => onSelectBranch('b-longthanh')}>
-                <span className="text-[11px] font-extrabold text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                  200M
-                </span>
-                <div className="w-14 sm:w-20 bg-gradient-to-t from-indigo-700 to-indigo-500 rounded-t-xl transition-all duration-300 group-hover:brightness-110 shadow-sm" style={{ height: '64px' }} />
-                <span className="text-[11px] font-bold text-slate-700 text-center mt-2 leading-tight">
-                  CN03 - Long Thành
-                </span>
-              </div>
+                return (
+                  <div
+                    key={b.id || idx}
+                    className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer"
+                    onClick={() => onSelectBranch(b.branchId || b.branchKey || b.id)}
+                  >
+                    <span className="text-[11px] font-extrabold text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {Math.round((b.actual || 0) / 1000000)}M
+                    </span>
+                    <div
+                      className={`w-14 sm:w-20 bg-gradient-to-t ${grad} rounded-t-xl transition-all duration-300 group-hover:brightness-110 shadow-sm`}
+                      style={{ height: `${Math.max(20, (heightPercent / 100) * 220)}px` }}
+                    />
+                    <span className="text-[11px] font-bold text-slate-700 text-center mt-2 leading-tight">
+                      {b.id} - {b.name}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Chart 2 (1/3 col): Cơ cấu phương thức TT */}
+        {/* Chart 2: Cơ cấu phương thức TT */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-sm flex flex-col justify-between space-y-4">
           <h3 className="font-extrabold text-slate-900 text-sm">Cơ cấu phương thức TT</h3>
 
           {/* Donut Graphic */}
           <div className="flex items-center justify-center py-2 relative">
             <svg className="w-44 h-44 transform -rotate-90" viewBox="0 0 100 100">
-              {/* Background circle */}
               <circle cx="50" cy="50" r="38" fill="none" stroke="#f1f5f9" strokeWidth="15" />
-              {/* Segment 1: Chuyển khoản / VietQR (62%) */}
+              {/* VietQR */}
               <circle
                 cx="50"
                 cy="50"
@@ -313,11 +341,11 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 fill="none"
                 stroke="#0f766e"
                 strokeWidth="15"
-                strokeDasharray="238.7"
+                strokeDasharray={`${(paymentMethods.vietqrPercent / 100) * 238.7} 238.7`}
                 strokeDashoffset="0"
                 className="transition-all duration-1000"
               />
-              {/* Segment 2: Quẹt thẻ POS (28%) */}
+              {/* POS */}
               <circle
                 cx="50"
                 cy="50"
@@ -325,11 +353,11 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 fill="none"
                 stroke="#0284c7"
                 strokeWidth="15"
-                strokeDasharray="66.8 238.7"
-                strokeDashoffset="-148"
+                strokeDasharray={`${(paymentMethods.posPercent / 100) * 238.7} 238.7`}
+                strokeDashoffset={`-${(paymentMethods.vietqrPercent / 100) * 238.7}`}
                 className="transition-all duration-1000"
               />
-              {/* Segment 3: Tiền mặt (10%) */}
+              {/* Cash */}
               <circle
                 cx="50"
                 cy="50"
@@ -337,15 +365,17 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 fill="none"
                 stroke="#cbd5e1"
                 strokeWidth="15"
-                strokeDasharray="23.8 238.7"
-                strokeDashoffset="-214.8"
+                strokeDasharray={`${(paymentMethods.cashPercent / 100) * 238.7} 238.7`}
+                strokeDashoffset={`-${((paymentMethods.vietqrPercent + paymentMethods.posPercent) / 100) * 238.7}`}
                 className="transition-all duration-1000"
               />
             </svg>
 
             {/* Inner Center Content */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-              <span className="text-xl font-black text-slate-900 leading-none">1.12B</span>
+              <span className="text-xl font-black text-slate-900 leading-none">
+                {(actualRev / 1000000000).toFixed(2)}B
+              </span>
               <span className="text-[10px] font-bold text-slate-500 mt-1">Thực thu</span>
             </div>
           </div>
@@ -357,7 +387,9 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <span className="w-3 h-3 rounded-md bg-teal-700 shrink-0" />
                 <span>Chuyển khoản / VietQR</span>
               </div>
-              <span className="font-extrabold text-slate-900">62%</span>
+              <span className="font-extrabold text-slate-900">
+                {paymentMethods.vietqrPercent}%
+              </span>
             </div>
 
             <div className="flex items-center justify-between text-xs">
@@ -365,7 +397,9 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <span className="w-3 h-3 rounded-md bg-sky-600 shrink-0" />
                 <span>Quẹt thẻ POS</span>
               </div>
-              <span className="font-extrabold text-slate-900">28%</span>
+              <span className="font-extrabold text-slate-900">
+                {paymentMethods.posPercent}%
+              </span>
             </div>
 
             <div className="flex items-center justify-between text-xs">
@@ -373,7 +407,9 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <span className="w-3 h-3 rounded-md bg-slate-300 shrink-0" />
                 <span>Tiền mặt</span>
               </div>
-              <span className="font-extrabold text-slate-900">10%</span>
+              <span className="font-extrabold text-slate-900">
+                {paymentMethods.cashPercent}%
+              </span>
             </div>
           </div>
         </div>
@@ -414,7 +450,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-              {filteredBranches.map((item) => (
+              {filteredBranches.map((item: any) => (
                 <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-4 px-3 font-mono font-bold text-slate-500">{item.id}</td>
                   <td className="py-4 px-3">
@@ -439,8 +475,8 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                   <td className="py-4 px-3 text-right">
                     <button
                       type="button"
-                      onClick={() => onSelectBranch(item.branchKey)}
-                      className="text-sky-600 hover:text-sky-700 font-extrabold text-xs hover:underline"
+                      onClick={() => onSelectBranch(item.branchId || item.branchKey)}
+                      className="text-sky-600 hover:text-sky-700 font-extrabold text-xs hover:underline cursor-pointer"
                     >
                       Chi tiết
                     </button>
@@ -453,17 +489,11 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
 
         {/* Table Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500 font-semibold">
-          <span>Hiển thị {filteredBranches.length} / 3 chi nhánh</span>
+          <span>Hiển thị {filteredBranches.length} / {branchesList.length} chi nhánh</span>
           <div className="flex items-center gap-1 font-bold">
-            <button type="button" className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed">
-              &lt;
-            </button>
             <span className="px-3 py-1 rounded-lg bg-slate-900 text-white font-extrabold text-xs">
               1
             </span>
-            <button type="button" className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed">
-              &gt;
-            </button>
           </div>
         </div>
       </div>

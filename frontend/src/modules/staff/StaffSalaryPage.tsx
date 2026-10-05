@@ -33,6 +33,7 @@ import { SalaryAdjustmentModal, type SalaryAdjustmentData } from './SalaryAdjust
 import { staffApi, appointmentApi } from '../../services/api';
 import { exportToExcel } from '../../utils/excelExport';
 import { toast } from '../../context/ToastContext';
+import { useBranch } from '../../context/BranchContext';
 
 export interface StaffSalaryRecord {
   id: string;
@@ -58,6 +59,7 @@ export interface StaffSalaryRecord {
 
 export const StaffSalaryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedBranchId } = useBranch();
 
   const [isLoading, setIsLoading] = useState(true);
   const [salaryRecords, setSalaryRecords] = useState<StaffSalaryRecord[]>([]);
@@ -75,9 +77,10 @@ export const StaffSalaryPage: React.FC = () => {
   const loadSalaryData = async () => {
     try {
       setIsLoading(true);
+      const branchParam = selectedBranchId && selectedBranchId !== 'ALL' ? { branchId: selectedBranchId } : undefined;
       const [staffList, apptList] = await Promise.all([
-        staffApi.getAllStaff().catch(() => []),
-        appointmentApi.getAppointments().catch(() => []),
+        staffApi.getAllStaff(branchParam).catch(() => []),
+        appointmentApi.getAppointments(branchParam).catch(() => []),
       ]);
 
       const rawStaff: any[] = Array.isArray(staffList) ? staffList : [];
@@ -199,7 +202,7 @@ export const StaffSalaryPage: React.FC = () => {
 
   useEffect(() => {
     loadSalaryData();
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedBranchId]);
 
   // Filtered records
   const filteredRecords = useMemo(() => {
@@ -237,7 +240,7 @@ export const StaffSalaryPage: React.FC = () => {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeTab, selectedMonth]);
+  }, [searchQuery, activeTab, selectedMonth, selectedBranchId]);
 
   // Pagination (Strictly 10 items per page as requested by user)
   const itemsPerPage = 10;

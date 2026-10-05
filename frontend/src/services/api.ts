@@ -237,8 +237,10 @@ export const operatoriesApi = {
 
 // Patients API
 export const patientsApi = {
-  getAll: async (params?: { search?: string; page?: number; limit?: number }) => {
-    const res = await apiClient.get('/patients', { params });
+  getAll: async (params?: { search?: string; page?: number; limit?: number; branchId?: string }) => {
+    const cleanParams: any = { ...params };
+    if (cleanParams.branchId === 'ALL') delete cleanParams.branchId;
+    const res = await apiClient.get('/patients', { params: cleanParams });
     return res.data;
   },
   getById: async (id: string) => {
@@ -269,7 +271,24 @@ export const patientsApi = {
 
 // Finance API
 export const financeApi = {
-  getInvoices: async (params?: { branchId?: string; status?: string }) => {
+  getOverview: async (branchId?: string, month?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    if (month) params.month = month;
+    const res = await apiClient.get('/finance/overview', { params });
+    return res.data;
+  },
+  getTransactions: async (params?: { branchId?: string; search?: string; page?: number; limit?: number }) => {
+    const cleanParams: any = { ...params };
+    if (cleanParams.branchId === 'ALL') delete cleanParams.branchId;
+    const res = await apiClient.get('/finance/transactions', { params: cleanParams });
+    return res.data;
+  },
+  getInvoices: async (paramsOrBranchId?: any, status?: string) => {
+    const params: any = typeof paramsOrBranchId === 'string'
+      ? { branchId: paramsOrBranchId !== 'ALL' ? paramsOrBranchId : undefined, status }
+      : { ...paramsOrBranchId };
+    if (params.branchId === 'ALL') delete params.branchId;
     const res = await apiClient.get('/finance/invoices', { params });
     return res.data;
   },
@@ -361,5 +380,66 @@ export const appointmentApi = {
     return res.data;
   },
 };
+
+
+// Equipment & Maintenance API
+export const equipmentApi = {
+  getAll: async (params?: { branchId?: string; category?: string; status?: string; search?: string; page?: number; limit?: number }) => {
+    const cleanParams: any = { ...params };
+    if (cleanParams.branchId === 'ALL') delete cleanParams.branchId;
+    const res = await apiClient.get('/equipment', { params: cleanParams });
+    return res.data;
+  },
+  getStats: async (branchId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/equipment/stats', { params });
+    return res.data;
+  },
+  getNotifications: async (branchId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/equipment/notifications', { params });
+    return res.data;
+  },
+  getMaintenanceHistory: async (branchId?: string, equipmentId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    if (equipmentId) params.equipmentId = equipmentId;
+    const res = await apiClient.get('/equipment/maintenance-history', { params });
+    return res.data;
+  },
+  togglePause: async (id: string) => {
+    const res = await apiClient.patch(`/equipment/${id}/toggle-pause`);
+    return res.data;
+  },
+  createSchedule: async (data: {
+    equipmentId: string;
+    branchId?: string;
+    technicianId?: string;
+    actionType: string;
+    scheduledAt: string;
+    scheduledTime?: string;
+    findings?: string;
+    isUrgent?: boolean;
+  }) => {
+    const res = await apiClient.post('/equipment/schedule', data);
+    return res.data;
+  },
+  createMaintenanceLog: async (
+    id: string,
+    data: {
+      technicianId: string;
+      actionType: string;
+      findings: string;
+      isCertified?: boolean;
+      certificateUrl?: string;
+    },
+  ) => {
+    const res = await apiClient.post(`/equipment/${id}/maintenance`, data);
+    return res.data;
+  },
+};
+
 
 

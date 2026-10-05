@@ -29,7 +29,7 @@ import { branchesApi, staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
 
 export const BranchesPage: React.FC = () => {
-  const { refreshBranches: refreshGlobalBranches } = useBranch();
+  const { selectedBranchId: globalBranchId, refreshBranches: refreshGlobalBranches } = useBranch();
   // Navigation State
   const [activeView, setActiveView] = useState<'branches' | 'detail' | 'staff_allocation' | 'room_config'>('branches');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('b-bienhoa');
@@ -89,6 +89,12 @@ export const BranchesPage: React.FC = () => {
     };
     fetchBranchesAndStaff();
   }, []);
+
+  React.useEffect(() => {
+    if (globalBranchId && globalBranchId !== 'ALL' && branches.some((b) => b.id === globalBranchId)) {
+      setSelectedBranchId(globalBranchId);
+    }
+  }, [globalBranchId, branches]);
 
   // Rooms Data State
   const [rooms, setRooms] = useState<RoomItem[]>([

@@ -5,6 +5,29 @@ import { FinanceService } from './finance.service.js';
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
+  @Get('overview')
+  async getOverview(
+    @Query('branchId') branchId?: string,
+    @Query('month') month?: string,
+  ) {
+    return this.financeService.getOverview(branchId, month);
+  }
+
+  @Get('transactions')
+  async getTransactions(
+    @Query('branchId') branchId?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.financeService.getTransactions({
+      branchId,
+      search,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
+  }
+
   @Get('invoices')
   async findAllInvoices(
     @Query('branchId') branchId?: string,

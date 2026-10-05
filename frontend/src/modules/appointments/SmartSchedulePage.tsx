@@ -62,7 +62,8 @@ export const SmartSchedulePage: React.FC = () => {
   const loadAppointments = async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
-      const data = await appointmentsApi.getAll();
+      const params = selectedBranchId && selectedBranchId !== 'ALL' ? { branchId: selectedBranchId } : undefined;
+      const data = await appointmentsApi.getAll(params);
       const mapped: Appointment[] = data.map((item: any) => {
         const startDate = new Date(item.startTime);
         const hours = String(startDate.getHours()).padStart(2, '0');
@@ -125,6 +126,9 @@ export const SmartSchedulePage: React.FC = () => {
 
   useEffect(() => {
     loadAppointments();
+  }, [selectedBranchId]);
+
+  useEffect(() => {
     const loadMeta = async () => {
       try {
         const [docs, srvs, brs] = await Promise.all([
@@ -515,7 +519,7 @@ export const SmartSchedulePage: React.FC = () => {
         <DataTable
           data={filteredAppointments}
           columns={tableColumns}
-          itemsPerPage={5}
+          itemsPerPage={10}
           searchPlaceholder="Tìm tên bệnh nhân, số điện thoại..."
         />
       )}

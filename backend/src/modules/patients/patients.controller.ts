@@ -18,8 +18,9 @@ export class PatientsController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('branchId') branchId?: string,
   ) {
-    return this.patientsService.findAll(search, page, limit);
+    return this.patientsService.findAll(search, page, limit, branchId);
   }
 
   @Get(':id')

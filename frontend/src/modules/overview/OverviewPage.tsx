@@ -15,9 +15,16 @@ import { DataTable, type Column } from '../../components/common/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { MOCK_APPOINTMENTS, MOCK_DOCTORS } from '../../services/mockData';
 import type { Appointment } from '../../types/admin';
+import { useBranch } from '../../context/BranchContext';
 
 export const OverviewPage: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedBranchId, selectedBranch } = useBranch();
+
+  const isAllBranches = !selectedBranchId || selectedBranchId === 'ALL';
+  const branchSubtitle = isAllBranches
+    ? 'Hôm nay hệ thống đang vận hành mượt mà tại 3 chi nhánh. Thuật toán AI đã tự động phân bổ 100% ca khám không trùng lịch.'
+    : `Hôm nay cơ sở ${selectedBranch?.name} đang vận hành mượt mà. Thuật toán AI đã tự động phân bổ 100% ca khám không trùng lịch.`;
 
   const appointmentColumns: Column<Appointment>[] = [
     {
@@ -74,7 +81,7 @@ export const OverviewPage: React.FC = () => {
             Xin chào, Bác sĩ Quản lý! 👋
           </h1>
           <p className="text-xs md:text-sm text-sky-100 leading-relaxed">
-            Hôm nay hệ thống đang vận hành mượt mà tại 3 chi nhánh. Thuật toán AI đã tự động phân bổ 100% ca khám không trùng lịch.
+            {branchSubtitle}
           </p>
         </div>
       </div>
@@ -201,6 +208,7 @@ export const OverviewPage: React.FC = () => {
             data={MOCK_APPOINTMENTS}
             columns={appointmentColumns}
             title="Lịch Hẹn Khám Bệnh Trong Ngày"
+            itemsPerPage={10}
             searchPlaceholder="Tìm lịch hẹn bệnh nhân..."
           />
         </div>

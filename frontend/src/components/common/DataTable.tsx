@@ -32,7 +32,7 @@ export function DataTable<T extends { id?: string | number }>({
   searchField,
   title,
   actionButton,
-  itemsPerPage = 6,
+  itemsPerPage = 10,
   serverSide = false,
   page = 1,
   totalPages: serverTotalPages,

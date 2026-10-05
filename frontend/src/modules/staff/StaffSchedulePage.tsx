@@ -71,8 +71,8 @@ export const StaffSchedulePage: React.FC = () => {
     );
   };
 
-  // Pagination state (Exactly 5 items per page)
-  const itemsPerPage = 5;
+  // Pagination state (Exactly 10 items per page as requested)
+  const itemsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
 
   // Week offset state (0 = current week starting 17/08/2026)

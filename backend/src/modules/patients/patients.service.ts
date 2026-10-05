@@ -6,7 +6,7 @@ import { generatePatientCode } from '../../common/utils/code-generator.util.js';
 export class PatientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(search?: string, page?: string | number, limit?: string | number) {
+  async findAll(search?: string, page?: string | number, limit?: string | number, branchId?: string) {
     const where: any = {};
     if (search && search.trim()) {
       const q = search.trim();
@@ -16,9 +16,12 @@ export class PatientsService {
         { patientCode: { contains: q, mode: 'insensitive' } },
       ];
     }
+    if (branchId && branchId !== 'ALL' && branchId !== 'all') {
+      where.appointments = { some: { branchId } };
+    }
 
     const pageNum = page !== undefined ? Math.max(1, parseInt(page as any, 10) || 1) : 1;
-    const limitNum = limit !== undefined ? Math.max(1, parseInt(limit as any, 10) || 5) : 5;
+    const limitNum = limit !== undefined ? Math.max(1, parseInt(limit as any, 10) || 10) : 10;
     const skip = (pageNum - 1) * limitNum;
 
     const [total, items] = await Promise.all([

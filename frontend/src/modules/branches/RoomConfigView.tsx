@@ -77,20 +77,7 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500 font-medium">
             <div className="flex items-center gap-1.5 font-bold text-sky-800 bg-sky-50 px-3 py-1 rounded-xl border border-sky-200">
               <MapPin className="w-3.5 h-3.5 text-sky-600" />
-              <select
-                value={selectedBranchId}
-                onChange={(e) => onSelectBranch(e.target.value)}
-                className="bg-transparent font-extrabold focus:outline-none cursor-pointer text-xs"
-              >
-                {MOCK_BRANCHES.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-                <option value="b-bienhoa">Chi nhánh Biên Hòa (Trụ sở chính)</option>
-                <option value="b-quan1">Chi nhánh Quận 1 - TP. HCM</option>
-                <option value="b-longthanh">Chi nhánh Long Thành (Đồng Nai)</option>
-              </select>
+              <span>{MOCK_BRANCHES.find((b) => b.id === selectedBranchId)?.name || 'Chi nhánh đang chọn'}</span>
             </div>
             <span>Thiết lập danh sách ghế nha khoa, gán bác sĩ phụ trách và quản lý trạng thái bảo trì thiết bị.</span>
           </div>

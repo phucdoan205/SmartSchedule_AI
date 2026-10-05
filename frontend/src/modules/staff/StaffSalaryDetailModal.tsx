@@ -290,8 +290,8 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
     toast('Đã xuất phiếu lương thành công sang định dạng Excel!');
   };
 
-  // Pagination for table
-  const itemsPerPage = 5;
+  // Pagination for table (10 items per page)
+  const itemsPerPage = 10;
   const listToPaginate = isClinical ? realCases : attendanceLogs;
   const totalPages = Math.ceil(listToPaginate.length / itemsPerPage) || 1;
   const paginatedItems = listToPaginate.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

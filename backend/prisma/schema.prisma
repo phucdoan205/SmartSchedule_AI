@@ -427,6 +427,7 @@ model Invoice {
   items         InvoiceItem[]
   payments      Payment[]
 
+  @@index([branchId, createdAt])
   @@map("invoices")
 }
 
@@ -456,6 +457,7 @@ model Payment {
 
   invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
+  @@index([invoiceId, paidAt])
   @@map("payments")
 }
 
@@ -482,36 +484,50 @@ model ServiceReview {
 // ====================================================
 
 model Equipment {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   branchId         String
   chairId          String?
-  code             String   @unique // TB-01, TB-04
-  name             String   // Ghế Sirona Intego, Máy CT Cone Beam Vatech
-  serialNumber     String   @unique
-  status           String   @default("OPERATIONAL") // OPERATIONAL, UNDER_MAINTENANCE
+  code             String    @unique // TB-01, TB-04
+  name             String    // Ghế Sirona Intego, Máy CT Cone Beam Vatech
+  serialNumber     String    @unique
+  category         String?   @default("dental_chair") // dental_chair, xray, hvac, implant
+  location         String?   // Ghế 01 - Tầng 1 (CN Biên Hòa)
+  technician       String?   // KTV. Hoàng Minh
+  lastMaintenanceAt DateTime?
+  status           String    @default("OPERATIONAL") // OPERATIONAL, UNDER_MAINTENANCE, STERILIZING, WARNING
   nextInspectionAt DateTime?
+  imageUrl         String?
+  isPaused         Boolean   @default(false)
+  urgencyAlert     String?
 
   branch           Branch          @relation(fields: [branchId], references: [id])
   chair            OperatoryChair? @relation(fields: [chairId], references: [id])
   maintenanceLogs  EquipmentMaintenanceLog[]
 
+  @@index([branchId, status])
+  @@index([category])
   @@map("equipments")
 }
 
 model EquipmentMaintenanceLog {
-  id           String    @id @default(uuid())
-  equipmentId  String
-  technicianId String
-  logCode      String    @unique // #BT-2026-042
-  actionType   String    // BẢO TRÌ ĐỊNH KỲ, KHỬ TRÙNG VI SINH
-  findings     String    @db.Text
-  isCertified  Boolean   @default(false)
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
+  id             String    @id @default(uuid())
+  equipmentId    String
+  technicianId   String
+  logCode        String    @unique // #BT-2026-042, #ST-2026-045
+  actionType     String    // BẢO TRÌ ĐỊNH KỲ, KHỬ TRÙNG VI SINH, XỬ LÝ SỰ CỐ / THAY LỌC, HIỆU CHUẨN TIA ĐỊNH KỲ
+  findings       String    @db.Text
+  isCertified    Boolean   @default(false)
+  status         String    @default("COMPLETED") // PENDING, IN_PROGRESS, COMPLETED
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  certificateUrl String?
+  result         String?   @default("passed") // passed, certified
+  createdAt      DateTime  @default(now())
 
-  equipment    Equipment @relation(fields: [equipmentId], references: [id])
-  technician   User      @relation(fields: [technicianId], references: [id])
+  equipment      Equipment @relation(fields: [equipmentId], references: [id])
+  technician     User      @relation(fields: [technicianId], references: [id])
 
+  @@index([equipmentId, status])
   @@map("equipment_maintenance_logs")
 }
 
