@@ -546,11 +546,13 @@ model ConsumableMaterial {
 
 model AuditLog {
   id           String   @id @default(uuid())
+  logCode      String?  @unique // LOG-2026-0001
   userId       String?
-  module       String   // APPOINTMENTS, EMR, FINANCE, RBAC_SECURITY
+  module       String   // APPOINTMENTS, EMR, FINANCE, RBAC_SECURITY, EQUIPMENT, SYSTEM
   action       String   // CREATE_APPOINTMENT, UPDATE_EMR, REVERSE_INVOICE
   details      String   @db.Text
-  targetEntity String?  // BN-104, GHE-01
+  targetEntity String?  // BN26-0001, TB-01
+  status       String   @default("SUCCESS") // SUCCESS, WARNING, ERROR
   ipAddress    String
   userAgent    String
   createdAt    DateTime @default(now())

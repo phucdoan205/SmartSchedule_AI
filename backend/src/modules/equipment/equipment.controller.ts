@@ -78,4 +78,55 @@ export class EquipmentController {
   ) {
     return this.equipmentService.createMaintenanceLog(id, body);
   }
+
+  @Post()
+  async createEquipment(
+    @Body()
+    body: {
+      code?: string;
+      name: string;
+      serialNumber?: string;
+      category?: string;
+      location?: string;
+      branchId?: string;
+      technician?: string;
+      status?: string;
+      nextInspectionAt?: string;
+    },
+  ) {
+    return this.equipmentService.createEquipment(body);
+  }
+
+  @Patch(':id')
+  async updateEquipment(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      code?: string;
+      serialNumber?: string;
+      category?: string;
+      location?: string;
+      branchId?: string;
+      technician?: string;
+      status?: string;
+      urgencyAlert?: string | null;
+      nextInspectionAt?: string;
+    },
+  ) {
+    return this.equipmentService.updateEquipment(id, body);
+  }
+
+  @Patch('maintenance/:logId/status')
+  async updateMaintenanceStatus(
+    @Param('logId') logId: string,
+    @Body()
+    body: {
+      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      findings?: string;
+      technicianName?: string;
+    },
+  ) {
+    return this.equipmentService.updateMaintenanceStatus(logId, body);
+  }
 }

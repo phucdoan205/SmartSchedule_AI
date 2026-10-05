@@ -9,7 +9,16 @@ export class AuditLogsController {
   async findAll(
     @Query('module') moduleName?: string,
     @Query('search') search?: string,
+    @Query('timeFilter') timeFilter?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.auditLogsService.findAll(moduleName, search);
+    return this.auditLogsService.findAll({
+      moduleName,
+      search,
+      timeFilter,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
   }
 }

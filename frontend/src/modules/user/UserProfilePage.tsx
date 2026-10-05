@@ -238,7 +238,7 @@ export const UserProfilePage: React.FC = () => {
   }
 
   const { address: currentAddress, alerts: currentAlerts } = parseAlertsAndAddress(user?.patient?.medicalAlerts);
-  const patientCode = user?.patient?.patientCode || user?.employeeCode || `BN-${user?.id?.slice(0, 6).toUpperCase()}`;
+  const patientCode = user?.patient?.patientCode || user?.employeeCode || 'BN26-0001';
   const completedCount = userAppointments.filter((a) => a.status === 'COMPLETED').length;
 
   return (

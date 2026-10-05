@@ -98,13 +98,96 @@ export class RolesService {
     };
   }
 
+  async updateRole(id: string, data: { name?: string; description?: string }) {
+    let targetId = id;
+    const role = await this.prisma.role.findUnique({
+      where: { id: targetId },
+      include: {
+        _count: { select: { userRoles: true } },
+      },
+    });
+
+    if (!role) {
+      // Try finding by name if id passed was name
+      const roleByName = await this.prisma.role.findUnique({
+        where: { name: id },
+        include: {
+          _count: { select: { userRoles: true } },
+        },
+      });
+      if (!roleByName) {
+        throw new BadRequestException('Không tìm thấy vai trò / chức vụ cần cập nhật');
+      }
+      targetId = roleByName.id;
+    }
+
+    const updateData: any = {};
+    if (data.name && data.name.trim()) {
+      const cleanName = data.name.trim();
+      const existing = await this.prisma.role.findFirst({
+        where: {
+          name: cleanName,
+          NOT: { id: targetId },
+        },
+      });
+      if (existing) {
+        throw new BadRequestException(`Chức vụ "${cleanName}" đã tồn tại trên hệ thống`);
+      }
+      updateData.name = cleanName;
+    }
+
+    if (data.description !== undefined) {
+      updateData.description = data.description ? data.description.trim() : null;
+    }
+
+    const updated = await this.prisma.role.update({
+      where: { id: targetId },
+      data: updateData,
+      include: {
+        _count: { select: { userRoles: true } },
+        rolePermissions: { include: { permission: true } },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Cập nhật chức vụ thành công! Các nhân sự thuộc chức vụ này đã được đồng bộ tự động.',
+      data: {
+        id: updated.id,
+        name: updated.name,
+        description: updated.description,
+        userCount: updated._count.userRoles,
+        permissions: updated.rolePermissions.map((rp) => rp.permission.code),
+      },
+    };
+  }
+
   async saveMatrix(matrix: Record<string, string[]>) {
-    // matrix is a map: roleName -> array of permission/module codes
-    for (const [roleName, permCodes] of Object.entries(matrix)) {
-      let role = await this.prisma.role.findUnique({ where: { name: roleName } });
+    const codeToRoleName: Record<string, string> = {
+      owner: 'SUPER_ADMIN',
+      doctor: 'DOCTOR',
+      receptionist: 'RECEPTIONIST',
+      nurse: 'NURSE',
+      technician: 'TECHNICIAN',
+      manager: 'BRANCH_MANAGER',
+      ke_toan: 'Kế Toán',
+    };
+
+    // matrix is a map: roleCodeOrName -> array of permission/module codes
+    for (const [roleCodeOrName, permCodes] of Object.entries(matrix)) {
+      const canonicalName = codeToRoleName[roleCodeOrName] || roleCodeOrName;
+      let role = await this.prisma.role.findFirst({
+        where: {
+          OR: [
+            { name: canonicalName },
+            { name: roleCodeOrName },
+          ],
+        },
+      });
+
       if (!role) {
         role = await this.prisma.role.create({
-          data: { name: roleName, description: `Chức vụ ${roleName}` },
+          data: { name: canonicalName, description: `Chức vụ ${canonicalName}` },
         });
       }
 

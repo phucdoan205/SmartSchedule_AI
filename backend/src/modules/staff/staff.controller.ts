@@ -86,6 +86,31 @@ export class StaffController {
     return this.staffService.getDoctorById(id);
   }
 
+  @Get()
+  async findAllStaff(@Query('branchId') branchId?: string) {
+    return this.staffService.findAllStaff(branchId);
+  }
+
+  @Post()
+  async createStaff(
+    @Body()
+    body: {
+      employeeCode: string;
+      fullName: string;
+      email: string;
+      phone: string;
+      branchId: string;
+      roleName: string;
+      avatarUrl?: string;
+      specialty?: string;
+      licenseNumber?: string;
+      experienceYears?: number;
+      bio?: string;
+    },
+  ) {
+    return this.staffService.createStaff(body);
+  }
+
   @Get(':id')
   async getStaffById(@Param('id') id: string) {
     return this.staffService.getDoctorById(id);
@@ -113,31 +138,6 @@ export class StaffController {
     },
   ) {
     return this.staffService.updateStaff(id, body);
-  }
-
-  @Get()
-  async findAllStaff(@Query('branchId') branchId?: string) {
-    return this.staffService.findAllStaff(branchId);
-  }
-
-  @Post()
-  async createStaff(
-    @Body()
-    body: {
-      employeeCode: string;
-      fullName: string;
-      email: string;
-      phone: string;
-      branchId: string;
-      roleName: string;
-      avatarUrl?: string;
-      specialty?: string;
-      licenseNumber?: string;
-      experienceYears?: number;
-      bio?: string;
-    },
-  ) {
-    return this.staffService.createStaff(body);
   }
 }
 

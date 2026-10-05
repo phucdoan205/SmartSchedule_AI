@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
+import { isStaffRole } from '../services/rolePermissionStore';
 
 export interface UserProfile {
   id: string;
@@ -122,24 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/';
   };
 
-  const INTERNAL_STAFF_ROLES = [
-    'SUPER_ADMIN',
-    'ADMIN',
-    'BRANCH_MANAGER',
-    'DOCTOR',
-    'STAFF',
-    'RECEPTIONIST',
-    'NURSE',
-    'TECHNICIAN',
-    'CLINIC_OWNER',
-    'OWNER',
-  ];
-
-  const isAdmin = Boolean(
-    user &&
-      Array.isArray(user.roles) &&
-      user.roles.some((r) => INTERNAL_STAFF_ROLES.includes(r.toUpperCase())),
-  );
+  const isAdmin = Boolean(user && isStaffRole(user.roles));
 
   return (
     <AuthContext.Provider

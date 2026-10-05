@@ -24,8 +24,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
     {
       id: 'VQR-9901',
       time: '16:15',
-      patient: 'Nguyễn Văn An (#BN-104)',
-      billCode: '#HD-8956',
+      patient: 'Đoàn Văn Phúc (#BN26-0001)',
+      billCode: '#HD-2026-8956',
       amount: '13.000.000đ',
       bank: 'Vietcombank',
       status: 'Matched',
@@ -33,8 +33,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
     {
       id: 'VQR-9902',
       time: '11:00',
-      patient: 'Lê Văn Hoàng (#BN-115)',
-      billCode: '#HD-8954',
+      patient: 'Trần Minh Tâm (#BN26-0002)',
+      billCode: '#HD-2026-8954',
       amount: '25.000.000đ',
       bank: 'MB Bank',
       status: 'Matched',
@@ -42,8 +42,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
     {
       id: 'VQR-9903',
       time: '08:30',
-      patient: 'Phạm Đức Minh (#BN-120)',
-      billCode: '#HD-8952',
+      patient: 'Nguyễn Trung Cường (#BN26-0003)',
+      billCode: '#HD-2026-8952',
       amount: '1.800.000đ',
       bank: 'Techcombank',
       status: 'Matched',

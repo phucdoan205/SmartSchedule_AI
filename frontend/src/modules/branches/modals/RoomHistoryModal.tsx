@@ -150,8 +150,8 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
                     <span className="text-[10px] text-slate-400">(Hôm nay)</span>
                   </td>
                   <td className="py-3.5 px-3">
-                    <span className="font-extrabold text-slate-900 block">Lê Văn A</span>
-                    <span className="text-[10px] text-slate-400">#BN-101</span>
+                    <span className="font-extrabold text-slate-900 block">Đoàn Văn Phúc</span>
+                    <span className="text-[10px] text-slate-400">#BN26-0001</span>
                   </td>
                   <td className="py-3.5 px-3">Cạo vôi răng siêu âm &amp; Đánh bóng</td>
                   <td className="py-3.5 px-3 font-bold text-slate-900">{room.doctorName || 'BS. Trần Đức Cường'}</td>
@@ -169,8 +169,8 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
                     <span className="text-[10px] text-slate-400">21/08/2026</span>
                   </td>
                   <td className="py-3.5 px-3">
-                    <span className="font-extrabold text-slate-900 block">Trần Thị Mai</span>
-                    <span className="text-[10px] text-slate-400">#BN-092</span>
+                    <span className="font-extrabold text-slate-900 block">Trần Minh Tâm</span>
+                    <span className="text-[10px] text-slate-400">#BN26-0002</span>
                   </td>
                   <td className="py-3.5 px-3">Khám tổng quát &amp; Lấy dấu sứ</td>
                   <td className="py-3.5 px-3 font-bold text-slate-900">BS. Nguyễn Thị An</td>
@@ -188,8 +188,8 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
                     <span className="text-[10px] text-slate-400">21/08/2026</span>
                   </td>
                   <td className="py-3.5 px-3">
-                    <span className="font-extrabold text-slate-900 block">Phạm Minh Anh</span>
-                    <span className="text-[10px] text-slate-400">#BN-088</span>
+                    <span className="font-extrabold text-slate-900 block">Nguyễn Trung Cường</span>
+                    <span className="text-[10px] text-slate-400">#BN26-0003</span>
                   </td>
                   <td className="py-3.5 px-3">Hàn trám răng thẩm mỹ Composite</td>
                   <td className="py-3.5 px-3 font-bold text-slate-900">BS. Trần Đức Cường</td>

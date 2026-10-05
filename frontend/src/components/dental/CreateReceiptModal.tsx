@@ -43,8 +43,8 @@ interface CreateReceiptModalProps {
 export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   isOpen,
   onClose,
-  patientName = 'Nguyễn Văn An',
-  patientId = '#BN-2026-104',
+  patientName = 'Đoàn Văn Phúc',
+  patientId = '#BN26-0001',
   defaultAmount = 13000000,
   defaultDescription = 'Thanh toán Đợt 2 - Niềng răng Invisalign',
   onOpenPreview,

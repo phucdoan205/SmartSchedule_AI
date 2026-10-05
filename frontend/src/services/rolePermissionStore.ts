@@ -448,23 +448,100 @@ export const rolePermissionStore = {
     return buildDefaultMatrix(roles);
   },
 
-  addRole(name: string, description?: string): SystemRoleItem {
+  async syncFromBackend(): Promise<SystemRoleItem[]> {
+    try {
+      const res = await apiClient.get('/roles');
+      const dbRoles: Array<{ id: string; name: string; description?: string; permissions?: string[] }> =
+        Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+      if (dbRoles.length === 0) return this.getRoles();
+
+      const existingRoles = [...this.getRoles()];
+      let changed = false;
+
+      dbRoles.forEach((dr) => {
+        if (!dr.name || dr.name.toUpperCase() === 'PATIENT') return;
+
+        const found = existingRoles.find(
+          (er) =>
+            er.id === dr.id ||
+            er.code.toLowerCase() === dr.name.toLowerCase() ||
+            er.name.toLowerCase() === dr.name.toLowerCase(),
+        );
+
+        if (found) {
+          if (!found.id || found.id !== dr.id) {
+            found.id = dr.id;
+            changed = true;
+          }
+          if (dr.description && found.subtitle !== dr.description) {
+            found.subtitle = dr.description;
+            changed = true;
+          }
+        } else {
+          const code =
+            dr.name
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z0-9]/g, '_')
+              .replace(/_+/g, '_')
+              .replace(/^_|_$/g, '') || `role_${Date.now()}`;
+
+          existingRoles.push({
+            id: dr.id,
+            code,
+            name: dr.name,
+            subtitle: dr.description || '(Chức vụ từ CSDL)',
+            iconName: dr.name.toLowerCase().includes('kế toán') ? 'DollarSign' : 'UserCheck',
+            isSystem: false,
+          });
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY_ROLES, JSON.stringify(existingRoles));
+        this.notify();
+      }
+      return existingRoles;
+    } catch (e) {
+      console.warn('Could not sync roles from backend:', e);
+      return this.getRoles();
+    }
+  },
+
+  async addRole(name: string, description?: string): Promise<SystemRoleItem> {
     const roles = this.getRoles();
     const cleanName = name.trim();
-    const code = cleanName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '') || `role_${Date.now()}`;
+    const code =
+      cleanName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '') || `role_${Date.now()}`;
+
+    // Call backend API to persist into PostgreSQL DB
+    let createdServerId = `role_${Date.now()}`;
+    try {
+      const res = await apiClient.post('/roles', {
+        name: cleanName,
+        description: description?.trim(),
+      });
+      if (res.data?.data?.id || res.data?.id) {
+        createdServerId = res.data?.data?.id || res.data?.id;
+      }
+    } catch (err) {
+      console.warn('Lỗi gọi API lưu vai trò vào CSDL:', err);
+    }
 
     const newRole: SystemRoleItem = {
-      id: `role_${Date.now()}`,
+      id: createdServerId,
       code,
       name: cleanName,
-      subtitle: description || '(Chức vụ mới)',
-      iconName: 'UserCheck',
+      subtitle: description?.trim() || '(Chức vụ mới)',
+      iconName: cleanName.toLowerCase().includes('kế toán') ? 'DollarSign' : 'UserCheck',
       isSystem: false,
     };
 
@@ -476,7 +553,6 @@ export const rolePermissionStore = {
     matrix[code] = {};
     SYSTEM_MODULES.forEach((mod) => {
       const subPerms: Record<string, boolean> = {};
-      // Default: overview view enabled
       const isEnabled = mod.code === 'overview';
       mod.subPermissions.forEach((sp) => {
         subPerms[sp.code] = mod.code === 'overview' && sp.code.includes('view');
@@ -488,14 +564,47 @@ export const rolePermissionStore = {
     });
 
     localStorage.setItem(STORAGE_KEY_MATRIX, JSON.stringify(matrix));
-
-    // Try persisting to backend asynchronously
-    try {
-      apiClient.post('/roles', { name: cleanName, description }).catch(() => {});
-    } catch {}
+    this.saveMatrix(matrix);
 
     this.notify();
     return newRole;
+  },
+
+  async updateRole(idOrCode: string, name: string, description?: string): Promise<SystemRoleItem> {
+    const roles = this.getRoles();
+    const cleanName = name.trim();
+    const targetIdx = roles.findIndex((r) => r.id === idOrCode || r.code === idOrCode);
+    if (targetIdx === -1) {
+      throw new Error('Không tìm thấy vai trò cần cập nhật');
+    }
+
+    const currentRole = roles[targetIdx];
+    const updateTargetId = currentRole.id || currentRole.code;
+
+    let serverUpdated: any = null;
+    try {
+      const res = await apiClient.patch(`/roles/${updateTargetId}`, {
+        name: cleanName,
+        description: description?.trim(),
+      });
+      serverUpdated = res.data?.data || res.data;
+    } catch (err: any) {
+      console.error('Lỗi cập nhật vai trò trên máy chủ:', err);
+    }
+
+    const updatedRole: SystemRoleItem = {
+      ...currentRole,
+      id: serverUpdated?.id || currentRole.id,
+      name: cleanName,
+      subtitle: description?.trim() || currentRole.subtitle,
+    };
+
+    const nextRoles = [...roles];
+    nextRoles[targetIdx] = updatedRole;
+    localStorage.setItem(STORAGE_KEY_ROLES, JSON.stringify(nextRoles));
+
+    this.notify();
+    return updatedRole;
   },
 
   saveMatrix(newMatrix: MatrixState) {
@@ -662,3 +771,23 @@ export const rolePermissionStore = {
     });
   },
 };
+
+/**
+ * Kiểm tra linh hoạt xem một tài khoản có thuộc vai trò nhân sự / quản trị hay không.
+ * Nếu tài khoản có bất kỳ vai trò nào trong hệ thống (khác PATIENT thuần túy), coi như là nhân sự.
+ */
+export const isStaffRole = (roles?: string[]): boolean => {
+  if (!roles || !Array.isArray(roles) || roles.length === 0) return false;
+  const nonPatientRoles = roles.filter((r) => {
+    const upper = (r || '').trim().toUpperCase();
+    return (
+      upper !== 'PATIENT' &&
+      upper !== 'USER' &&
+      upper !== 'CUSTOMER' &&
+      upper !== 'KHÁCH HÀNG' &&
+      upper !== 'BỆNH NHÂN'
+    );
+  });
+  return nonPatientRoles.length > 0;
+};
+

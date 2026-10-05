@@ -439,6 +439,39 @@ export const equipmentApi = {
     const res = await apiClient.post(`/equipment/${id}/maintenance`, data);
     return res.data;
   },
+  create: async (data: any) => {
+    const res = await apiClient.post('/equipment', data);
+    return res.data;
+  },
+  update: async (id: string, data: any) => {
+    const res = await apiClient.patch(`/equipment/${id}`, data);
+    return res.data;
+  },
+  updateMaintenanceStatus: async (
+    logId: string,
+    data: {
+      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      findings?: string;
+      technicianName?: string;
+    },
+  ) => {
+    const res = await apiClient.patch(`/equipment/maintenance/${logId}/status`, data);
+    return res.data;
+  },
+};
+
+// Audit Logs API
+export const auditLogsApi = {
+  getAll: async (params?: {
+    module?: string;
+    search?: string;
+    timeFilter?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const res = await apiClient.get('/audit-logs', { params });
+    return res.data;
+  },
 };
 
 

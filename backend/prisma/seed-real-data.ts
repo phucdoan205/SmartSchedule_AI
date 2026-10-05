@@ -389,33 +389,12 @@ async function seedRealData() {
     });
   }
 
-  // 5. SEED BỆNH NHÂN & HÓA ĐƠN THẬT KHỚP VỚI DOANH THU 1.42 TỶ
+  // 5. LIÊN KẾT HÓA ĐƠN VỚI BỆNH NHÂN THẬT (BN26-XXXX) KHỚP VỚI DOANH THU 1.42 TỶ
   console.log('\n--- 3. Cập nhật Hóa đơn & Doanh thu khớp 1.42 tỷ ---');
 
-  const patientsData = [
-    { patientCode: 'BN-101', fullName: 'Nguyễn Văn An', phone: '0901882001', gender: 'Nam', birthYear: 1985 },
-    { patientCode: 'BN-102', fullName: 'Trần Thị Mai', phone: '0901882002', gender: 'Nu', birthYear: 1990 },
-    { patientCode: 'BN-103', fullName: 'Lê Hoàng Long', phone: '0901882003', gender: 'Nam', birthYear: 1982 },
-    { patientCode: 'BN-104', fullName: 'Phạm Minh Đức', phone: '0901882004', gender: 'Nam', birthYear: 1978 },
-    { patientCode: 'BN-105', fullName: 'Vũ Thị Hương', phone: '0901882005', gender: 'Nu', birthYear: 1993 },
-    { patientCode: 'BN-106', fullName: 'Đặng Quốc Huy', phone: '0901882006', gender: 'Nam', birthYear: 1989 },
-    { patientCode: 'BN-107', fullName: 'Hoàng Thị Yến', phone: '0901882007', gender: 'Nu', birthYear: 1995 },
-    { patientCode: 'BN-108', fullName: 'Bùi Tuấn Anh', phone: '0901882008', gender: 'Nam', birthYear: 1980 },
-    { patientCode: 'BN-109', fullName: 'Trịnh Cẩm Nhung', phone: '0901882009', gender: 'Nu', birthYear: 1992 },
-    { patientCode: 'BN-110', fullName: 'Ngô Đình Khoa', phone: '0901882010', gender: 'Nam', birthYear: 1987 },
-    { patientCode: 'BN-111', fullName: 'Đinh Thị Thu', phone: '0901882011', gender: 'Nu', birthYear: 1988 },
-    { patientCode: 'BN-112', fullName: 'Võ Minh Trí', phone: '0901882012', gender: 'Nam', birthYear: 1994 },
-  ];
-
-  const seededPatients: any[] = [];
-  for (const p of patientsData) {
-    const patient = await prisma.patient.upsert({
-      where: { patientCode: p.patientCode },
-      update: { fullName: p.fullName, phone: p.phone, gender: p.gender, birthYear: p.birthYear },
-      create: p,
-    });
-    seededPatients.push(patient);
-  }
+  const seededPatients = await prisma.patient.findMany({
+    orderBy: { patientCode: 'asc' },
+  });
 
   // Danh sách hóa đơn thật phân bổ vào 3 chi nhánh:
   // CN01: 680M tổng doanh thu, thực thu: 560M, công nợ: 120M

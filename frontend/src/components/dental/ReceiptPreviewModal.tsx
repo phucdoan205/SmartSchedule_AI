@@ -102,8 +102,8 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
   const [printSuccessToast, setPrintSuccessToast] = useState(false);
   const receiptSlipRef = useRef<HTMLDivElement>(null);
 
-  const patientName = receiptData?.patientName || 'Nguyễn Văn An';
-  const patientId = receiptData?.patientId || 'BN-104';
+  const patientName = receiptData?.patientName || 'Đoàn Văn Phúc';
+  const patientId = receiptData?.patientId || 'BN26-0001';
   const cleanPatientId = patientId.replace(/^#/, '');
   const amount = receiptData?.amount ?? 13000000;
   const description = receiptData?.description || 'Thanh toán Đợt 2 - Niềng răng Invisalign';

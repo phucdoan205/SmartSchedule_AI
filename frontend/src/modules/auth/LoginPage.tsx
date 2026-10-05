@@ -8,22 +8,10 @@ import { authApi, apiClient } from '../../services/api';
 /**
  * Trang đăng nhập thống nhất — kết nối trực tiếp API Backend & Hỗ trợ Google Login.
  */
-const INTERNAL_STAFF_ROLES = [
-  'SUPER_ADMIN',
-  'ADMIN',
-  'BRANCH_MANAGER',
-  'DOCTOR',
-  'STAFF',
-  'RECEPTIONIST',
-  'NURSE',
-  'TECHNICIAN',
-  'CLINIC_OWNER',
-  'OWNER',
-];
+import { isStaffRole } from '../../services/rolePermissionStore';
 
 const isInternalStaffRole = (roles?: string[]) => {
-  if (!roles || !Array.isArray(roles)) return false;
-  return roles.some((r) => INTERNAL_STAFF_ROLES.includes(r.toUpperCase()));
+  return isStaffRole(roles);
 };
 
 export const LoginPage: React.FC = () => {
