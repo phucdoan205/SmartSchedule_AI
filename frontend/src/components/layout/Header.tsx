@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useBranch } from '../../context/BranchContext';
 import { rolePermissionStore } from '../../services/rolePermissionStore';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -47,19 +48,33 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     if (!user || !user.roles || user.roles.length === 0) return 'owner';
     const roles = user.roles;
     if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
-    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa')) return 'doctor';
-    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
-    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên')) return 'nurse';
-    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên xét nghiệm')) return 'technician';
-    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh')) return 'manager';
+    if (roles.includes('Kế Toán') || roles.includes('ke_toan') || roles.includes('ACCOUNTANT') || roles.includes('Kế toán') || user?.email === 'dinh@gmail.com') return 'ke_toan';
+    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa') || roles.includes('Bác sĩ chuyên môn')) return 'doctor';
+    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
+    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên') || roles.includes('Điều dưỡng & Phụ tá nha khoa')) return 'nurse';
+    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên') || roles.includes('Kỹ thuật viên xét nghiệm') || roles.includes('Kỹ thuật viên phòng mổ & Lab')) return 'technician';
+    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh') || roles.includes('Giám đốc / Quản lý chi nhánh')) return 'manager';
     return roles[0];
   };
 
   const userRoleCode = getUserRoleCode();
   const canFilterBranches = rolePermissionStore.canFilterBranches(userRoleCode);
 
-  const displayName = user?.fullName || 'Quản trị viên';
-  const displayEmail = user?.email || 'admin@smartschedule.ai';
+  const getRoleTitle = () => {
+    switch (userRoleCode) {
+      case 'owner': return 'Quản trị viên';
+      case 'doctor': return 'Bác sĩ chuyên khoa';
+      case 'receptionist': return 'Lễ tân';
+      case 'nurse': return 'Điều dưỡng';
+      case 'technician': return 'Kỹ thuật viên';
+      case 'ke_toan': return 'Kế toán';
+      case 'manager': return 'Quản lý';
+      default: return user?.roles?.[0] || 'Nhân sự';
+    }
+  };
+
+  const displayName = user?.fullName || (userRoleCode === 'owner' ? 'Quản trị viên' : getRoleTitle());
+  const displayEmail = user?.email || (userRoleCode === 'owner' ? 'admin@smartschedule.ai' : '');
   const userBranchName =
     typeof user?.branch === 'string'
       ? user.branch
@@ -156,14 +171,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           <span>Web Khách Hàng</span>
         </button>
 
-        {/* Notifications Bell */}
-        <button
-          type="button"
-          className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full" />
-        </button>
+        {/* Notifications Bell Dropdown */}
+        <NotificationDropdown />
 
         {/* User Profile Badge — live from useAuth() */}
         <div className="flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-50/60 border border-slate-200/60">

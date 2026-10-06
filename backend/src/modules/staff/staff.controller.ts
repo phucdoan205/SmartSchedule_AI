@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
 import { StaffService } from './staff.service.js';
 
@@ -93,6 +94,7 @@ export class StaffController {
 
   @Post()
   async createStaff(
+    @Req() req: any,
     @Body()
     body: {
       employeeCode: string;
@@ -108,7 +110,8 @@ export class StaffController {
       bio?: string;
     },
   ) {
-    return this.staffService.createStaff(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.staffService.createStaff(body, userId);
   }
 
   @Get(':id')
@@ -119,12 +122,14 @@ export class StaffController {
   @Patch(':id')
   async updateStaff(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       fullName?: string;
       email?: string;
       phone?: string;
       branchId?: string;
+      roleName?: string;
       specialty?: string;
       experienceYears?: number;
       bio?: string;
@@ -137,7 +142,8 @@ export class StaffController {
       lunchBreak?: string;
     },
   ) {
-    return this.staffService.updateStaff(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.staffService.updateStaff(id, body, userId);
   }
 }
 

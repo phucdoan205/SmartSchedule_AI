@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service.js';
 
@@ -15,6 +16,7 @@ export class AppointmentsController {
 
   @Post('book')
   async bookAppointment(
+    @Req() req: any,
     @Body()
     body: {
       patientName: string;
@@ -33,7 +35,8 @@ export class AppointmentsController {
       isAiRecommended?: boolean;
     },
   ) {
-    return this.appointmentsService.bookAppointment(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.appointmentsService.bookAppointment(body, userId);
   }
 
   @Get()
@@ -60,8 +63,9 @@ export class AppointmentsController {
   }
 
   @Post('check-in-qr')
-  async checkInByQr(@Body() body: { qrPassCode: string }) {
-    return this.appointmentsService.checkInByQr(body.qrPassCode);
+  async checkInByQr(@Req() req: any, @Body() body: { qrPassCode: string }) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.appointmentsService.checkInByQr(body.qrPassCode, userId);
   }
 
   @Get(':id')
@@ -72,19 +76,23 @@ export class AppointmentsController {
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
+    @Req() req: any,
     @Body() body: { status: string; reason?: string; changedBy?: string },
   ) {
+    const userId = req.user?.sub || req.user?.id;
     return this.appointmentsService.updateStatus(
       id,
       body.status,
       body.reason,
       body.changedBy,
+      userId,
     );
   }
 
   @Patch(':id')
   async updateAppointment(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       patientName?: string;
@@ -106,6 +114,8 @@ export class AppointmentsController {
       changedBy?: string;
     },
   ) {
-    return this.appointmentsService.updateAppointment(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.appointmentsService.updateAppointment(id, body, userId);
   }
 }
+

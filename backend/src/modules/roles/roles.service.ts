@@ -1,5 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 export interface RoleDto {
   id?: string;
@@ -10,11 +12,19 @@ export interface RoleDto {
 }
 
 @Injectable()
-export class RolesService {
-  constructor(private readonly prisma: PrismaService) {}
+export class RolesService implements OnModuleInit {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  async onModuleInit() {
+    await this.ensureDefaultRoles();
+  }
 
   // Initial seed of default system roles if they do not exist
-  private async ensureDefaultRoles() {
+  public async ensureDefaultRoles() {
     const defaultRoles = [
       { name: 'SUPER_ADMIN', description: 'Chủ phòng khám (Toàn quyền hệ thống)' },
       { name: 'DOCTOR', description: 'Bác sĩ chuyên khoa (Khám chữa bệnh & EMR)' },
@@ -31,6 +41,35 @@ export class RolesService {
           data: {
             name: r.name,
             description: r.description,
+          },
+        });
+      }
+    }
+
+    // Đảm bảo tài khoản admin luôn có vai trò SUPER_ADMIN
+    const superAdminRole = await this.prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' } });
+    if (superAdminRole) {
+      const adminUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: 'admin@smartschedule.ai' },
+            { employeeCode: 'NV-ADMIN' },
+          ],
+        },
+      });
+
+      if (adminUser) {
+        await this.prisma.userRole.upsert({
+          where: {
+            userId_roleId: {
+              userId: adminUser.id,
+              roleId: superAdminRole.id,
+            },
+          },
+          update: {},
+          create: {
+            userId: adminUser.id,
+            roleId: superAdminRole.id,
           },
         });
       }
@@ -65,7 +104,7 @@ export class RolesService {
     }));
   }
 
-  async createRole(data: { name: string; description?: string }) {
+  async createRole(data: { name: string; description?: string }, operatorUserId?: string) {
     if (!data.name || !data.name.trim()) {
       throw new BadRequestException('Tên chức vụ / vai trò không được để trống');
     }
@@ -87,6 +126,27 @@ export class RolesService {
       },
     });
 
+    const finalUserId = operatorUserId || undefined;
+
+    await this.auditLogsService.log({
+      userId: finalUserId,
+      module: 'RBAC_SECURITY',
+      action: `Tạo chức danh / vai trò mới: ${role.name}`,
+      details: `Đã thêm vai trò mới "${role.name}" (${role.description || 'Không có mô tả'}).`,
+      targetEntity: role.name,
+      status: 'SUCCESS',
+    });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Tạo vai trò thành công',
+        content: `Bạn đã tạo vai trò "${role.name}" trong hệ thống phân quyền.`,
+        type: 'ROLE_CHANGE',
+        link: '/admin/settings',
+      });
+    }
+
     return {
       success: true,
       data: {
@@ -98,7 +158,7 @@ export class RolesService {
     };
   }
 
-  async updateRole(id: string, data: { name?: string; description?: string }) {
+  async updateRole(id: string, data: { name?: string; description?: string }, operatorUserId?: string) {
     let targetId = id;
     const role = await this.prisma.role.findUnique({
       where: { id: targetId },
@@ -149,6 +209,27 @@ export class RolesService {
       },
     });
 
+    const finalUserId = operatorUserId || undefined;
+
+    await this.auditLogsService.log({
+      userId: finalUserId,
+      module: 'RBAC_SECURITY',
+      action: `Cập nhật vai trò hệ thống: ${updated.name}`,
+      details: `Thay đổi thông tin vai trò ${updated.name}. Số nhân sự trực thuộc: ${updated._count.userRoles}.`,
+      targetEntity: updated.name,
+      status: 'SUCCESS',
+    });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Cập nhật vai trò hệ thống',
+        content: `Vai trò "${updated.name}" đã được cập nhật thành công.`,
+        type: 'ROLE_CHANGE',
+        link: '/admin/settings',
+      });
+    }
+
     return {
       success: true,
       message: 'Cập nhật chức vụ thành công! Các nhân sự thuộc chức vụ này đã được đồng bộ tự động.',
@@ -162,7 +243,7 @@ export class RolesService {
     };
   }
 
-  async saveMatrix(matrix: Record<string, string[]>) {
+  async saveMatrix(matrix: Record<string, string[]>, operatorUserId?: string) {
     const codeToRoleName: Record<string, string> = {
       owner: 'SUPER_ADMIN',
       doctor: 'DOCTOR',
@@ -216,6 +297,27 @@ export class RolesService {
           },
         });
       }
+    }
+
+    const finalUserId = operatorUserId || undefined;
+
+    await this.auditLogsService.log({
+      userId: finalUserId,
+      module: 'RBAC_SECURITY',
+      action: 'Cập nhật ma trận phân quyền RBAC hệ thống',
+      details: `Đã thiết lập lại ma trận quyền truy cập cho ${Object.keys(matrix).length} vai trò nghiệp vụ.`,
+      targetEntity: 'RBAC_MATRIX',
+      status: 'SUCCESS',
+    });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Phân quyền RBAC đã được cập nhật',
+        content: 'Ma trận phân quyền hệ thống vừa được lưu và áp dụng cho toàn bộ nhân sự.',
+        type: 'ROLE_CHANGE',
+        link: '/admin/settings',
+      });
     }
 
     return {

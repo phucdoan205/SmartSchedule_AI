@@ -6,11 +6,31 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { generatePatientCode, generateAppointmentCode } from '../../common/utils/code-generator.util.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import crypto from 'crypto';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private getStatusLabelVi(status: string): string {
+    const map: Record<string, string> = {
+      PENDING: 'Chờ khám & Check-in',
+      CHECKED_IN: 'Đã Check-in tại phòng khám',
+      CONFIRMED: 'Đã xác nhận lịch hẹn',
+      IN_PROGRESS: 'Đang thực hiện điều trị',
+      COMPLETED: 'Hoàn thành & Thanh toán',
+      CANCELLED: 'Đã hủy lịch hẹn',
+      NO_SHOW: 'Không đến hẹn',
+    };
+    return map[status] || status;
+  }
+
 
   async bookAppointment(data: {
     patientName: string;
@@ -27,7 +47,7 @@ export class AppointmentsService {
     durationMinutes?: number;
     notes?: string;
     isAiRecommended?: boolean;
-  }) {
+  }, operatorUserId?: string) {
     const start = new Date(data.startTime);
     if (isNaN(start.getTime())) {
       throw new BadRequestException('Thời gian bắt đầu không hợp lệ');
@@ -38,7 +58,7 @@ export class AppointmentsService {
     // Buffer vô trùng: thêm đúng 15 phút sau khi kết thúc
     const bufferEnd = new Date(end.getTime() + 15 * 60 * 1000);
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       // 1. Kiểm tra trạng thái của ghế khám (Operatory Chair)
       const chair = await tx.operatoryChair.findUnique({
         where: { id: data.chairId },
@@ -193,6 +213,17 @@ export class AppointmentsService {
 
       return appointment;
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'APPOINTMENTS',
+      action: `Đặt mới lịch hẹn khám: ${created.appointmentCode} (${created.patient?.fullName || 'Bệnh nhân'})`,
+      details: `Lịch hẹn mới mã ${created.appointmentCode} cho bệnh nhân ${created.patient?.fullName}. Bác sĩ: ${created.doctor?.fullName || 'Chưa chỉ định'}. Thời gian khám: ${new Date(created.startTime).toLocaleString('vi-VN')}.`,
+      targetEntity: created.appointmentCode,
+      status: 'SUCCESS',
+    });
+
+    return created;
   }
 
   async findAll(query?: {
@@ -256,7 +287,7 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async checkInByQr(qrPassCode: string) {
+  async checkInByQr(qrPassCode: string, operatorUserId?: string) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { qrPassCode },
       include: {
@@ -293,6 +324,15 @@ export class AppointmentsService {
       },
     });
 
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'APPOINTMENTS',
+      action: `Bệnh nhân Check-in QR: ${updated.appointmentCode} (${updated.patient?.fullName || 'Bệnh nhân'})`,
+      details: `Bệnh nhân quét mã QR Pass Code tại Kiosk thành công, chuyển sang trạng thái [Đã Check-in tại phòng khám].`,
+      targetEntity: updated.appointmentCode,
+      status: 'SUCCESS',
+    });
+
     return {
       success: true,
       message: 'Check-in thành công tại Kiosk',
@@ -300,7 +340,13 @@ export class AppointmentsService {
     };
   }
 
-  async updateStatus(id: string, status: string, reason?: string, changedBy?: string) {
+  async updateStatus(
+    id: string,
+    status: string,
+    reason?: string,
+    changedBy?: string,
+    operatorUserId?: string,
+  ) {
     const appointment = await this.prisma.appointment.findFirst({
       where: {
         OR: [
@@ -308,13 +354,20 @@ export class AppointmentsService {
           { appointmentCode: id },
         ],
       },
+      include: {
+        patient: true,
+        doctor: true,
+      },
     });
 
     if (!appointment) {
       throw new NotFoundException(`Lịch hẹn ${id} không tồn tại`);
     }
 
-    return this.prisma.appointment.update({
+    const fromLabel = this.getStatusLabelVi(appointment.status);
+    const toLabel = this.getStatusLabelVi(status);
+
+    const updated = await this.prisma.appointment.update({
       where: { id: appointment.id },
       data: {
         status,
@@ -322,7 +375,7 @@ export class AppointmentsService {
           create: {
             fromStatus: appointment.status,
             toStatus: status,
-            reason: reason || `Cập nhật trạng thái sang ${status}`,
+            reason: reason || `Cập nhật trạng thái sang ${toLabel}`,
             changedBy,
           },
         },
@@ -333,6 +386,30 @@ export class AppointmentsService {
         chair: true,
       },
     });
+
+    const patientName = updated.patient?.fullName || 'Bệnh nhân';
+    const actionByText = changedBy ? `Người thực hiện: ${changedBy}.` : '';
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'APPOINTMENTS',
+      action: `Cập nhật trạng thái lịch hẹn: ${updated.appointmentCode} (${patientName}) -> ${toLabel}`,
+      details: `Chuyển trạng thái lịch hẹn từ [${fromLabel}] sang [${toLabel}]. Lý do: ${reason || 'Thao tác cập nhật từ bảng điều phối lịch hẹn'}. ${actionByText}`.trim(),
+      targetEntity: updated.appointmentCode,
+      status: 'SUCCESS',
+    });
+
+    if (operatorUserId) {
+      await this.notificationsService.create({
+        userId: operatorUserId,
+        title: 'Cập nhật trạng thái lịch hẹn',
+        content: `Lịch hẹn ${updated.appointmentCode} của bệnh nhân ${patientName} đã chuyển sang trạng thái "${toLabel}".`,
+        type: 'APPOINTMENT',
+        link: '/admin/appointments',
+      });
+    }
+
+    return updated;
   }
 
   async getAvailableSlots(branchId: string, dateStr: string, durationMinutes: number = 60) {
@@ -401,6 +478,7 @@ export class AppointmentsService {
       editReason?: string;
       changedBy?: string;
     },
+    operatorUserId?: string,
   ) {
     const existing = await this.prisma.appointment.findFirst({
       where: {
@@ -463,7 +541,7 @@ export class AppointmentsService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       // 1. Kiểm tra ghế điều trị (nếu có thay đổi giờ hoặc ghế hoặc chi nhánh)
       if (data.startTime || data.chairId || data.branchId) {
         const chair = await tx.operatoryChair.findUnique({
@@ -628,5 +706,30 @@ export class AppointmentsService {
 
       return updated;
     });
+
+    const patientName = updated.patient?.fullName || 'Bệnh nhân';
+    const actionByText = data.changedBy ? `Người cập nhật: ${data.changedBy}.` : '';
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'APPOINTMENTS',
+      action: `Điều chỉnh thông tin lịch hẹn: ${updated.appointmentCode} (${patientName})`,
+      details: `Cập nhật chi tiết lịch hẹn ${updated.appointmentCode}. Lý do: ${data.editReason || 'Cập nhật thông tin dịch vụ / thời gian'}. ${actionByText}`.trim(),
+      targetEntity: updated.appointmentCode,
+      status: 'SUCCESS',
+    });
+
+    if (operatorUserId) {
+      await this.notificationsService.create({
+        userId: operatorUserId,
+        title: 'Cập nhật lịch hẹn thành công',
+        content: `Thông tin lịch hẹn ${updated.appointmentCode} của bệnh nhân ${patientName} đã được lưu thành công.`,
+        type: 'APPOINTMENT',
+        link: '/admin/appointments',
+      });
+    }
+
+    return updated;
   }
 }
+

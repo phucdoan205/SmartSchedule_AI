@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import {
   DEFAULT_SERVICE_CATEGORIES,
   DEFAULT_SERVICES_DATA,
@@ -7,7 +8,10 @@ import {
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   /**
    * Tự động bù đắp dữ liệu mặc định từ 4 ảnh bảng giá nếu database chưa đủ dữ liệu
@@ -162,20 +166,23 @@ export class ServicesService {
   /**
    * Thêm mới 1 dịch vụ - Lưu trực tiếp vĩnh viễn vào Database
    */
-  async create(data: {
-    categoryId?: string;
-    categoryName?: string;
-    code: string;
-    name: string;
-    standardPrice: number;
-    deposit?: number;
-    warranty?: string;
-    durationMinutes?: number;
-    description?: string;
-    imageUrl?: string | null;
-    isAiRecommended?: boolean;
-    isActive?: boolean;
-  }) {
+  async create(
+    data: {
+      categoryId?: string;
+      categoryName?: string;
+      code: string;
+      name: string;
+      standardPrice: number;
+      deposit?: number;
+      warranty?: string;
+      durationMinutes?: number;
+      description?: string;
+      imageUrl?: string | null;
+      isAiRecommended?: boolean;
+      isActive?: boolean;
+    },
+    operatorUserId?: string,
+  ) {
     let categoryId = data.categoryId;
 
     // Nếu không có categoryId nhưng có categoryName hoặc categoryId là tên danh mục
@@ -201,7 +208,7 @@ export class ServicesService {
       }
     }
 
-    return this.prisma.service.create({
+    const created = await this.prisma.service.create({
       data: {
         categoryId,
         code: data.code,
@@ -219,6 +226,17 @@ export class ServicesService {
         category: true,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'SERVICES',
+      action: `Thêm mới dịch vụ khám điều trị: ${created.name} (${created.code})`,
+      details: `Khởi tạo dịch vụ bảng giá ${created.code}. Đơn giá: ${Number(created.standardPrice).toLocaleString('vi-VN')} VNĐ. Thời lượng: ${created.durationMinutes} phút.`,
+      targetEntity: created.code,
+      status: 'SUCCESS',
+    });
+
+    return created;
   }
 
   /**
@@ -239,22 +257,46 @@ export class ServicesService {
       isActive?: boolean;
       isAiRecommended?: boolean;
     },
+    operatorUserId?: string,
   ) {
-    return this.prisma.service.update({
+    const updated = await this.prisma.service.update({
       where: { id },
       data,
       include: {
         category: true,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'SERVICES',
+      action: `Cập nhật dịch vụ / bảng giá: ${updated.name} (${updated.code})`,
+      details: `Điều chỉnh thông tin dịch vụ mã ${updated.code}. Giá: ${Number(updated.standardPrice).toLocaleString('vi-VN')} VNĐ. Trạng thái: ${updated.isActive ? 'Đang kích hoạt' : 'Tạm ẩn'}.`,
+      targetEntity: updated.code,
+      status: 'SUCCESS',
+    });
+
+    return updated;
   }
 
   /**
    * Xóa vĩnh viễn 1 dịch vụ khỏi Database
    */
-  async delete(id: string) {
-    return this.prisma.service.delete({
+  async delete(id: string, operatorUserId?: string) {
+    const deleted = await this.prisma.service.delete({
       where: { id },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'SERVICES',
+      action: `Xóa dịch vụ khỏi hệ thống: ${deleted.name} (${deleted.code})`,
+      details: `Đã xóa dịch vụ ${deleted.name} (${deleted.code}) khỏi cơ sở dữ liệu.`,
+      targetEntity: deleted.code,
+      status: 'SUCCESS',
+    });
+
+    return deleted;
   }
 }
+

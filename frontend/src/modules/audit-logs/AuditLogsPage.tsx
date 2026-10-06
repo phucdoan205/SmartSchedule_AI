@@ -2,11 +2,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   ScrollText, Filter, Download, Search, Calendar, User,
   Laptop, ChevronDown, CheckCircle2, AlertTriangle, XCircle,
-  Clock, Shield, Tag, Loader2, ArrowRight
+  Clock, Shield, Tag, Loader2, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { Tabs, type TabItem } from '../../components/common/Tabs';
 import { auditLogsApi } from '../../services/api';
 import { toast } from '../../context/ToastContext';
+import { exportToExcel } from '../../utils/excelExport';
+
+interface ChildAction {
+  id: string;
+  logCode: string;
+  action: string;
+  time: string;
+  status: string;
+  targetEntity?: string;
+  details?: string;
+}
+
+interface MasterGroupLog {
+  id: string;
+  logCode: string;
+  createdAt: string;
+  date: string;
+  module: string;
+  user: any;
+  actionsCount: number;
+  actions: ChildAction[];
+}
 
 export const AuditLogsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -15,24 +37,30 @@ export const AuditLogsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<MasterGroupLog[]>([]);
   const [pagination, setPagination] = useState({
     total: 0,
+    totalActions: 0,
     page: 1,
     limit: 10,
     totalPages: 1,
   });
 
-  // Accordion: Chỉ mở 1 dòng duy nhất, bấm sang người khác tự động thu gọn người đang xem
+  // Accordion: Chỉ mở 1 dòng chi tiết tại một thời điểm
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
+  // Danh sách các mô-đun lọc linh hoạt theo toàn bộ hệ thống
   const tabs: TabItem[] = [
     { id: 'all', label: 'Tất Cả Nhật Ký' },
     { id: 'APPOINTMENTS', label: 'Lịch Hẹn & Ca Khám' },
     { id: 'EMR', label: 'Hồ Sơ & Bệnh Án' },
     { id: 'FINANCE', label: 'Tài Chính & Thu Chi' },
     { id: 'EQUIPMENT', label: 'Thiết Bị Y Tế' },
-    { id: 'RBAC_SECURITY', label: 'Bác Sĩ & Phân Quyền' },
+    { id: 'RBAC_SECURITY', label: 'Phân Quyền & Bảo Mật' },
+    { id: 'STAFF', label: 'Nhân Sự & Lương Bổng' },
+    { id: 'SERVICES', label: 'Dịch Vụ & Bảng Giá' },
+    { id: 'BRANCHES', label: 'Chi Nhánh & Cơ Sở' },
+    { id: 'SYSTEM', label: 'Cấu Hình Hệ Thống' },
   ];
 
   const loadAuditLogs = useCallback(async () => {
@@ -43,7 +71,7 @@ export const AuditLogsPage: React.FC = () => {
         timeFilter: timeFilter !== 'all' ? timeFilter : undefined,
         search: searchQuery.trim() || undefined,
         page: currentPage,
-        limit: 10,
+        limit: 10, // Chuẩn 10 log tổng bên ngoài mỗi trang
       });
 
       if (res?.data) {
@@ -69,12 +97,12 @@ export const AuditLogsPage: React.FC = () => {
     loadAuditLogs();
   }, [loadAuditLogs]);
 
-  // Handle accordion toggle (chỉ mở 1 người tại một thời điểm)
+  // Handle accordion toggle
   const toggleRow = (id: string) => {
     setExpandedLogId((prev) => (prev === id ? null : id));
   };
 
-  // Format date helper (chỉ ngày ngoài bảng)
+  // Format date helper (DD/MM/YYYY cho dòng tổng bên ngoài)
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Hôm nay';
     const d = new Date(dateStr);
@@ -85,92 +113,22 @@ export const AuditLogsPage: React.FC = () => {
     });
   };
 
-  // Format only time (HH:mm:ss) cho từng hành động con bên trong
-  const formatTimeOnly = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-  };
-
   // Lấy vai trò hiển thị thân thiện, liên kết trực tiếp với vai trò thật của tài khoản
   const getStaffDisplayRole = (logUser?: any) => {
-    if (!logUser) return 'Hệ thống AI Core';
+    if (!logUser) return 'Hệ thống SmartSchedule AI Engine';
     const rawRole = logUser.userRoles?.[0]?.role?.name || '';
     const upper = rawRole.toUpperCase();
-    if (upper === 'SUPER_ADMIN' || upper === 'CLINIC_OWNER' || upper === 'OWNER') return 'Chủ phòng khám';
-    if (upper === 'DOCTOR') return 'Bác sĩ chuyên khoa';
-    if (upper === 'RECEPTIONIST') return 'Lễ tân phòng khám';
-    if (upper === 'NURSE') return 'Điều dưỡng viên';
-    if (upper === 'TECHNICIAN') return 'Kỹ thuật viên xét nghiệm';
-    if (upper === 'BRANCH_MANAGER' || upper === 'MANAGER') return 'Quản lý chi nhánh';
-    if (rawRole) return rawRole; // e.g. "Kế Toán"
-    return 'Nhân viên y tế';
+    if (upper === 'SUPER_ADMIN' || upper === 'CLINIC_OWNER' || upper === 'OWNER' || upper.includes('CHỦ PHÒNG KHÁM')) return 'Chủ phòng khám';
+    if (upper.includes('DOCTOR') || upper.includes('BÁC SĨ')) return 'Bác sĩ chuyên khoa';
+    if (upper.includes('RECEPTIONIST') || upper.includes('LỄ TÂN')) return 'Lễ tân phòng khám';
+    if (upper.includes('NURSE') || upper.includes('ĐIỀU DƯỠNG')) return 'Điều dưỡng viên';
+    if (upper === 'TECHNICIAN' || upper.includes('KỸ THUẬT') || upper.includes('KTV')) return 'Kỹ thuật viên';
+    if (upper.includes('BRANCH_MANAGER') || upper.includes('MANAGER') || upper.includes('QUẢN LÝ')) return 'Quản lý chi nhánh';
+    if (upper.includes('KẾ TOÁN') || upper.includes('ACCOUNTANT')) return 'Kế toán viên';
+    if (rawRole) return rawRole;
+    return 'Nhân sự phòng khám';
   };
 
-  // Gom nhóm nhật ký: Nếu cùng Ngày + Mô-đun + Người thực hiện thì gom thành 1 nhật ký với nhiều hành động con
-  interface AuditLogChildAction {
-    id: string;
-    logCode?: string;
-    action: string;
-    time: string;
-    createdAt: string;
-    status: string;
-    targetEntity?: string;
-  }
-
-  interface GroupedAuditLog {
-    id: string;
-    logCode: string;
-    createdAt: string;
-    module: string;
-    user: any;
-    actions: AuditLogChildAction[];
-  }
-
-  const groupedLogs = React.useMemo<GroupedAuditLog[]>(() => {
-    const groups: GroupedAuditLog[] = [];
-    const map = new Map<string, GroupedAuditLog>();
-
-    logs.forEach((item) => {
-      const dateKey = new Date(item.createdAt).toISOString().slice(0, 10);
-      const modKey = (item.module || '').toUpperCase();
-      const userKey = item.userId || 'system';
-      const groupKey = `${dateKey}_${modKey}_${userKey}`;
-
-      const childAction: AuditLogChildAction = {
-        id: item.id,
-        logCode: item.logCode,
-        action: item.action,
-        time: formatTimeOnly(item.createdAt),
-        createdAt: item.createdAt,
-        status: item.status || 'SUCCESS',
-        targetEntity: item.targetEntity,
-      };
-
-      if (map.has(groupKey)) {
-        const g = map.get(groupKey)!;
-        g.actions.push(childAction);
-      } else {
-        const newGroup: GroupedAuditLog = {
-          id: item.id,
-          logCode: item.logCode || item.id,
-          createdAt: item.createdAt,
-          module: item.module,
-          user: item.user,
-          actions: [childAction],
-        };
-        map.set(groupKey, newGroup);
-        groups.push(newGroup);
-      }
-    });
-
-    return groups;
-  }, [logs]);
 
   // Module badge style
   const getModuleBadge = (mod?: string) => {
@@ -190,6 +148,15 @@ export const AuditLogsPage: React.FC = () => {
     if (m.includes('RBAC') || m.includes('SECURITY')) {
       return 'bg-rose-50 text-rose-700 border-rose-200';
     }
+    if (m.includes('STAFF')) {
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    }
+    if (m.includes('SERVICE')) {
+      return 'bg-teal-50 text-teal-700 border-teal-200';
+    }
+    if (m.includes('BRANCH')) {
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
@@ -198,89 +165,121 @@ export const AuditLogsPage: React.FC = () => {
     const s = (status || 'SUCCESS').toUpperCase();
     if (s === 'SUCCESS') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
           <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Thành công
         </span>
       );
     }
     if (s === 'WARNING') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
           <AlertTriangle className="w-3 h-3 text-amber-500" /> Cảnh báo
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 shrink-0">
         <XCircle className="w-3 h-3 text-red-500" /> Thất bại
       </span>
     );
   };
 
-  // Export CSV
-  const handleExportCsv = () => {
-    if (logs.length === 0) {
-      toast('Không có dữ liệu để xuất file', 'info');
+  // Export Excel
+  const handleExport = () => {
+    if (!logs || logs.length === 0) {
+      toast('Không có dữ liệu nhật ký để xuất', 'info');
       return;
     }
-    const headers = ['Mã Log', 'Thời gian', 'Người thực hiện', 'Mô-đun', 'Hành động', 'Chi tiết', 'Đối tượng', 'Trạng thái', 'IP'];
-    const rows = logs.map((l) => [
-      l.logCode || l.id,
-      new Date(l.createdAt).toLocaleString('vi-VN'),
-      l.user?.fullName || 'Hệ thống SmartSchedule AI Engine',
-      l.module,
-      `"${(l.action || '').replace(/"/g, '""')}"`,
-      `"${(l.details || '').replace(/"/g, '""')}"`,
-      l.targetEntity || '',
-      l.status || 'SUCCESS',
-      l.ipAddress || '',
-    ]);
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Audit_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast('Đã xuất file nhật ký log (.CSV) thành công!', 'success');
+    const flatRows: any[] = [];
+    logs.forEach((group) => {
+      const groupDate = formatDate(group.createdAt);
+      const userName = group.user?.fullName || 'Hệ thống SmartSchedule AI Engine';
+      const userRole = getStaffDisplayRole(group.user);
+      const empCode = group.user?.employeeCode || '-';
+
+      group.actions.forEach((act) => {
+        flatRows.push({
+          'Mã Log': act.logCode || group.logCode,
+          'Ngày': groupDate,
+          'Giờ': act.time,
+          'Mô-đun': group.module,
+          'Hành động': act.action,
+          'Đối tượng tác động': act.targetEntity || '-',
+          'Chi tiết': act.details || '-',
+          'Người thực hiện': userName,
+          'Mã nhân sự': empCode,
+          'Vai trò': userRole,
+          'Trạng thái': act.status || 'SUCCESS',
+        });
+      });
+    });
+
+    exportToExcel(flatRows, `Nhat_Ky_He_Thong_${new Date().toISOString().slice(0, 10)}`);
+    toast('Đã xuất báo cáo nhật ký kiểm toán thành công', 'success');
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-            <ScrollText className="w-5 h-5 text-indigo-600" /> Nhật Ký Truy Cập &amp; Thao Tác Hệ Thống (Audit Logs)
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Ghi lại toàn bộ lịch sử thao tác của bác sĩ, nhân viên, thay đổi bệnh án &amp; tiến trình AI từ cơ sở dữ liệu thật
-          </p>
-        </div>
+    <div className="space-y-5">
+      {/* Top Header Card */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold border border-sky-200/80 uppercase tracking-wider flex items-center gap-1.5">
+                <ScrollText className="w-3.5 h-3.5" />
+                Audit Logs Enterprise
+              </span>
+              <span className="text-xs text-slate-400 font-medium">
+                • Cập nhật tự động thời gian thực
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+              Nhật Ký Kiểm Toán &amp; Thao Tác Hệ Thống
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Toàn bộ dữ liệu thay đổi trên mọi mô-đun được gom nhóm theo phiên làm việc, chuẩn bảo mật Y Tế &amp; RBAC.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 font-bold text-xs text-slate-700 rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-        >
-          <Download className="w-4 h-4 text-sky-600" /> Xuất File Nhật Ký Log
-        </button>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={loadAuditLogs}
+              disabled={loading}
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer"
+              title="Làm mới dữ liệu"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-sky-600' : ''}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExport}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Xuất Báo Cáo Excel</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Switcher & Time Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      {/* Filter Toolbar: Tabs phân hệ & Bộ lọc thời gian */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Scrollable Tabs */}
+          <div className="flex-1 overflow-x-auto pb-1 lg:pb-0">
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+          </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          {/* Time Filter */}
+          <div className="flex items-center gap-2 shrink-0">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-700 focus:outline-none cursor-pointer"
+              className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 cursor-pointer"
             >
               <option value="all">Tất cả thời gian</option>
               <option value="today">Hôm nay</option>
@@ -290,10 +289,8 @@ export const AuditLogsPage: React.FC = () => {
         </div>
 
         {/* Search input */}
-        <div className="relative pt-1">
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pt-1 pointer-events-none">
-            <Search className="w-4 h-4" />
-          </div>
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -301,13 +298,13 @@ export const AuditLogsPage: React.FC = () => {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Tìm theo Mã log, tên nhân sự, đối tượng tác động hoặc hành động..."
-            className="w-full pl-10 pr-4 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500 bg-slate-50 font-medium"
+            placeholder="Tìm theo Mã log (LOG-YYYY-XXXX), tên nhân sự, đối tượng tác động hoặc hành động..."
+            className="w-full pl-10 pr-4 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-500 bg-slate-50 font-medium placeholder:text-slate-400"
           />
         </div>
       </div>
 
-      {/* Accordion Log Table: Không còn cột Trạng thái bên ngoài, gom nhóm mô-đun */}
+      {/* Log Table: 1 trang hiển thị chuẩn 10 LOG TỔNG bên ngoài */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -316,13 +313,13 @@ export const AuditLogsPage: React.FC = () => {
                 <th className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[150px] whitespace-nowrap">
                   Mã log &amp; Ngày
                 </th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[200px]">
+                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[220px]">
                   Nhân sự thực hiện
                 </th>
-                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[150px] whitespace-nowrap">
+                <th className="px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[200px] whitespace-nowrap">
                   Phân loại mô-đun
                 </th>
-                <th className="px-5 py-3.5 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[120px] whitespace-nowrap">
+                <th className="px-5 py-3.5 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wide min-w-[130px] whitespace-nowrap">
                   Thao tác
                 </th>
               </tr>
@@ -332,35 +329,36 @@ export const AuditLogsPage: React.FC = () => {
                 <tr>
                   <td colSpan={4} className="px-5 py-12 text-center text-slate-400">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-sky-600 mb-2" />
-                    Đang tải nhật ký truy cập &amp; thao tác hệ thống từ cơ sở dữ liệu...
+                    Đang tải nhật ký kiểm toán hệ thống từ cơ sở dữ liệu...
                   </td>
                 </tr>
-              ) : groupedLogs.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-5 py-12 text-center text-slate-400 text-xs font-semibold">
-                    Không tìm thấy bản ghi nhật ký nào phù hợp.
+                    Không tìm thấy bản ghi nhật ký nào phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
-                groupedLogs.map((group) => {
+                logs.map((group) => {
                   const isExpanded = expandedLogId === group.id;
                   const userName = group.user?.fullName || 'Hệ thống SmartSchedule AI Engine';
                   const userRole = getStaffDisplayRole(group.user);
                   const employeeCode = group.user?.employeeCode ? `(${group.user.employeeCode})` : '';
+                  const logCode = group.logCode || group.id;
 
                   return (
                     <React.Fragment key={group.id}>
-                      {/* Collapsed Main Row (Không có cột trạng thái bên ngoài) */}
+                      {/* Collapsed Main Row: Log Tổng bên ngoài */}
                       <tr
                         onClick={() => toggleRow(group.id)}
                         className={`cursor-pointer transition-colors ${
                           isExpanded ? 'bg-sky-50/50' : 'hover:bg-slate-50/70'
                         }`}
                       >
-                        {/* Cột 1: Mã Log & Ngày */}
+                        {/* Cột 1: Mã Log đại diện & Ngày ngoài bảng */}
                         <td className="px-5 py-4 whitespace-nowrap">
                           <span className="font-extrabold text-sky-700 bg-sky-50 border border-sky-100/90 px-2.5 py-1 rounded-lg text-xs tracking-wide inline-block">
-                            {group.logCode}
+                            {logCode}
                           </span>
                           <p className="text-[11px] text-slate-500 font-semibold mt-1.5 flex items-center gap-1.5">
                             <Calendar className="w-3 h-3 text-slate-400" />
@@ -371,8 +369,14 @@ export const AuditLogsPage: React.FC = () => {
                         {/* Cột 2: Tên nhân sự & vai trò thật */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 font-bold text-xs">
-                              {group.user ? (
+                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 font-bold text-xs overflow-hidden">
+                              {group.user?.avatarUrl ? (
+                                <img
+                                  src={group.user.avatarUrl}
+                                  alt={userName}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : group.user ? (
                                 <User className="w-4 h-4 text-slate-500" />
                               ) : (
                                 <Laptop className="w-4 h-4 text-indigo-500" />
@@ -381,7 +385,11 @@ export const AuditLogsPage: React.FC = () => {
                             <div>
                               <p className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
                                 {userName}
-                                <span className="text-[10px] text-slate-400 font-normal">{employeeCode}</span>
+                                {employeeCode && (
+                                  <span className="text-[10px] text-slate-400 font-normal">
+                                    {employeeCode}
+                                  </span>
+                                )}
                               </p>
                               <p className="text-[10px] font-semibold text-slate-500 mt-0.5">
                                 {userRole}
@@ -400,15 +408,15 @@ export const AuditLogsPage: React.FC = () => {
                             >
                               {group.module}
                             </span>
-                            {group.actions.length > 1 && (
+                            {group.actionsCount > 1 && (
                               <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                                {group.actions.length} hành động
+                                {group.actionsCount} hành động
                               </span>
                             )}
                           </div>
                         </td>
 
-                        {/* Cột 4: Nút mở rộng / thu gọn */}
+                        {/* Cột 4: Nút Xem chi tiết */}
                         <td className="px-5 py-4 text-right whitespace-nowrap">
                           <button
                             type="button"
@@ -425,8 +433,8 @@ export const AuditLogsPage: React.FC = () => {
                             <span>
                               {isExpanded
                                 ? 'Thu gọn'
-                                : group.actions.length > 1
-                                ? `Xem chi tiết (${group.actions.length})`
+                                : group.actionsCount > 1
+                                ? `Xem chi tiết (${group.actionsCount})`
                                 : 'Xem chi tiết'}
                             </span>
                             <ChevronDown
@@ -438,18 +446,20 @@ export const AuditLogsPage: React.FC = () => {
                         </td>
                       </tr>
 
-                      {/* Expanded Accordion Details: Bỏ IP, bỏ thiết bị, bỏ chi tiết dài; chỉ để lại thời gian HH:mm:ss, tên hành động và trạng thái riêng */}
+                      {/* Expanded Accordion: Danh sách các hành động con (Bỏ IP, bỏ thiết bị, bỏ ngày) */}
                       {isExpanded && (
                         <tr className="bg-sky-50/20 border-b border-sky-100">
-                          <td colSpan={4} className="px-6 py-4 animate-fadeIn">
+                          <td colSpan={4} className="px-6 py-4 animate-in fade-in duration-150">
                             <div className="bg-white rounded-2xl border border-sky-200/80 p-4 shadow-2xs space-y-3">
+                              {/* Header Accordion */}
                               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                                 <p className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
                                   <ScrollText className="w-4 h-4 text-sky-600" />
-                                  Hành động đã thực hiện ({group.actions.length} hành động):
+                                  Các hành động đã thực hiện ({group.actions.length} hành động):
                                 </p>
                               </div>
 
+                              {/* Danh sách hành động con: Chỉ Giờ (HH:mm:ss) + Tên hành động + Trạng thái */}
                               <div className="divide-y divide-slate-100">
                                 {group.actions.map((act, idx) => (
                                   <div
@@ -458,7 +468,7 @@ export const AuditLogsPage: React.FC = () => {
                                       idx > 0 ? 'pt-3' : 'pt-1'
                                     } pb-2`}
                                   >
-                                    {/* Bên trái: Thời gian chính xác (HH:mm:ss) & Tên hành động đã làm */}
+                                    {/* Bên trái: Giờ chính xác (HH:mm:ss) & Tên hành động cụ thể */}
                                     <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
                                       <span className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-sky-700 bg-sky-50 px-2 py-1 rounded-md border border-sky-100 shrink-0">
                                         <Clock className="w-3 h-3 text-sky-500" />
@@ -496,12 +506,13 @@ export const AuditLogsPage: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer: Chuẩn 10 dữ liệu/trang */}
+        {/* Pagination Footer: Chuẩn 10 LOG TỔNG bên ngoài / trang */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 text-xs text-slate-500 font-semibold bg-white">
           <span>
             Hiển thị {logs.length > 0 ? (currentPage - 1) * 10 + 1 : 0} -{' '}
             {Math.min(currentPage * 10, pagination.total || logs.length)} trên tổng số{' '}
-            {pagination.total || logs.length} bản ghi nhật ký (Chuẩn 10 dữ liệu/trang)
+            <strong className="text-slate-800">{pagination.total || logs.length}</strong> log tổng
+            hệ thống (Chuẩn 10 log tổng/trang bên ngoài)
           </span>
 
           <div className="flex items-center gap-1.5 font-bold">

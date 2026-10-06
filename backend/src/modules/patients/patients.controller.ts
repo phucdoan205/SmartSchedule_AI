@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
 import { PatientsService } from './patients.service.js';
 
@@ -30,6 +31,7 @@ export class PatientsController {
 
   @Post()
   async create(
+    @Req() req: any,
     @Body()
     body: {
       fullName: string;
@@ -41,12 +43,14 @@ export class PatientsController {
       medicalAlerts?: string;
     },
   ) {
-    return this.patientsService.create(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.patientsService.create(body, userId);
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       fullName?: string;
@@ -58,12 +62,14 @@ export class PatientsController {
       avatarUrl?: string;
     },
   ) {
-    return this.patientsService.update(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.patientsService.update(id, body, userId);
   }
 
   @Post(':id/dental-chart')
   async updateDentalChart(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       toothNumber: number;
@@ -71,17 +77,20 @@ export class PatientsController {
       colorStatus?: string;
     },
   ) {
+    const userId = req.user?.sub || req.user?.id;
     return this.patientsService.updateDentalChart(
       id,
       body.toothNumber,
       body.condition,
       body.colorStatus,
+      userId,
     );
   }
 
   @Post(':id/medical-records')
   async addMedicalRecord(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       diagnosis: string;
@@ -90,6 +99,7 @@ export class PatientsController {
       stepId?: string;
     },
   ) {
-    return this.patientsService.addMedicalRecord(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.patientsService.addMedicalRecord(id, body, userId);
   }
 }

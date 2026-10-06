@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
 @Injectable()
 export class FinanceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   async getOverview(branchId?: string, month?: string) {
     const isFilteredBranch = branchId && branchId !== 'ALL' && branchId !== 'all';
@@ -241,13 +245,16 @@ export class FinanceService {
     });
   }
 
-  async createInvoice(data: {
-    branchId: string;
-    patientId: string;
-    appointmentId?: string;
-    items: { serviceId: string; quantity: number; unitPrice: number }[];
-    discountAmount?: number;
-  }) {
+  async createInvoice(
+    data: {
+      branchId: string;
+      patientId: string;
+      appointmentId?: string;
+      items: { serviceId: string; quantity: number; unitPrice: number }[];
+      discountAmount?: number;
+    },
+    operatorUserId?: string,
+  ) {
     const totalAmount = data.items.reduce(
       (sum, item) => sum + item.quantity * item.unitPrice,
       0,
@@ -259,7 +266,7 @@ export class FinanceService {
     const count = await this.prisma.invoice.count();
     const invoiceCode = `#HD-${year}-${1000 + count + 1}`;
 
-    return this.prisma.invoice.create({
+    const invoice = await this.prisma.invoice.create({
       data: {
         invoiceCode,
         branchId: data.branchId,
@@ -284,6 +291,17 @@ export class FinanceService {
         branch: true,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'FINANCE',
+      action: `Lập hóa đơn thanh toán: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')} VNĐ`,
+      details: `Tạo hóa đơn điều trị cho bệnh nhân ${invoice.patient?.fullName || data.patientId}. Tổng tiền: ${finalAmount.toLocaleString('vi-VN')} VNĐ. Số lượng dịch vụ: ${data.items.length}.`,
+      targetEntity: invoiceCode,
+      status: 'SUCCESS',
+    });
+
+    return invoice;
   }
 
   async handleVietQrWebhook(data: {
@@ -294,6 +312,7 @@ export class FinanceService {
   }) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { invoiceCode: data.invoiceCode },
+      include: { patient: true },
     });
 
     if (!invoice) {
@@ -303,7 +322,7 @@ export class FinanceService {
     const year = new Date().getFullYear();
     const receiptCode = `#PT-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           receiptCode,
@@ -326,15 +345,29 @@ export class FinanceService {
         payment,
       };
     });
+
+    await this.auditLogsService.log({
+      userId: null,
+      module: 'FINANCE',
+      action: `Thanh toán VietQR khớp lệnh: ${invoice.invoiceCode} - ${data.amount.toLocaleString('vi-VN')} VNĐ`,
+      details: `Hệ thống tự động ghi nhận thanh toán VietQR ${data.amount.toLocaleString('vi-VN')} VNĐ cho hóa đơn ${invoice.invoiceCode}. Mã giao dịch: ${data.transactionRef}.`,
+      targetEntity: invoice.invoiceCode,
+      status: 'SUCCESS',
+    });
+
+    return result;
   }
 
-  async createReceipt(data: {
-    patientId: string;
-    amount: number;
-    description?: string;
-    paymentMethod?: string;
-    collector?: string;
-  }) {
+  async createReceipt(
+    data: {
+      patientId: string;
+      amount: number;
+      description?: string;
+      paymentMethod?: string;
+      collector?: string;
+    },
+    operatorUserId?: string,
+  ) {
     const patient = await this.prisma.patient.findFirst({
       where: {
         OR: [{ id: data.patientId }, { patientCode: data.patientId }],
@@ -362,7 +395,7 @@ export class FinanceService {
     const invoiceCode = `#HD-${year}-${1000 + count + 1}`;
     const receiptCode = `#PT-${year}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const invoice = await tx.invoice.create({
         data: {
           invoiceCode,
@@ -391,5 +424,17 @@ export class FinanceService {
         payment,
       };
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'FINANCE',
+      action: `Lập phiếu thu tiền: ${receiptCode} - ${data.amount.toLocaleString('vi-VN')} VNĐ (${data.paymentMethod || 'Tiền mặt'})`,
+      details: `Thu tiền bệnh nhân ${patient.fullName} (${patient.patientCode}) số tiền ${data.amount.toLocaleString('vi-VN')} VNĐ. Hình thức: ${data.paymentMethod || 'Tiền mặt'}. Người thu: ${data.collector || 'Thu ngân'}.`,
+      targetEntity: receiptCode,
+      status: 'SUCCESS',
+    });
+
+    return result;
   }
 }
+

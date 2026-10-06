@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ServicesService } from './services.service.js';
 
@@ -44,6 +45,7 @@ export class ServicesController {
 
   @Post()
   async create(
+    @Req() req: any,
     @Body()
     body: {
       categoryId: string;
@@ -58,12 +60,14 @@ export class ServicesController {
       isAiRecommended?: boolean;
     },
   ) {
-    return this.servicesService.create(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.servicesService.create(body, userId);
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       categoryId?: string;
@@ -79,7 +83,8 @@ export class ServicesController {
       isAiRecommended?: boolean;
     },
   ) {
-    return this.servicesService.update(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.servicesService.update(id, body, userId);
   }
 
   @Delete(':id')

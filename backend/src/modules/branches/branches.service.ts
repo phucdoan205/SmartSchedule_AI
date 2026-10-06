@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
 @Injectable()
 export class BranchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   async findAll() {
     const branches = await this.prisma.branch.findMany({
@@ -84,14 +88,17 @@ export class BranchesService {
     return branch;
   }
 
-  async create(data: {
-    code: string;
-    name: string;
-    address: string;
-    phone: string;
-    imageUrl?: string;
-  }) {
-    return this.prisma.branch.create({
+  async create(
+    data: {
+      code: string;
+      name: string;
+      address: string;
+      phone: string;
+      imageUrl?: string;
+    },
+    operatorUserId?: string,
+  ) {
+    const created = await this.prisma.branch.create({
       data: {
         code: data.code,
         name: data.name,
@@ -100,6 +107,17 @@ export class BranchesService {
         imageUrl: data.imageUrl,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'BRANCHES',
+      action: `Thêm mới chi nhánh phòng khám: ${created.name} (${created.code})`,
+      details: `Khởi tạo chi nhánh cơ sở mới tại ${created.address}. Hotline: ${created.phone}.`,
+      targetEntity: created.code,
+      status: 'SUCCESS',
+    });
+
+    return created;
   }
 
   async update(
@@ -111,10 +129,23 @@ export class BranchesService {
       imageUrl?: string;
       isActive?: boolean;
     },
+    operatorUserId?: string,
   ) {
-    return this.prisma.branch.update({
+    const updated = await this.prisma.branch.update({
       where: { id },
       data,
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'BRANCHES',
+      action: `Cập nhật thông tin chi nhánh: ${updated.name} (${updated.code})`,
+      details: `Điều chỉnh thông tin hoạt động hoặc liên hệ của cơ sở ${updated.name}. Trạng thái: ${updated.isActive ? 'Đang hoạt động' : 'Tạm dừng'}.`,
+      targetEntity: updated.code,
+      status: 'SUCCESS',
+    });
+
+    return updated;
   }
 }
+

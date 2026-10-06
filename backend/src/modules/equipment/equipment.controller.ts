@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req } from '@nestjs/common';
 import { EquipmentService } from './equipment.service.js';
 
 @Controller('equipment')
@@ -81,6 +81,7 @@ export class EquipmentController {
 
   @Post()
   async createEquipment(
+    @Req() req: any,
     @Body()
     body: {
       code?: string;
@@ -94,12 +95,14 @@ export class EquipmentController {
       nextInspectionAt?: string;
     },
   ) {
-    return this.equipmentService.createEquipment(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.equipmentService.createEquipment(body, userId);
   }
 
   @Patch(':id')
   async updateEquipment(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       name?: string;
@@ -114,12 +117,14 @@ export class EquipmentController {
       nextInspectionAt?: string;
     },
   ) {
-    return this.equipmentService.updateEquipment(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.equipmentService.updateEquipment(id, body, userId);
   }
 
   @Patch('maintenance/:logId/status')
   async updateMaintenanceStatus(
     @Param('logId') logId: string,
+    @Req() req: any,
     @Body()
     body: {
       status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
@@ -127,6 +132,8 @@ export class EquipmentController {
       technicianName?: string;
     },
   ) {
-    return this.equipmentService.updateMaintenanceStatus(logId, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.equipmentService.updateMaintenanceStatus(logId, body, userId);
   }
 }
+

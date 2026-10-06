@@ -45,25 +45,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { user, logout, isAdmin } = useAuth();
 
-  const displayName = user?.fullName || 'Quản trị viên Hệ thống';
-  const displayEmail = user?.email || 'admin@smartschedule.ai';
-  const initials = (user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'AD').toUpperCase();
-
   // Determine current user's role code
   const getUserRoleCode = () => {
     if (!user || !user.roles || user.roles.length === 0) return 'owner';
     const roles = user.roles;
     if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
     if (roles.includes('Kế Toán') || roles.includes('ke_toan') || roles.includes('ACCOUNTANT') || roles.includes('Kế toán') || user?.email === 'dinh@gmail.com') return 'ke_toan';
-    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa')) return 'doctor';
-    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
-    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên')) return 'nurse';
-    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên xét nghiệm')) return 'technician';
-    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh')) return 'manager';
+    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa') || roles.includes('Bác sĩ chuyên môn')) return 'doctor';
+    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
+    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên') || roles.includes('Điều dưỡng & Phụ tá nha khoa')) return 'nurse';
+    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên') || roles.includes('Kỹ thuật viên xét nghiệm') || roles.includes('Kỹ thuật viên phòng mổ & Lab')) return 'technician';
+    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh') || roles.includes('Giám đốc / Quản lý chi nhánh')) return 'manager';
     return roles[0];
   };
 
   const userRoleCode = getUserRoleCode();
+
+  // Dynamic badge styling matching the logged in role
+  const getRoleBadgeConfig = () => {
+    switch (userRoleCode) {
+      case 'owner':
+        return {
+          label: 'Quản Trị Viên',
+          badgeClass: 'text-teal-400 bg-teal-950/90 border-teal-800',
+        };
+      case 'doctor':
+        return {
+          label: 'Bác Sĩ Chuyên Khoa',
+          badgeClass: 'text-emerald-400 bg-emerald-950/90 border-emerald-800',
+        };
+      case 'receptionist':
+        return {
+          label: 'Lễ Tân Phòng Khám',
+          badgeClass: 'text-indigo-400 bg-indigo-950/90 border-indigo-800',
+        };
+      case 'nurse':
+        return {
+          label: 'Điều Dưỡng Viên',
+          badgeClass: 'text-pink-400 bg-pink-950/90 border-pink-800',
+        };
+      case 'technician':
+        return {
+          label: 'Kỹ Thuật Viên',
+          badgeClass: 'text-amber-400 bg-amber-950/90 border-amber-800',
+        };
+      case 'ke_toan':
+        return {
+          label: 'Kế Toán Viên',
+          badgeClass: 'text-cyan-400 bg-cyan-950/90 border-cyan-800',
+        };
+      case 'manager':
+        return {
+          label: 'Quản Lý Chi Nhánh',
+          badgeClass: 'text-blue-400 bg-blue-950/90 border-blue-800',
+        };
+      default:
+        return {
+          label: user?.roles?.[0] || 'Nhân Sự',
+          badgeClass: 'text-sky-400 bg-sky-950/90 border-sky-800',
+        };
+    }
+  };
+
+  const roleBadge = getRoleBadgeConfig();
+
+  const displayName = user?.fullName || (userRoleCode === 'owner' ? 'Quản trị viên Hệ thống' : roleBadge.label);
+  const displayEmail = user?.email || (userRoleCode === 'owner' ? 'admin@smartschedule.ai' : '');
+  const initials = (user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : (userRoleCode === 'owner' ? 'AD' : 'SS')).toUpperCase();
 
   // Listen to rolePermissionStore updates for real-time sidebar re-rendering
   const [, setStoreVersion] = useState(0);
@@ -163,8 +211,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-sm font-bold text-white tracking-wide truncate">Răng Hàm Mặt</h1>
-              <span className="text-[10px] font-semibold text-teal-400 bg-teal-950 px-1.5 py-0.5 rounded border border-teal-800">
-                Quản Trị Viên
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${roleBadge.badgeClass}`}>
+                {roleBadge.label}
               </span>
             </div>
           )}
@@ -317,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-4 py-2.5 border-b border-slate-100">
               <p className="font-bold text-slate-900 truncate">{displayName}</p>
               <p className="text-[10px] text-slate-400 truncate font-medium">
-                {isAdmin ? 'Quản trị viên' : 'Nhân viên'} • {displayEmail}
+                {roleBadge.label} {displayEmail ? `• ${displayEmail}` : ''}
               </p>
             </div>
 

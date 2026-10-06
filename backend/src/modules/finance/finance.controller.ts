@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Req } from '@nestjs/common';
 import { FinanceService } from './finance.service.js';
 
 @Controller('finance')
@@ -38,6 +38,7 @@ export class FinanceController {
 
   @Post('invoices')
   async createInvoice(
+    @Req() req: any,
     @Body()
     body: {
       branchId: string;
@@ -47,7 +48,8 @@ export class FinanceController {
       discountAmount?: number;
     },
   ) {
-    return this.financeService.createInvoice(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.financeService.createInvoice(body, userId);
   }
 
   @Post('webhook/vietqr')
@@ -65,6 +67,7 @@ export class FinanceController {
 
   @Post('receipt')
   async createReceipt(
+    @Req() req: any,
     @Body()
     body: {
       patientId: string;
@@ -74,6 +77,7 @@ export class FinanceController {
       collector?: string;
     },
   ) {
-    return this.financeService.createReceipt(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.financeService.createReceipt(body, userId);
   }
 }

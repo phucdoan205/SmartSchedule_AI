@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class EquipmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(params: {
@@ -342,7 +344,7 @@ export class EquipmentService {
     technician?: string;
     status?: string;
     nextInspectionAt?: string | Date;
-  }) {
+  }, operatorUserId?: string) {
     let code = data.code?.trim();
     if (!code) {
       const allEq = await this.prisma.equipment.findMany({ select: { code: true } });
@@ -386,13 +388,26 @@ export class EquipmentService {
       },
     });
 
+    const finalUserId = operatorUserId || undefined;
+
     await this.auditLogsService.log({
+      userId: finalUserId,
       module: 'EQUIPMENT',
       action: `Thêm mới thiết bị y tế: ${created.name} (${created.code})`,
       details: `Đã thêm mới thiết bị mã ${created.code}, số seri ${created.serialNumber}, đặt tại ${created.location}. Người phụ trách: ${created.technician}.`,
       targetEntity: created.code,
       status: 'SUCCESS',
     });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Thêm mới thiết bị y tế thành công',
+        content: `Thiết bị ${created.name} (${created.code}) đã được thêm vào hệ thống tại ${created.location}.`,
+        type: 'EQUIPMENT',
+        link: '/admin/maintenance',
+      });
+    }
 
     return {
       success: true,
@@ -415,6 +430,7 @@ export class EquipmentService {
       urgencyAlert?: string | null;
       nextInspectionAt?: string | Date;
     },
+    operatorUserId?: string,
   ) {
     const existing = await this.prisma.equipment.findUnique({
       where: { id },
@@ -443,13 +459,26 @@ export class EquipmentService {
       include: { branch: true },
     });
 
+    const finalUserId = operatorUserId || undefined;
+
     await this.auditLogsService.log({
+      userId: finalUserId,
       module: 'EQUIPMENT',
       action: `Cập nhật thông tin thiết bị: ${updated.name} (${updated.code})`,
       details: `Cập nhật thiết bị ${updated.code}. Vị trí: ${updated.location}. Người phụ trách: ${updated.technician}. Trạng thái: ${updated.status}.`,
       targetEntity: updated.code,
       status: 'SUCCESS',
     });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Cập nhật thiết bị y tế',
+        content: `Thông tin thiết bị ${updated.name} (${updated.code}) đã được cập nhật thành công.`,
+        type: 'EQUIPMENT',
+        link: '/admin/maintenance',
+      });
+    }
 
     return {
       success: true,
@@ -465,6 +494,7 @@ export class EquipmentService {
       findings?: string;
       technicianName?: string;
     },
+    operatorUserId?: string,
   ) {
     const log = await this.prisma.equipmentMaintenanceLog.findUnique({
       where: { id: logId },
@@ -490,6 +520,8 @@ export class EquipmentService {
       include: { equipment: true, technician: true },
     });
 
+    const actionUserId = operatorUserId || log.technicianId || undefined;
+
     if (isCompleting) {
       // Tự động cập nhật Thiết bị: Đang hoạt động, cập nhật ngày bảo dưỡng lần cuối, xóa cảnh báo khẩn
       await this.prisma.equipment.update({
@@ -504,7 +536,7 @@ export class EquipmentService {
       });
 
       await this.auditLogsService.log({
-        userId: log.technicianId || undefined,
+        userId: actionUserId,
         module: 'EQUIPMENT',
         action: `Hoàn tất bảo trì & kiểm định thiết bị ${log.equipment.name} (${log.equipment.code})`,
         details: `Nghiệm thu bảo trì mã ${log.logCode}. Kết quả: Đạt chuẩn vận hành. Thiết bị ${log.equipment.code} đã được chuyển về trạng thái Đang hoạt động ổn định.`,
@@ -520,7 +552,7 @@ export class EquipmentService {
       });
 
       await this.auditLogsService.log({
-        userId: log.technicianId || undefined,
+        userId: actionUserId,
         module: 'EQUIPMENT',
         action: `Bắt đầu tiến trình bảo trì thiết bị ${log.equipment.name} (${log.equipment.code})`,
         details: `Tiến hành bảo dưỡng theo mã ${log.logCode} (${log.actionType}).`,

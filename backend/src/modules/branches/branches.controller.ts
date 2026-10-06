@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Req } from '@nestjs/common';
 import { BranchesService } from './branches.service.js';
 
 @Controller('branches')
@@ -17,6 +17,7 @@ export class BranchesController {
 
   @Post()
   async create(
+    @Req() req: any,
     @Body()
     body: {
       code: string;
@@ -26,12 +27,14 @@ export class BranchesController {
       imageUrl?: string;
     },
   ) {
-    return this.branchesService.create(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.branchesService.create(body, userId);
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: string,
+    @Req() req: any,
     @Body()
     body: {
       name?: string;
@@ -41,6 +44,8 @@ export class BranchesController {
       isActive?: boolean;
     },
   ) {
-    return this.branchesService.update(id, body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.branchesService.update(id, body, userId);
   }
 }
+

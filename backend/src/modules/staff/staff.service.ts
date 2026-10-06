@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
@@ -34,7 +36,11 @@ function saveStaffMetadata(key: string, data: any) {
 
 @Injectable()
 export class StaffService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findDoctors(branchId?: string, specialty?: string) {
     const where: any = {
@@ -370,6 +376,7 @@ export class StaffService {
       email?: string;
       phone?: string;
       branchId?: string;
+      roleName?: string;
       specialty?: string;
       experienceYears?: number;
       bio?: string;
@@ -381,16 +388,22 @@ export class StaffService {
       workHours?: string;
       lunchBreak?: string;
     },
+    operatorUserId?: string,
   ) {
     const existing = await this.prisma.user.findFirst({
       where: {
         OR: [{ id }, { employeeCode: id }, { email: id }],
+      },
+      include: {
+        userRoles: { include: { role: true } },
       },
     });
 
     if (!existing) {
       throw new NotFoundException(`Nhân sự ${id} không tồn tại`);
     }
+
+    const finalUserId = operatorUserId || undefined;
 
     if (
       data.commissionRate !== undefined ||
@@ -443,7 +456,9 @@ export class StaffService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const oldRoleName = existing.userRoles?.[0]?.role?.name || 'Chưa phân quyền';
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const userUpdateData: any = {};
       if (data.fullName) userUpdateData.fullName = data.fullName.trim();
       if (data.email) userUpdateData.email = data.email.trim();
@@ -456,6 +471,39 @@ export class StaffService {
         where: { id: existing.id },
         data: userUpdateData,
       });
+
+      // Xử lý thay đổi chức vụ / vai trò nếu có
+      if (data.roleName && data.roleName.trim()) {
+        const cleanRoleName = data.roleName.trim();
+        let targetRole = await tx.role.findFirst({
+          where: {
+            OR: [
+              { name: cleanRoleName },
+              { name: { equals: cleanRoleName, mode: 'insensitive' } },
+              { description: { equals: cleanRoleName, mode: 'insensitive' } },
+            ],
+          },
+        });
+
+        if (!targetRole) {
+          targetRole = await tx.role.create({
+            data: {
+              name: cleanRoleName,
+              description: `Chức vụ ${cleanRoleName}`,
+            },
+          });
+        }
+
+        if (targetRole) {
+          await tx.userRole.deleteMany({ where: { userId: existing.id } });
+          await tx.userRole.create({
+            data: {
+              userId: existing.id,
+              roleId: targetRole.id,
+            },
+          });
+        }
+      }
 
       if (data.specialty || data.bio || data.experienceYears !== undefined) {
         await tx.doctorProfile.upsert({
@@ -477,6 +525,61 @@ export class StaffService {
 
       return updatedUser;
     });
+
+    // 1. Nếu có thay đổi vai trò: Ghi AuditLog và gửi thông báo 2 chiều
+    if (data.roleName && data.roleName.trim() && data.roleName !== oldRoleName) {
+      await this.auditLogsService.log({
+        userId: finalUserId,
+        module: 'RBAC_SECURITY',
+        action: `Thay đổi chức vụ của nhân sự ${existing.fullName}: từ "${oldRoleName}" sang "${data.roleName}"`,
+        details: `Cập nhật quyền hạn và vai trò cho nhân sự mã ${existing.employeeCode}. Chức vụ cũ: ${oldRoleName}, chức vụ mới: ${data.roleName}.`,
+        targetEntity: existing.employeeCode,
+        status: 'SUCCESS',
+      });
+
+      // Thông báo cho nhân sự được đổi vai trò
+      await this.notificationsService.create({
+        userId: existing.id,
+        title: 'Cập nhật chức vụ tài khoản',
+        content: `Chức vụ tài khoản của bạn đã được Quản trị viên cập nhật thành: "${data.roleName}". Vui lòng đăng nhập lại hoặc tải lại trang để áp dụng phân quyền mới.`,
+        type: 'ROLE_CHANGE',
+        link: '/admin/profile',
+      });
+
+      // Thông báo cho Quản trị viên thực hiện
+      if (finalUserId && finalUserId !== existing.id) {
+        await this.notificationsService.create({
+          userId: finalUserId,
+          title: 'Thay đổi chức vụ nhân sự thành công',
+          content: `Bạn đã thay đổi chức vụ của nhân sự ${existing.fullName} (${existing.employeeCode}) từ "${oldRoleName}" sang "${data.roleName}".`,
+          type: 'ROLE_CHANGE',
+          link: `/admin/staff/${existing.id}`,
+        });
+      }
+    } else if (data.isActive !== undefined) {
+      // Ghi log trạng thái khóa / mở tài khoản
+      const actionText = data.isActive ? 'Mở khóa tài khoản' : 'Khóa tài khoản';
+      await this.auditLogsService.log({
+        userId: finalUserId,
+        module: 'STAFF',
+        action: `${actionText} nhân sự: ${existing.fullName} (${existing.employeeCode})`,
+        details: `Trạng thái hoạt động của tài khoản đã được chuyển sang: ${data.isActive ? 'Đang hoạt động' : 'Đã khóa'}.`,
+        targetEntity: existing.employeeCode,
+        status: 'SUCCESS',
+      });
+    } else {
+      // Ghi log cập nhật thông tin hồ sơ chung
+      await this.auditLogsService.log({
+        userId: finalUserId,
+        module: 'STAFF',
+        action: `Cập nhật hồ sơ nhân sự: ${existing.fullName} (${existing.employeeCode})`,
+        details: `Đã cập nhật thông tin chuyên môn, lịch làm việc hoặc tỷ lệ hoa hồng cho nhân sự ${existing.fullName}.`,
+        targetEntity: existing.employeeCode,
+        status: 'SUCCESS',
+      });
+    }
+
+    return result;
   }
 
   // --- QUẢN LÝ LỊCH TRỰC (STAFF SCHEDULES) ---
@@ -732,25 +835,43 @@ export class StaffService {
     };
   }
 
-  async createStaff(data: {
-    employeeCode: string;
-    fullName: string;
-    email: string;
-    phone: string;
-    branchId: string;
-    roleName: string;
-    avatarUrl?: string;
-    specialty?: string;
-    licenseNumber?: string;
-    experienceYears?: number;
-    bio?: string;
-  }) {
+  async createStaff(
+    data: {
+      employeeCode: string;
+      fullName: string;
+      email: string;
+      phone: string;
+      branchId: string;
+      roleName: string;
+      avatarUrl?: string;
+      specialty?: string;
+      licenseNumber?: string;
+      experienceYears?: number;
+      bio?: string;
+    },
+    operatorUserId?: string,
+  ) {
     const defaultPassword = await bcrypt.hash('123456', 10);
 
-    return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
+    // Employee codes are unique; advance safely when the client sends an existing code.
+    let employeeCode = data.employeeCode.trim();
+    const existingCode = await this.prisma.user.findUnique({ where: { employeeCode } });
+    if (existingCode) {
+      const existingUsers = await this.prisma.user.findMany({
+        where: { employeeCode: { startsWith: 'NV' } },
+        select: { employeeCode: true },
+      });
+      const maxNumber = existingUsers.reduce((max, item) => {
+        const match = item.employeeCode.match(/^NV-?(\d+)$/i);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+      employeeCode = `NV${String(maxNumber + 1).padStart(3, '0')}`;
+    }
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
         data: {
-          employeeCode: data.employeeCode,
+          employeeCode,
           fullName: data.fullName,
           email: data.email,
           phone: data.phone,
@@ -782,7 +903,7 @@ export class StaffService {
       if (role) {
         await tx.userRole.create({
           data: {
-            userId: user.id,
+            userId: newUser.id,
             roleId: role.id,
           },
         });
@@ -797,7 +918,7 @@ export class StaffService {
       if (isClinicalDoctor && data.specialty) {
         await tx.doctorProfile.create({
           data: {
-            userId: user.id,
+            userId: newUser.id,
             specialty: data.specialty,
             licenseNumber: data.licenseNumber || `CCHN-${Math.floor(100000 + Math.random() * 900000)}`,
             experienceYears: data.experienceYears || 3,
@@ -806,7 +927,32 @@ export class StaffService {
         });
       }
 
-      return user;
+      return newUser;
     });
+
+    const finalUserId = operatorUserId || undefined;
+
+    // Ghi AuditLog
+    await this.auditLogsService.log({
+      userId: finalUserId,
+      module: 'STAFF',
+      action: `Thêm mới nhân sự: ${user.fullName} (${user.employeeCode})`,
+      details: `Đã thêm mới nhân sự ${user.fullName}, chức vụ "${data.roleName}", mã nhân sự ${user.employeeCode}, email ${user.email}.`,
+      targetEntity: user.employeeCode,
+      status: 'SUCCESS',
+    });
+
+    // Thông báo cho Quản trị viên
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Thêm mới nhân sự thành công',
+        content: `Nhân sự ${user.fullName} (${user.employeeCode}) với chức vụ "${data.roleName}" đã được tạo vào hệ thống.`,
+        type: 'STAFF',
+        link: `/admin/staff/${user.id}`,
+      });
+    }
+
+    return user;
   }
 }

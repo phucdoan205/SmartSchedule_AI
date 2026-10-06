@@ -116,7 +116,7 @@ export const MaintenancePage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            + Thêm thiết bị mới
+              Thêm thiết bị mới
           </button>
 
           {/* Export */}
@@ -135,7 +135,7 @@ export const MaintenancePage: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-700 rounded-xl shadow-md transition-colors cursor-pointer"
           >
             <Calendar className="w-3.5 h-3.5" />
-            + Lên lịch bảo dưỡng mới
+              Lên lịch bảo dưỡng mới
           </button>
         </div>
       </div>
@@ -174,7 +174,6 @@ export const MaintenancePage: React.FC = () => {
             <div className="p-2 bg-amber-50 rounded-xl"><AlertTriangle className="w-4 h-4 text-amber-500" /></div>
           </div>
           <p className="text-2xl font-black text-slate-900">{stats.maintenance} thiết bị</p>
-          <p className="text-[11px] text-slate-400 mt-1">Ghế 04, Lò hấp 02, Máy chụp...</p>
         </div>
 
         {/* Cảnh báo AI */}
@@ -184,7 +183,6 @@ export const MaintenancePage: React.FC = () => {
             <div className="p-2 bg-red-100 rounded-xl"><Bell className="w-4 h-4 text-red-600" /></div>
           </div>
           <p className="text-2xl font-black text-red-700">{stats.urgent} thiết bị</p>
-          <p className="text-[11px] text-red-500 mt-1">Máy can vôi siêu âm Satelec số 03 cần thay bộ lọc</p>
         </div>
       </div>
 

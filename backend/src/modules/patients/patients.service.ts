@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { generatePatientCode } from '../../common/utils/code-generator.util.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 
 @Injectable()
 export class PatientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   async findAll(search?: string, page?: string | number, limit?: string | number, branchId?: string) {
     const where: any = {};
@@ -111,15 +115,18 @@ export class PatientsService {
     return patient;
   }
 
-  async create(data: {
-    fullName: string;
-    phone: string;
-    email?: string;
-    birthYear?: number;
-    dateOfBirth?: string;
-    gender?: string;
-    medicalAlerts?: string;
-  }) {
+  async create(
+    data: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      birthYear?: number;
+      dateOfBirth?: string;
+      gender?: string;
+      medicalAlerts?: string;
+    },
+    operatorUserId?: string,
+  ) {
     const patientCode = await generatePatientCode(this.prisma);
     const calculatedBirthYear = data.birthYear
       ? Number(data.birthYear)
@@ -130,7 +137,7 @@ export class PatientsService {
       alerts = alerts ? `${alerts} | ${dobAlert}` : dobAlert;
     }
 
-    return this.prisma.patient.create({
+    const created = await this.prisma.patient.create({
       data: {
         patientCode,
         fullName: data.fullName,
@@ -141,6 +148,17 @@ export class PatientsService {
         medicalAlerts: alerts || undefined,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'EMR',
+      action: `Tạo mới hồ sơ bệnh án: ${created.patientCode} (${created.fullName})`,
+      details: `Khởi tạo hồ sơ bệnh nhân mã ${created.patientCode}, SĐT ${created.phone}, năm sinh ${created.birthYear}.`,
+      targetEntity: created.patientCode,
+      status: 'SUCCESS',
+    });
+
+    return created;
   }
 
   async update(
@@ -154,22 +172,34 @@ export class PatientsService {
       medicalAlerts?: string;
       avatarUrl?: string;
     },
+    operatorUserId?: string,
   ) {
     const existing = await this.prisma.patient.findFirst({
       where: {
         OR: [{ id }, { patientCode: id }],
       },
-      select: { id: true },
+      select: { id: true, patientCode: true, fullName: true },
     });
 
     if (!existing) {
       throw new NotFoundException(`Bệnh nhân ID hoặc mã ${id} không tồn tại`);
     }
 
-    return this.prisma.patient.update({
+    const updated = await this.prisma.patient.update({
       where: { id: existing.id },
       data,
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'EMR',
+      action: `Cập nhật hồ sơ bệnh án: ${existing.patientCode} (${existing.fullName})`,
+      details: `Cập nhật thông tin y tế / liên hệ cho bệnh nhân mã ${existing.patientCode}.`,
+      targetEntity: existing.patientCode,
+      status: 'SUCCESS',
+    });
+
+    return updated;
   }
 
   async updateDentalChart(
@@ -177,11 +207,21 @@ export class PatientsService {
     toothNumber: number,
     condition: string,
     colorStatus?: string,
+    operatorUserId?: string,
   ) {
-    return this.prisma.dentalChart.upsert({
+    const patient = await this.prisma.patient.findFirst({
+      where: { OR: [{ id: patientId }, { patientCode: patientId }] },
+      select: { id: true, patientCode: true, fullName: true },
+    });
+
+    const targetPatientId = patient ? patient.id : patientId;
+    const targetCode = patient ? patient.patientCode : patientId;
+    const targetName = patient ? patient.fullName : 'Bệnh nhân';
+
+    const chart = await this.prisma.dentalChart.upsert({
       where: {
         patientId_toothNumber: {
-          patientId,
+          patientId: targetPatientId,
           toothNumber,
         },
       },
@@ -190,12 +230,23 @@ export class PatientsService {
         colorStatus,
       },
       create: {
-        patientId,
+        patientId: targetPatientId,
         toothNumber,
         condition,
         colorStatus,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'EMR',
+      action: `Cập nhật sơ đồ răng: ${targetCode} (${targetName}) - Răng #${toothNumber}`,
+      details: `Chẩn đoán răng #${toothNumber}: ${condition}. Trạng thái màu: ${colorStatus || 'Mặc định'}.`,
+      targetEntity: targetCode,
+      status: 'SUCCESS',
+    });
+
+    return chart;
   }
 
   async addMedicalRecord(
@@ -206,15 +257,37 @@ export class PatientsService {
       xrayImageUrls?: string[];
       stepId?: string;
     },
+    operatorUserId?: string,
   ) {
-    return this.prisma.medicalRecord.create({
+    const patient = await this.prisma.patient.findFirst({
+      where: { OR: [{ id: patientId }, { patientCode: patientId }] },
+      select: { id: true, patientCode: true, fullName: true },
+    });
+
+    const targetPatientId = patient ? patient.id : patientId;
+    const targetCode = patient ? patient.patientCode : patientId;
+    const targetName = patient ? patient.fullName : 'Bệnh nhân';
+
+    const record = await this.prisma.medicalRecord.create({
       data: {
-        patientId,
+        patientId: targetPatientId,
         diagnosis: data.diagnosis,
         treatmentGiven: data.treatmentGiven,
         xrayImageUrls: data.xrayImageUrls || [],
         stepId: data.stepId,
       },
     });
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'EMR',
+      action: `Ghi nhận bệnh án điều trị: ${targetCode} (${targetName})`,
+      details: `Chẩn đoán: ${data.diagnosis}. Phương pháp điều trị: ${data.treatmentGiven}.`,
+      targetEntity: targetCode,
+      status: 'SUCCESS',
+    });
+
+    return record;
   }
 }
+

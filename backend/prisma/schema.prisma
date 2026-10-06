@@ -33,6 +33,7 @@ model User {
   doctorAppointments Appointment[] @relation("DoctorAppointments")
   technicianLogs  EquipmentMaintenanceLog[]
   auditLogs       AuditLog[]
+  notifications   Notification[]
 
   @@map("users")
 }
@@ -561,4 +562,20 @@ model AuditLog {
 
   @@index([module, createdAt])
   @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String   @db.Text
+  type      String   @default("INFO") // INFO, SUCCESS, WARNING, ROLE_CHANGE, APPOINTMENT, SCHEDULE, EQUIPMENT
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
 }

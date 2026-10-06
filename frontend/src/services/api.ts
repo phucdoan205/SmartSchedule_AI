@@ -474,5 +474,21 @@ export const auditLogsApi = {
   },
 };
 
+// Notifications API
+export const notificationsApi = {
+  getNotifications: async (params?: { page?: number; limit?: number }) => {
+    const res = await apiClient.get('/notifications', { params });
+    return res.data;
+  },
+  markAsRead: async (id: string) => {
+    const res = await apiClient.patch(`/notifications/${id}/read`);
+    return res.data;
+  },
+  markAllAsRead: async () => {
+    const res = await apiClient.patch('/notifications/read-all');
+    return res.data;
+  },
+};
+
 
 

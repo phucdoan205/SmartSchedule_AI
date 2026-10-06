@@ -4,7 +4,8 @@
     "services": [
       "Sứ toàn phần Cercon (Đức)",
       "Sứ toàn phần Emax",
-      "Mặt dán Veneer Emax"
+      "Mặt dán Veneer Emax",
+      "Điều trị tủy răng công nghệ vi phẫu Reciproc"
     ],
     "workDays": [
       "T2",
@@ -21,7 +22,8 @@
     "services": [
       "Sứ toàn phần Cercon (Đức)",
       "Sứ toàn phần Emax",
-      "Mặt dán Veneer Emax"
+      "Mặt dán Veneer Emax",
+      "Điều trị tủy răng công nghệ vi phẫu Reciproc"
     ],
     "workDays": [
       "T2",
@@ -187,6 +189,40 @@
     "commissionRate": 15,
     "services": [
       "Sứ toàn phần Cercon (Đức)",
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "171dfa84-c7f2-48f0-ba7b-9044fc32f4f5": {
+    "commissionRate": 15,
+    "services": [
+      "Sứ toàn phần Emax",
+      "Mặt dán Veneer Emax"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV014": {
+    "commissionRate": 15,
+    "services": [
       "Sứ toàn phần Emax",
       "Mặt dán Veneer Emax"
     ],
