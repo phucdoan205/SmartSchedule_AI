@@ -40,10 +40,38 @@ ENV/
 .venv
 *.sqlite3
 
-# Models and datasets
-ai-service/models/*.pt
-ai-service/models/*.pkl
-ai-service/models/*.onnx
+# AI Models and Heavy Weights
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.keras
+*.tflite
+*.ckpt
+*.weights
+*.joblib
+
+# Models directory
+ai-service/models/**/*.pt
+ai-service/models/**/*.pth
+ai-service/models/**/*.safetensors
+ai-service/models/**/*.bin
+ai-service/models/**/*.onnx
+ai-service/models/**/*.pkl
+ai-service/models/**/*.h5
+
+# Training checkpoints and experiment logs
+checkpoint-*/
+checkpoints/
+runs/
+wandb/
+
+# Datasets
 ai-service/datasets/*.csv
 ai-service/datasets/*.json
 !ai-service/datasets/sample.csv
