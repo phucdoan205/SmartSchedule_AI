@@ -308,22 +308,19 @@ export const PatientDetailPage: React.FC = () => {
     <div className="space-y-5">
       {/* Top Header */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/patients')}
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-sky-700 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Khách hàng & Bệnh án
-          </button>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
-            <span>Khách hàng & Bệnh án</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/patients')}
+              className="hover:text-sky-700 transition-colors flex items-center gap-1.5 cursor-pointer font-bold text-slate-600"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Khách hàng &amp; Bệnh án
+            </button>
             <span>/</span>
-            <span className="text-slate-900">
-              Chi tiết hồ sơ {patient.fullName} ({patient.patientCode || patient.id})
+            <span className="text-slate-900 font-bold">
+              Chi tiết hồ sơ: {patient.fullName} ({patient.patientCode || patient.id})
             </span>
           </div>
-        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button

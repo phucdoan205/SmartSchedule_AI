@@ -6,6 +6,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { MOCK_DOCTORS } from '../../../services/mockData';
+import { staffApi } from '../../../services/api';
+import { toast } from '../../../context/ToastContext';
 
 interface ChangeDoctorModalProps {
   isOpen: boolean;
@@ -22,22 +24,36 @@ export const ChangeDoctorModal: React.FC<ChangeDoctorModalProps> = ({
   branchName = 'Chi nhánh Biên Hòa',
   onConfirmChange,
 }) => {
+  const [doctorsList, setDoctorsList] = useState<any[]>(MOCK_DOCTORS);
   const [selectedDoctorId, setSelectedDoctorId] = useState(MOCK_DOCTORS[0]?.id || 'nv-001');
   const [scope, setScope] = useState<'temporary' | 'permanent'>('temporary');
   const [autoTransferAppointments, setAutoTransferAppointments] = useState(true);
   const [sendZaloNotice, setSendZaloNotice] = useState(true);
   const [handoverNote, setHandoverNote] = useState('');
 
+  React.useEffect(() => {
+    if (isOpen) {
+      staffApi.getDoctors().then((docs) => {
+        if (Array.isArray(docs) && docs.length > 0) {
+          setDoctorsList(docs);
+          setSelectedDoctorId(docs[0].id);
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen || !room) return null;
 
   const currentDoctorName = room.doctorName || 'BS. Trần Đức Cường';
-  const newDoctor = MOCK_DOCTORS.find((d) => d.id === selectedDoctorId) || MOCK_DOCTORS[0];
+  const newDoctor = doctorsList.find((d) => d.id === selectedDoctorId) || doctorsList[0] || MOCK_DOCTORS[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const docName = newDoctor.name || newDoctor.fullName;
     if (onConfirmChange) {
-      onConfirmChange(newDoctor.name);
+      onConfirmChange(docName);
     }
+    toast(`Đã thay đổi bác sĩ phụ trách ${room.name} thành ${docName}!`);
     onClose();
   };
 
@@ -86,11 +102,11 @@ export const ChangeDoctorModal: React.FC<ChangeDoctorModalProps> = ({
           <div>
             <label className="block font-bold text-slate-700 mb-1">Chọn Bác sĩ phụ trách mới</label>
             <div className="p-2.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-3">
-              {newDoctor.avatar ? (
-                <img src={newDoctor.avatar} alt={newDoctor.name} className="w-10 h-10 rounded-xl object-cover" />
+              {newDoctor.avatar || newDoctor.avatarUrl ? (
+                <img src={newDoctor.avatar || newDoctor.avatarUrl} alt={newDoctor.name || newDoctor.fullName} className="w-10 h-10 rounded-xl object-cover" />
               ) : (
                 <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs">
-                  {newDoctor.name.charAt(0)}
+                  {(newDoctor.name || newDoctor.fullName || 'BS').charAt(0)}
                 </div>
               )}
               <div className="flex-1">
@@ -99,9 +115,9 @@ export const ChangeDoctorModal: React.FC<ChangeDoctorModalProps> = ({
                   onChange={(e) => setSelectedDoctorId(e.target.value)}
                   className="w-full font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
                 >
-                  {MOCK_DOCTORS.map((doc) => (
+                  {doctorsList.map((doc) => (
                     <option key={doc.id} value={doc.id}>
-                      {doc.name} - {doc.specialty}
+                      {doc.name || doc.fullName} - {doc.specialty || 'Bác sĩ điều trị'}
                     </option>
                   ))}
                 </select>

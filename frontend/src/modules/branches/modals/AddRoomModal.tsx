@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Armchair,
@@ -6,6 +6,7 @@ import {
   Check,
 } from 'lucide-react';
 import { MOCK_DOCTORS } from '../../../services/mockData';
+import { staffApi } from '../../../services/api';
 
 interface AddRoomModalProps {
   isOpen: boolean;
@@ -20,12 +21,31 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
   branchName = 'Chi nhánh Biên Hòa',
   onAddRoom,
 }) => {
+  const [doctorList, setDoctorList] = useState<any[]>(MOCK_DOCTORS);
   const [roomName, setRoomName] = useState('Ghế 05');
   const [roomType, setRoomType] = useState<'standard' | 'prosthodontics' | 'implant'>('standard');
   const [floor, setFloor] = useState('Tầng 1 (Khu khám tổng)');
   const [subRoom, setSubRoom] = useState('Phòng 102');
   const [initialStatus, setInitialStatus] = useState<'ready' | 'maintenance'>('ready');
   const [selectedDoctor, setSelectedDoctor] = useState(MOCK_DOCTORS[2]?.name || 'BS. Trần Đức Cường');
+
+  useEffect(() => {
+    if (isOpen) {
+      staffApi.getDoctors().then((docs) => {
+        if (Array.isArray(docs) && docs.length > 0) {
+          const formatted = docs.map((d: any) => ({
+            id: d.id,
+            name: d.user?.name || d.name || 'Bác sĩ',
+            specialty: d.specialty || 'Chuyên khoa Răng Hàm Mặt',
+          }));
+          setDoctorList(formatted);
+          if (formatted[0]) {
+            setSelectedDoctor(formatted[0].name);
+          }
+        }
+      }).catch((err) => console.warn('Không thể tải bác sĩ từ server:', err));
+    }
+  }, [isOpen]);
 
   // Equipment checklist
   const [equipments, setEquipments] = useState({
@@ -246,7 +266,7 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
                   onChange={(e) => setSelectedDoctor(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-900 focus:outline-none focus:border-sky-500"
                 >
-                  {MOCK_DOCTORS.map((doc) => (
+                  {doctorList.map((doc) => (
                     <option key={doc.id} value={doc.name}>
                       {doc.name} ({doc.specialty})
                     </option>

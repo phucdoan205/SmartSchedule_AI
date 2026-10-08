@@ -131,16 +131,29 @@ export class BranchesService {
     },
     operatorUserId?: string,
   ) {
+    const existing = await this.prisma.branch.findUnique({ where: { id } });
+    const isStatusChanged = Boolean(data.isActive !== undefined && existing && data.isActive !== existing.isActive);
+
     const updated = await this.prisma.branch.update({
       where: { id },
       data,
     });
 
+    let actionText = `Cập nhật thông tin chi nhánh: ${updated.name} (${updated.code})`;
+    let detailsText = `Điều chỉnh thông tin hoạt động hoặc liên hệ của cơ sở ${updated.name}. Trạng thái: ${updated.isActive ? 'Đang hoạt động' : 'Tạm dừng'}.`;
+
+    if (isStatusChanged && existing) {
+      const fromStatus = existing.isActive ? 'Đang hoạt động' : 'Tạm dừng';
+      const toStatus = updated.isActive ? 'Đang hoạt động' : 'Tạm dừng';
+      actionText = `Chuyển trạng thái chi nhánh [${fromStatus} ➔ ${toStatus}]: ${updated.name} (${updated.code})`;
+      detailsText = `Chi nhánh ${updated.name} đã được chuyển trạng thái từ [${fromStatus}] sang [${toStatus}].`;
+    }
+
     await this.auditLogsService.log({
       userId: operatorUserId || null,
       module: 'BRANCHES',
-      action: `Cập nhật thông tin chi nhánh: ${updated.name} (${updated.code})`,
-      details: `Điều chỉnh thông tin hoạt động hoặc liên hệ của cơ sở ${updated.name}. Trạng thái: ${updated.isActive ? 'Đang hoạt động' : 'Tạm dừng'}.`,
+      action: actionText,
+      details: detailsText,
       targetEntity: updated.code,
       status: 'SUCCESS',
     });

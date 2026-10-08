@@ -454,24 +454,13 @@ export const UserProfilePage: React.FC = () => {
               {/* Khung ngày làm việc tiêu chuẩn */}
               <div className="p-4 bg-sky-50/50 rounded-2xl border border-sky-100 space-y-3 sm:col-span-2 lg:col-span-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-sky-600" />
-                    <h4 className="font-extrabold text-slate-900 text-xs">
-                      Khung ngày làm việc tiêu chuẩn &amp; Phân ca
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-sky-600" />
+                      <h4 className="font-extrabold text-slate-900 text-xs">
+                        Khung ngày làm việc tiêu chuẩn &amp; Phân ca (Full-time)
+                      </h4>
+                    </div>
                   </div>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      allowSelfSchedule
-                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        : 'bg-amber-100 text-amber-800 border border-amber-200'
-                    }`}
-                  >
-                    {allowSelfSchedule
-                      ? '✓ Cho phép tự chọn lịch làm việc'
-                      : '🔒 Lịch làm việc do phòng khám ấn định (Không tự chọn)'}
-                  </span>
-                </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {['T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((d) => (
@@ -687,32 +676,6 @@ export const UserProfilePage: React.FC = () => {
                         );
                       })}
                     </div>
-                  </div>
-
-                  {/* Toggle: Cho phép hoặc không cho phép tự chọn lịch làm việc */}
-                  <div className="pt-2 border-t border-sky-100/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-extrabold text-slate-900 block">
-                        Cho phép tự đăng ký &amp; chọn lịch làm việc
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        Khi bật: Cho phép nhân viên/bác sĩ tự đăng ký hoặc điều chỉnh ca làm việc trong tuần. Khi tắt: Cố định theo chỉ định của phòng khám.
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setAllowSelfSchedule(!allowSelfSchedule)}
-                      className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${
-                        allowSelfSchedule ? 'bg-sky-600' : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
-                          allowSelfSchedule ? 'left-6' : 'left-1'
-                        }`}
-                      />
-                    </button>
                   </div>
                 </div>
               </div>

@@ -461,11 +461,37 @@ export class EquipmentService {
 
     const finalUserId = operatorUserId || undefined;
 
+    const statusLabels: Record<string, string> = {
+      OPERATIONAL: 'Sẵn sàng / Hoạt động',
+      UNDER_MAINTENANCE: 'Đang bảo trì',
+      MAINTENANCE: 'Đang bảo trì',
+      STERILIZING: 'Đang khử trùng',
+      WARNING: 'Cảnh báo sự cố',
+      REPAIR: 'Cần sửa chữa',
+      PAUSED: 'Tạm dừng hoạt động',
+      INACTIVE: 'Tạm ngưng',
+    };
+
+    const isStatusChanged = Boolean(data.status && data.status !== existing.status);
+    const fromLabel = statusLabels[existing.status] || existing.status;
+    const toLabel = data.status ? (statusLabels[data.status] || data.status) : fromLabel;
+
+    let actionText = '';
+    let detailsText = '';
+
+    if (isStatusChanged) {
+      actionText = `Chuyển trạng thái thiết bị [${fromLabel} ➔ ${toLabel}]: ${updated.name} (${updated.code})`;
+      detailsText = `Trạng thái thiết bị mã ${updated.code} đã được chuyển từ [${fromLabel}] sang [${toLabel}]. Vị trí: ${updated.location || 'Tại cơ sở'}. Kỹ thuật viên: ${updated.technician || 'KTV'}.`;
+    } else {
+      actionText = `Cập nhật thông tin thiết bị: ${updated.name} (${updated.code})`;
+      detailsText = `Cập nhật thông số thiết bị ${updated.code}. Vị trí: ${updated.location}. Người phụ trách: ${updated.technician}. Trạng thái hiện tại: [${toLabel}].`;
+    }
+
     await this.auditLogsService.log({
       userId: finalUserId,
       module: 'EQUIPMENT',
-      action: `Cập nhật thông tin thiết bị: ${updated.name} (${updated.code})`,
-      details: `Cập nhật thiết bị ${updated.code}. Vị trí: ${updated.location}. Người phụ trách: ${updated.technician}. Trạng thái: ${updated.status}.`,
+      action: actionText,
+      details: detailsText,
       targetEntity: updated.code,
       status: 'SUCCESS',
     });

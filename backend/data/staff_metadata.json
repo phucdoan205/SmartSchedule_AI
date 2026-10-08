@@ -236,5 +236,39 @@
     ],
     "workHours": "08:00 - 17:30",
     "lunchBreak": "12:00 - 13:30"
+  },
+  "4014fce6-928c-477a-b8a8-bfa172627692": {
+    "commissionRate": 20,
+    "services": [
+      "Cấy ghép Implant Straumann",
+      "Trụ Osstem No mount (Hàn Quốc)",
+      "Trụ Osstem SA (Hàn Quốc)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV005": {
+    "commissionRate": 20,
+    "services": [
+      "Cấy ghép Implant Straumann",
+      "Trụ Osstem No mount (Hàn Quốc)",
+      "Trụ Osstem SA (Hàn Quốc)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
   }
 }

@@ -24,11 +24,14 @@ import {
   ChevronLeft,
   ShieldCheck,
   Layers,
+  Info,
+  Sparkles,
+  Building2,
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { rolePermissionStore } from '../../services/rolePermissionStore';
-import { staffApi } from '../../services/api';
+import { staffApi, staffSchedulesApi } from '../../services/api';
 import { LeaveRequestModal, type LeaveRequestData } from './LeaveRequestModal';
 
 export interface LeaveHistoryItem {
@@ -191,12 +194,121 @@ export const LeaveRegisterPage: React.FC = () => {
   const [viewScope, setViewScope] = useState<'all_clinic' | 'mine'>('all_clinic');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Left column quick form state
+  // Real staff list from DB
+  const [allStaffList, setAllStaffList] = useState<any[]>([]);
+
+  useEffect(() => {
+    staffApi
+      .getAllStaff()
+      .then((res: any) => {
+        if (Array.isArray(res)) {
+          setAllStaffList(res);
+        }
+      })
+      .catch((err: any) => {
+        console.warn('Lỗi khi tải danh sách nhân sự:', err);
+      });
+  }, []);
+
+  // Left column quick form state (Aligned with full-time standard shift model)
+  const [quickRequesterId, setQuickRequesterId] = useState<string>('');
   const [quickType, setQuickType] = useState<'annual' | 'sick' | 'personal'>('annual');
+  const [quickShiftScope, setQuickShiftScope] = useState<'full' | 'morning' | 'afternoon'>('full');
   const [quickStartDate, setQuickStartDate] = useState('');
   const [quickEndDate, setQuickEndDate] = useState('');
   const [quickSubstituteDoctor, setQuickSubstituteDoctor] = useState('');
   const [quickReason, setQuickReason] = useState('');
+  const [quickAutoApprove, setQuickAutoApprove] = useState(false);
+
+  // Initialize selected staff for manager/admin or lock to current user
+  useEffect(() => {
+    if (allStaffList.length > 0 && !quickRequesterId) {
+      if (user?.email) {
+        const found = allStaffList.find(
+          (s) => s.email?.toLowerCase() === user.email.toLowerCase() || s.id === user.id
+        );
+        if (found) {
+          setQuickRequesterId(found.id);
+          return;
+        }
+      }
+      setQuickRequesterId(allStaffList[0].id);
+    }
+  }, [allStaffList, user, quickRequesterId]);
+
+  // Selected staff info
+  const selectedStaffMember = useMemo(() => {
+    if (!allStaffList || allStaffList.length === 0) return null;
+    return allStaffList.find((s) => s.id === quickRequesterId || s.employeeCode === quickRequesterId) || allStaffList[0];
+  }, [allStaffList, quickRequesterId]);
+
+  // Working days of selected staff
+  const staffWorkDays: string[] = useMemo(() => {
+    if (!selectedStaffMember) return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    if (Array.isArray(selectedStaffMember.workDays) && selectedStaffMember.workDays.length > 0) {
+      return selectedStaffMember.workDays;
+    }
+    return ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  }, [selectedStaffMember]);
+
+  // Smart Leave Calculator: excludes weekly OFF days (T7/CN depending on staff profile)
+  const calculatedLeaveStats = useMemo(() => {
+    if (!quickStartDate || !quickEndDate) {
+      return { workDays: 0, offDays: 0, totalHours: 0, workingDates: [] };
+    }
+    const start = new Date(quickStartDate);
+    const end = new Date(quickEndDate);
+    if (start > end) {
+      return { workDays: 0, offDays: 0, totalHours: 0, workingDates: [] };
+    }
+
+    const dayKeysMap: Record<number, string> = {
+      0: 'CN',
+      1: 'T2',
+      2: 'T3',
+      3: 'T4',
+      4: 'T5',
+      5: 'T6',
+      6: 'T7',
+    };
+
+    let workDaysCount = 0;
+    let offDaysCount = 0;
+    const workingDates: string[] = [];
+
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dKey = dayKeysMap[cur.getDay()];
+      const isWork = staffWorkDays.includes(dKey);
+      const isoDate = cur.toISOString().split('T')[0];
+
+      if (isWork) {
+        workDaysCount++;
+        workingDates.push(isoDate);
+      } else {
+        offDaysCount++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    let finalDays = workDaysCount;
+    let finalHours = workDaysCount * 8.5; // Ca tiêu chuẩn: 8.5h/ngày
+
+    if (quickShiftScope === 'morning') {
+      finalDays = workDaysCount * 0.5;
+      finalHours = workDaysCount * 4.0;
+    } else if (quickShiftScope === 'afternoon') {
+      finalDays = workDaysCount * 0.5;
+      finalHours = workDaysCount * 4.0;
+    }
+
+    return {
+      workDays: finalDays,
+      offDays: offDaysCount,
+      totalHours: finalHours,
+      workingDates,
+    };
+  }, [quickStartDate, quickEndDate, quickShiftScope, staffWorkDays]);
 
   // Toast message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -249,9 +361,82 @@ export const LeaveRegisterPage: React.FC = () => {
     } catch (e) {}
   };
 
+  // Synchronize approved leave dates into backend StaffSchedule & Broadcast
+  const syncApprovedLeaveToSchedules = async (item: LeaveHistoryItem) => {
+    try {
+      const targetUser = allStaffList.find(
+        (s) =>
+          (item.requesterId && s.id === item.requesterId) ||
+          (item.requesterEmail && s.email?.toLowerCase() === item.requesterEmail.toLowerCase()) ||
+          (item.requesterName && (s.name === item.requesterName || s.fullName === item.requesterName))
+      );
+
+      const userId = targetUser?.id || item.requesterId || user?.id;
+      const branchId = targetUser?.branchId || user?.branchId;
+
+      if (!userId) return;
+
+      const parseDate = (dStr: string) => {
+        if (dStr.includes('/')) {
+          const [d, m, y] = dStr.split('/');
+          return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00.000Z`);
+        }
+        return new Date(`${dStr}T00:00:00.000Z`);
+      };
+
+      const start = parseDate(item.startDate);
+      const end = parseDate(item.endDate);
+      const cur = new Date(start);
+
+      const dayKeysMap: Record<number, string> = {
+        0: 'CN',
+        1: 'T2',
+        2: 'T3',
+        3: 'T4',
+        4: 'T5',
+        5: 'T6',
+        6: 'T7',
+      };
+      const userWorkDays: string[] =
+        Array.isArray(targetUser?.workDays) && targetUser.workDays.length > 0
+          ? targetUser.workDays
+          : ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+      while (cur <= end) {
+        const dKey = dayKeysMap[cur.getDay()];
+        if (userWorkDays.includes(dKey)) {
+          const isoDate = cur.toISOString().split('T')[0];
+          await staffSchedulesApi
+            .create({
+              userId,
+              branchId,
+              workDate: isoDate,
+              shiftType: 'leave',
+              notes: `Nghỉ phép: ${item.type}`,
+            })
+            .catch(() => {});
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      // Broadcast real-time schedule update to StaffSchedulePage & DoctorDetailPage
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('smartschedule_sync');
+        channel.postMessage({ type: 'SCHEDULE_UPDATED' });
+        channel.close();
+      }
+    } catch (err) {
+      console.warn('Lỗi đồng bộ ngày nghỉ phép sang bảng phân ca:', err);
+    }
+  };
+
   // Approval handlers
-  const handleApproveLeave = (id: string) => {
-    const approverName = user?.fullName ? `${user.fullName} (${userRoleCode === 'ke_toan' ? 'Kế toán' : 'Quản lý'})` : 'Ban Quản Trị';
+  const handleApproveLeave = async (id: string) => {
+    const approverName = user?.fullName
+      ? `${user.fullName} (${userRoleCode === 'ke_toan' ? 'Kế toán' : 'Quản lý'})`
+      : 'Ban Quản Trị';
+    const targetItem = historyList.find((item) => item.id === id);
+
     const nextList = historyList.map((item) =>
       item.id === id
         ? {
@@ -262,11 +447,22 @@ export const LeaveRegisterPage: React.FC = () => {
         : item
     );
     saveHistory(nextList);
-    showToast('✓ Đã phê duyệt đơn nghỉ phép thành công!');
+
+    if (targetItem) {
+      await syncApprovedLeaveToSchedules({
+        ...targetItem,
+        status: 'approved',
+        approver: approverName,
+      });
+    }
+
+    showToast('✓ Đã phê duyệt đơn nghỉ phép & đồng bộ lên bảng lịch trực thành công!');
   };
 
   const handleRejectLeave = (id: string) => {
-    const approverName = user?.fullName ? `${user.fullName} (${userRoleCode === 'ke_toan' ? 'Kế toán' : 'Quản lý'})` : 'Ban Quản Trị';
+    const approverName = user?.fullName
+      ? `${user.fullName} (${userRoleCode === 'ke_toan' ? 'Kế toán' : 'Quản lý'})`
+      : 'Ban Quản Trị';
     const nextList = historyList.map((item) =>
       item.id === id
         ? {
@@ -281,10 +477,14 @@ export const LeaveRegisterPage: React.FC = () => {
   };
 
   // Quick form submission
-  const handleQuickSubmit = (e: React.FormEvent) => {
+  const handleQuickSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickStartDate || !quickEndDate) {
       toast('Vui lòng chọn ngày bắt đầu và ngày kết thúc nghỉ phép!', 'error');
+      return;
+    }
+    if (new Date(quickStartDate) > new Date(quickEndDate)) {
+      toast('Ngày bắt đầu không được sau ngày kết thúc!', 'error');
       return;
     }
     if (!quickReason.trim()) {
@@ -299,39 +499,64 @@ export const LeaveRegisterPage: React.FC = () => {
         ? 'Nghỉ bệnh'
         : 'Nghỉ việc riêng';
 
+    const scopeLabel =
+      quickShiftScope === 'full'
+        ? 'Ca tiêu chuẩn'
+        : quickShiftScope === 'morning'
+        ? 'Nửa ca sáng'
+        : 'Nửa ca chiều';
+
     const startParts = quickStartDate.split('-');
     const endParts = quickEndDate.split('-');
     const formattedStart = `${startParts[2]}/${startParts[1]}/${startParts[0]}`;
     const formattedEnd = `${endParts[2]}/${endParts[1]}/${endParts[0]}`;
 
+    const reqUser = selectedStaffMember || user;
+    const reqName = reqUser?.fullName || reqUser?.name || user?.fullName || 'BS. Nguyễn Thị An';
+    const reqEmail = reqUser?.email || user?.email || 'nguyenthian@smartschedule.ai';
+    const reqRole = reqUser?.specialty || reqUser?.department || user?.roles?.[0] || 'Bác sĩ chuyên khoa';
+    const reqAvatar = reqUser?.avatar || reqUser?.avatarUrl || user?.avatarUrl;
+
+    const isAutoApproved = canApprove && quickAutoApprove;
+
     const newReq: LeaveHistoryItem = {
       id: `np-${Date.now()}`,
       code: `#NP-2026-${String(Math.floor(100 + Math.random() * 900))}`,
-      requesterId: user?.id,
-      requesterName: user?.fullName || 'BS. Nguyễn Thị An',
-      requesterEmail: user?.email || 'nguyenthian@smartschedule.ai',
-      requesterRole: user?.roles?.[0] || 'Bác sĩ chuyên khoa',
-      requesterAvatar: user?.avatarUrl,
-      type: typeLabel,
+      requesterId: reqUser?.id || user?.id,
+      requesterName: reqName,
+      requesterEmail: reqEmail,
+      requesterRole: reqRole,
+      requesterAvatar: reqAvatar,
+      type: `${typeLabel} (${scopeLabel})`,
       startDate: formattedStart,
       endDate: formattedEnd,
-      days: 2,
-      approver: 'Ban Giám Đốc (Chờ duyệt)',
-      status: 'pending',
+      days: calculatedLeaveStats.workDays || 1,
+      approver: isAutoApproved
+        ? `${user?.fullName || 'Quản trị viên'} (Đã duyệt trực tiếp)`
+        : 'Ban Giám Đốc (Chờ duyệt)',
+      status: isAutoApproved ? 'approved' : 'pending',
       reason: quickReason,
-      substituteDoctor: quickSubstituteDoctor || 'BS.CKI Nguyễn Văn Tuấn',
+      substituteDoctor: quickSubstituteDoctor || 'BS.CKI Nguyễn Văn Tuấn (Khoa Implant)',
       createdAt: 'Hôm nay',
     };
 
-    saveHistory([newReq, ...historyList]);
+    const nextList = [newReq, ...historyList];
+    saveHistory(nextList);
+
+    if (isAutoApproved) {
+      await syncApprovedLeaveToSchedules(newReq);
+      showToast('✓ Đã tạo và phê duyệt đơn nghỉ phép! Đã tự động cập nhật lên bảng lịch trực.');
+    } else {
+      showToast('✓ Đã gửi đơn xin nghỉ phép thành công! Đang chờ ban giám đốc phê duyệt.');
+    }
+
     setQuickStartDate('');
     setQuickEndDate('');
     setQuickReason('');
-    showToast('✓ Đã gửi đơn xin nghỉ phép thành công! Đang chờ ban giám đốc phê duyệt.');
   };
 
   // Modal form submission
-  const handleModalSubmit = (data: LeaveRequestData) => {
+  const handleModalSubmit = async (data: LeaveRequestData) => {
     const typeLabel =
       data.leaveType === 'annual'
         ? 'Nghỉ phép năm'
@@ -430,15 +655,6 @@ export const LeaveRegisterPage: React.FC = () => {
         </div>
       )}
 
-      {/* Back button */}
-      <button
-        type="button"
-        onClick={() => navigate('/admin/staff')}
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-sky-600 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Quay lại Bác sĩ &amp; Nhân sự
-      </button>
 
       {/* ─── Page Header ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -543,13 +759,74 @@ export const LeaveRegisterPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Quick Request Form */}
         <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-2xs p-5 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <FileText className="w-4 h-4 text-sky-600" />
-            <h2 className="text-sm font-extrabold text-slate-900">Tạo đơn xin nghỉ phép</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-600" />
+              <h2 className="text-sm font-extrabold text-slate-900">Tạo đơn xin nghỉ phép</h2>
+            </div>
+            <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+              Ca tiêu chuẩn
+            </span>
           </div>
 
           <form onSubmit={handleQuickSubmit} className="space-y-3.5">
-            {/* Loại nghỉ phép */}
+            {/* 1. Chọn Nhân sự xin nghỉ (Dành cho Quản lý / Kế toán tạo hộ) */}
+            {canViewAll ? (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nhân sự xin nghỉ phép <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={quickRequesterId}
+                    onChange={(e) => setQuickRequesterId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 bg-white"
+                  >
+                    {allStaffList.map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name || st.fullName} ({st.code || st.employeeCode || 'NV'} - {st.specialty || st.department || 'Nhân sự'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedStaffMember && (
+                  <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex items-center justify-between">
+                    <span>
+                      Lịch làm việc: <strong>{staffWorkDays.join(', ')}</strong>
+                    </span>
+                    <span className="text-sky-700 font-bold">
+                      {selectedStaffMember.workHours || '08:00 - 17:30'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nhân sự gửi đơn
+                </label>
+                <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 font-extrabold text-xs flex items-center justify-center">
+                      {(user?.fullName || 'BS').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-extrabold text-slate-800">
+                        {user?.fullName || 'BS. Nguyễn Thị An'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-medium">
+                        {userRoleCode === 'doctor' ? 'Bác sĩ điều trị' : 'Nhân sự phòng khám'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Phép còn: 10 ngày
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Loại nghỉ phép */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Loại nghỉ phép <span className="text-rose-500">*</span>
@@ -566,7 +843,7 @@ export const LeaveRegisterPage: React.FC = () => {
                     onClick={() => setQuickType(t.id as any)}
                     className={`py-2 px-1 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
                       quickType === t.id
-                        ? 'border-sky-500 bg-sky-50 text-sky-700 shadow-2xs'
+                        ? 'border-sky-500 bg-sky-50 text-sky-700 shadow-2xs font-extrabold'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -576,7 +853,40 @@ export const LeaveRegisterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Từ ngày - Đến ngày */}
+            {/* 3. Phạm vi ca xin nghỉ (Ca Tiêu Chuẩn Full-time / Nửa Ca Sáng / Nửa Ca Chiều) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Phạm vi ca xin nghỉ <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'full', label: 'Cả ngày (Ca chuẩn)', desc: '08:00 - 17:30' },
+                  { id: 'morning', label: 'Nửa ca Sáng', desc: '08:00 - 12:00' },
+                  { id: 'afternoon', label: 'Nửa ca Chiều', desc: '13:30 - 17:30' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setQuickShiftScope(s.id as any);
+                      if (s.id !== 'full' && quickStartDate) {
+                        setQuickEndDate(quickStartDate);
+                      }
+                    }}
+                    className={`py-2 px-1 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-center ${
+                      quickShiftScope === s.id
+                        ? 'border-sky-500 bg-sky-50 text-sky-800 shadow-2xs font-extrabold'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-xs">{s.label}</span>
+                    <span className="text-[9px] text-slate-400 font-medium">{s.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Từ ngày - Đến ngày */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -585,7 +895,12 @@ export const LeaveRegisterPage: React.FC = () => {
                 <input
                   type="date"
                   value={quickStartDate}
-                  onChange={(e) => setQuickStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setQuickStartDate(e.target.value);
+                    if (quickShiftScope !== 'full' || !quickEndDate) {
+                      setQuickEndDate(e.target.value);
+                    }
+                  }}
                   className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 bg-slate-50/50"
                   required
                 />
@@ -597,14 +912,40 @@ export const LeaveRegisterPage: React.FC = () => {
                 <input
                   type="date"
                   value={quickEndDate}
+                  disabled={quickShiftScope !== 'full'}
                   onChange={(e) => setQuickEndDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 bg-slate-50/50"
+                  className={`w-full px-3 py-2 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 ${
+                    quickShiftScope !== 'full' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50/50'
+                  }`}
                   required
                 />
               </div>
             </div>
 
-            {/* Bác sĩ bàn giao ca */}
+            {/* 5. Smart Calculation Info Badge */}
+            {quickStartDate && quickEndDate && (
+              <div className="p-3 rounded-xl bg-sky-50/80 border border-sky-200 text-sky-950 text-xs space-y-1">
+                <div className="flex items-center justify-between font-extrabold">
+                  <span className="flex items-center gap-1.5 text-sky-800">
+                    <Clock className="w-3.5 h-3.5 text-sky-600" />
+                    Dự kiến tính phép:
+                  </span>
+                  <span className="text-sky-700 font-black">
+                    {calculatedLeaveStats.workDays} ngày làm việc ({calculatedLeaveStats.totalHours} giờ công)
+                  </span>
+                </div>
+                {calculatedLeaveStats.offDays > 0 && (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1 pt-0.5 border-t border-sky-100">
+                    <Info className="w-3 h-3 text-sky-600 shrink-0" />
+                    <span>
+                      Đã tự động trừ {calculatedLeaveStats.offDays} ngày nghỉ tuần (T7, CN) theo quy định cá nhân.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 6. Bác sĩ bàn giao ca */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Bác sĩ / Nhân sự trực thay &amp; Bàn giao ca
@@ -614,16 +955,18 @@ export const LeaveRegisterPage: React.FC = () => {
                 onChange={(e) => setQuickSubstituteDoctor(e.target.value)}
                 className="w-full px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 bg-white"
               >
-                <option value="">Chọn nhân sự bàn giao...</option>
-                <option value="BS.CKI Nguyễn Văn Tuấn">BS.CKI Nguyễn Văn Tuấn (Khoa Implant)</option>
-                <option value="BS. Lê Thị Lan">BS. Lê Thị Lan (Khoa Răng sứ)</option>
-                <option value="BS. Vũ Phương Thảo">BS. Vũ Phương Thảo (Khoa Chỉnh nha)</option>
-                <option value="KTV. Hoàng Minh">KTV. Hoàng Minh (Phòng Vô trùng)</option>
-                <option value="LT. Trần Thị Ngọc">LT. Trần Thị Ngọc (Lễ tân sảnh)</option>
+                <option value="">Chọn nhân sự bàn giao ca trực...</option>
+                {allStaffList
+                  .filter((s) => s.id !== (selectedStaffMember?.id || quickRequesterId))
+                  .map((st) => (
+                    <option key={st.id} value={`${st.name || st.fullName} (${st.specialty || st.department || 'Nhân sự'})`}>
+                      {st.name || st.fullName} - {st.specialty || st.department || 'Khoa phòng'}
+                    </option>
+                  ))}
               </select>
             </div>
 
-            {/* Lý do nghỉ */}
+            {/* 7. Lý do nghỉ */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Lý do nghỉ phép <span className="text-rose-500">*</span>
@@ -638,12 +981,27 @@ export const LeaveRegisterPage: React.FC = () => {
               />
             </div>
 
+            {/* 8. Quản lý duyệt ngay */}
+            {canApprove && (
+              <label className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={quickAutoApprove}
+                  onChange={(e) => setQuickAutoApprove(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-400 h-4 w-4"
+                />
+                <span className="text-xs font-bold text-emerald-900">
+                  Phê duyệt ngay &amp; Đồng bộ lên bảng lịch trực phòng khám
+                </span>
+              </label>
+            )}
+
             <button
               type="submit"
               className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Gửi đơn xin nghỉ phép</span>
+              <span>{canApprove && quickAutoApprove ? 'Tạo & Duyệt đơn trực tiếp' : 'Gửi đơn xin nghỉ phép'}</span>
             </button>
           </form>
         </div>

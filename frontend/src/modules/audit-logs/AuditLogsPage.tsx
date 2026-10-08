@@ -184,6 +184,81 @@ export const AuditLogsPage: React.FC = () => {
     );
   };
 
+  // Helper render chi tiết hành động có gắn nhãn chuyển trạng thái trực quan
+  const renderActionContent = (act: ChildAction) => {
+    const rawAction = act.action || '';
+    // Tìm mẫu chuyển trạng thái [Từ ➔ Sang] hoặc [Từ -> Sang]
+    const transitionMatch = rawAction.match(/\[(.*?)(?:➔|->)(.*?)\]/);
+
+    if (transitionMatch) {
+      const fromState = transitionMatch[1].trim();
+      const toState = transitionMatch[2].trim();
+      // Tách phần tên hành động chính (loại bỏ đoạn trong ngoặc vuông)
+      const cleanActionTitle = rawAction.replace(/\[.*?\]/, '').replace(/\s+/g, ' ').trim();
+
+      const isLocked = toState.includes('khóa') || toState.includes('Dừng') || toState.includes('ngưng');
+      const isMaintenance = toState.includes('bảo trì') || toState.includes('sự cố') || toState.includes('sửa');
+      const isSuccess = toState.includes('hoạt động') || toState.includes('Sẵn sàng') || toState.includes('Hoàn thành') || toState.includes('Check-in');
+
+      const pillColor = isLocked
+        ? 'bg-rose-50 text-rose-800 border-rose-200'
+        : isMaintenance
+        ? 'bg-amber-50 text-amber-800 border-amber-200'
+        : isSuccess
+        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+        : 'bg-indigo-50 text-indigo-800 border-indigo-200';
+
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="font-extrabold text-slate-900 leading-snug">
+              {cleanActionTitle}
+            </span>
+
+            {/* Badge chuyển trạng thái nổi bật */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold border ${pillColor}`}>
+              <span className="opacity-80">{fromState}</span>
+              <ArrowRight className="w-3 h-3 shrink-0" />
+              <span>{toState}</span>
+            </span>
+
+            {act.targetEntity && (
+              <span className="font-bold text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+                {act.targetEntity}
+              </span>
+            )}
+          </div>
+
+          {act.details && act.details !== cleanActionTitle && (
+            <p className="text-[11px] text-slate-500 font-medium pl-0.5 leading-relaxed">
+              {act.details}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="font-extrabold text-slate-800 leading-snug">
+            {rawAction}
+          </span>
+          {act.targetEntity && (
+            <span className="font-bold text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+              {act.targetEntity}
+            </span>
+          )}
+        </div>
+        {act.details && act.details !== rawAction && (
+          <p className="text-[11px] text-slate-500 font-medium pl-0.5 leading-relaxed">
+            {act.details}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   // Export Excel
   const handleExport = () => {
     if (!logs || logs.length === 0) {
@@ -452,48 +527,51 @@ export const AuditLogsPage: React.FC = () => {
                           <td colSpan={4} className="px-6 py-4 animate-in fade-in duration-150">
                             <div className="bg-white rounded-2xl border border-sky-200/80 p-4 shadow-2xs space-y-3">
                               {/* Header Accordion */}
-                              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                                <p className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                                  <ScrollText className="w-4 h-4 text-sky-600" />
-                                  Các hành động đã thực hiện ({group.actions.length} hành động):
-                                </p>
-                              </div>
+                              {(() => {
+                                const uniqueActions = (group.actions || []).filter((act, actIdx, self) =>
+                                  actIdx === self.findIndex((a) => a.action === act.action && a.time === act.time && a.targetEntity === act.targetEntity)
+                                );
 
-                              {/* Danh sách hành động con: Chỉ Giờ (HH:mm:ss) + Tên hành động + Trạng thái */}
-                              <div className="divide-y divide-slate-100">
-                                {group.actions.map((act, idx) => (
-                                  <div
-                                    key={act.id || idx}
-                                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                                      idx > 0 ? 'pt-3' : 'pt-1'
-                                    } pb-2`}
-                                  >
-                                    {/* Bên trái: Giờ chính xác (HH:mm:ss) & Tên hành động cụ thể */}
-                                    <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                                      <span className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-sky-700 bg-sky-50 px-2 py-1 rounded-md border border-sky-100 shrink-0">
-                                        <Clock className="w-3 h-3 text-sky-500" />
-                                        {act.time}
-                                      </span>
-
-                                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                        <span className="font-extrabold text-slate-800 leading-snug">
-                                          {act.action}
-                                        </span>
-                                        {act.targetEntity && (
-                                          <span className="font-bold text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
-                                            {act.targetEntity}
-                                          </span>
-                                        )}
-                                      </div>
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                                      <p className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                                        <ScrollText className="w-4 h-4 text-sky-600" />
+                                        Các hành động đã thực hiện ({uniqueActions.length} hành động):
+                                      </p>
                                     </div>
 
-                                    {/* Bên phải: Trạng thái của từng hành động con */}
-                                    <div className="shrink-0 sm:pl-2">
-                                      {renderStatusBadge(act.status)}
+                                    {/* Danh sách hành động con: Giờ + Chi tiết & Nhãn chuyển trạng thái + Trạng thái */}
+                                    <div className="divide-y divide-slate-100">
+                                      {uniqueActions.map((act, idx) => (
+                                        <div
+                                          key={act.id || idx}
+                                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                                            idx > 0 ? 'pt-3' : 'pt-1'
+                                          } pb-2`}
+                                        >
+                                          {/* Bên trái: Giờ chính xác (HH:mm:ss) & Tên hành động cụ thể + Nhãn chuyển trạng thái */}
+                                          <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                                            <span className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-sky-700 bg-sky-50 px-2 py-1 rounded-md border border-sky-100 shrink-0 mt-0.5 sm:mt-0">
+                                              <Clock className="w-3 h-3 text-sky-500" />
+                                              {act.time}
+                                            </span>
+
+                                            <div className="flex-1 min-w-0">
+                                              {renderActionContent(act)}
+                                            </div>
+                                          </div>
+
+                                          {/* Bên phải: Trạng thái của từng hành động con */}
+                                          <div className="shrink-0 sm:pl-2">
+                                            {renderStatusBadge(act.status)}
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>

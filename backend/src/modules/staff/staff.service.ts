@@ -556,14 +556,16 @@ export class StaffService {
           link: `/admin/staff/${existing.id}`,
         });
       }
-    } else if (data.isActive !== undefined) {
-      // Ghi log trạng thái khóa / mở tài khoản
+    } else if (data.isActive !== undefined && data.isActive !== existing.isActive) {
+      // Ghi log trạng thái khóa / mở tài khoản khi có thay đổi thực tế
       const actionText = data.isActive ? 'Mở khóa tài khoản' : 'Khóa tài khoản';
+      const fromStatus = existing.isActive ? 'Đang hoạt động' : 'Đã khóa';
+      const toStatus = data.isActive ? 'Đang hoạt động' : 'Đã khóa';
       await this.auditLogsService.log({
         userId: finalUserId,
         module: 'STAFF',
-        action: `${actionText} nhân sự: ${existing.fullName} (${existing.employeeCode})`,
-        details: `Trạng thái hoạt động của tài khoản đã được chuyển sang: ${data.isActive ? 'Đang hoạt động' : 'Đã khóa'}.`,
+        action: `${actionText} nhân sự: ${existing.fullName} (${existing.employeeCode}) [${fromStatus} ➔ ${toStatus}]`,
+        details: `Trạng thái hoạt động của tài khoản đã được chuyển từ [${fromStatus}] sang [${toStatus}].`,
         targetEntity: existing.employeeCode,
         status: 'SUCCESS',
       });
@@ -628,10 +630,12 @@ export class StaffService {
       const startTime = `${startH}:${startM}`;
       const endTime = `${endH}:${endM}`;
 
-      let shiftType: 'morning' | 'afternoon' | 'leave' | 'overtime' = 'morning';
+      let shiftType: 'morning' | 'afternoon' | 'fullday' | 'leave' | 'overtime' = 'fullday';
       if (sc.isLeave) shiftType = 'leave';
       else if (parseInt(startH, 10) >= 18) shiftType = 'overtime';
+      else if (parseInt(startH, 10) <= 9 && parseInt(endH, 10) >= 16) shiftType = 'fullday';
       else if (parseInt(startH, 10) >= 12) shiftType = 'afternoon';
+      else if (parseInt(endH, 10) <= 13) shiftType = 'morning';
 
       return {
         id: sc.id,
@@ -698,7 +702,7 @@ export class StaffService {
     } else if (normShift === 'afternoon' || normShift === 'ca chiều') {
       start = data.startTime || '13:30';
       end = data.endTime || '17:30';
-    } else if (normShift === 'fullday' || normShift === 'full_day' || normShift === 'cả ngày') {
+    } else if (normShift === 'fullday' || normShift === 'full_day' || normShift === 'cả ngày' || normShift === 'ca tiêu chuẩn' || normShift === 'standard') {
       start = data.startTime || '08:00';
       end = data.endTime || '17:30';
     } else if (normShift === 'overtime' || normShift === 'tăng ca') {
@@ -710,6 +714,21 @@ export class StaffService {
       end = '23:59';
     }
 
+    const defaultNote = isLeave
+      ? 'Nghỉ phép'
+      : (normShift.includes('fullday') || normShift.includes('tiêu chuẩn') || normShift.includes('standard'))
+      ? 'Ca tiêu chuẩn (08:00 - 17:30)'
+      : `Ca ${normShift}`;
+
+    if (isLeave) {
+      await this.prisma.staffSchedule.deleteMany({
+        where: {
+          userId: targetUserId,
+          workDate: date,
+        },
+      });
+    }
+
     return this.prisma.staffSchedule.create({
       data: {
         userId: targetUserId,
@@ -718,7 +737,7 @@ export class StaffService {
         shiftStart: new Date(`1970-01-01T${start}:00.000Z`),
         shiftEnd: new Date(`1970-01-01T${end}:00.000Z`),
         isLeave,
-        notes: data.notes || (isLeave ? 'Nghỉ phép' : `Ca ${normShift}`),
+        notes: data.notes || defaultNote,
       },
     });
   }
@@ -745,8 +764,8 @@ export class StaffService {
     const metadataMap = getStaffMetadataMap();
     const dayKeys = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-    // Sinh ca từ T2 đến T7
-    for (let dayOffset = 0; dayOffset < 6; dayOffset++) {
+    // Sinh ca tiêu chuẩn cho các ngày làm việc trong tuần (Full-time: 08:00 - 17:30)
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const shiftDate = new Date(monday);
       shiftDate.setDate(monday.getDate() + dayOffset);
       const dateOnly = new Date(shiftDate.toISOString().split('T')[0] + 'T00:00:00.000Z');
@@ -756,7 +775,7 @@ export class StaffService {
         const meta = metadataMap[u.id] || metadataMap[u.employeeCode] || {};
         const docWorkDays: string[] = meta.workDays || ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
         if (!docWorkDays.includes(currentDayKey)) {
-          // Bác sĩ không làm việc vào ngày này theo cấu hình cá nhân
+          // Bác sĩ không làm việc vào ngày này theo cấu hình cá nhân (OFF)
           continue;
         }
 
@@ -769,9 +788,10 @@ export class StaffService {
         });
 
         if (!exists) {
-          const isMorning = dayOffset % 2 === 0;
-          const start = isMorning ? '08:00' : '13:30';
-          const end = isMorning ? '12:00' : '17:30';
+          const hours = meta.workHours || '08:00 - 17:30';
+          const [startRaw, endRaw] = hours.includes('-') ? hours.split('-') : ['08:00', '17:30'];
+          const start = (startRaw || '08:00').trim();
+          const end = (endRaw || '17:30').trim();
 
           const item = await this.prisma.staffSchedule.create({
             data: {
@@ -781,7 +801,7 @@ export class StaffService {
               shiftStart: new Date(`1970-01-01T${start}:00.000Z`),
               shiftEnd: new Date(`1970-01-01T${end}:00.000Z`),
               isLeave: false,
-              notes: isMorning ? 'Ca Sáng (08:00 - 12:00)' : 'Ca Chiều (13:30 - 17:30)',
+              notes: `Ca tiêu chuẩn (${start} - ${end})`,
             },
           });
           created.push(item);

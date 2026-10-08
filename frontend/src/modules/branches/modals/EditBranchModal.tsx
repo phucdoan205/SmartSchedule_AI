@@ -29,10 +29,10 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
   onSave,
 }) => {
   const [branchType, setBranchType] = useState<'headquarters' | 'standard' | 'satellite'>('headquarters');
-  const [name, setName] = useState(branch?.name ? `${branch.name} (Trụ sở chính)` : 'Chi nhánh Biên Hòa (Trụ sở chính)');
-  const [address, setAddress] = useState(branch?.address || '123 Đường ABC, Phường Tam Hiệp, TP. Biên Hòa, Đồng Nai');
-  const [hotline, setHotline] = useState(branch?.phone || '0236 6555 555');
-  const [email, setEmail] = useState('bienhoa@vietanhduc.vn');
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [hotline, setHotline] = useState('');
+  const [email, setEmail] = useState('');
   
   // Working hours
   const [weekdayOpen, setWeekdayOpen] = useState('08:00');
@@ -42,8 +42,8 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
 
   // Scale & facilities
   const [areaScale, setAreaScale] = useState('450m² (3 Tầng lầu)');
-  const [dentalChairs, setDentalChairs] = useState(branch?.roomCount || 8);
-  const [totalStaff, setTotalStaff] = useState(branch?.doctorCount ? branch.doctorCount + 2 : 18);
+  const [dentalChairs, setDentalChairs] = useState(2);
+  const [totalStaff, setTotalStaff] = useState(5);
 
   // Floor space allocation
   const [floors, setFloors] = useState<string[]>([
@@ -55,6 +55,45 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
   // Operational status
   const [status, setStatus] = useState<'active' | 'maintenance' | 'closed'>('active');
   const [onlineBooking, setOnlineBooking] = useState(true);
+
+  // Synchronize state when branch or isOpen changes
+  React.useEffect(() => {
+    if (branch && isOpen) {
+      setName(branch.name || 'Chi nhánh');
+      setAddress(
+        branch.address && branch.address !== 'Đang tải thông tin...'
+          ? branch.address
+          : '123 Đường ABC, Phường Tam Hiệp, TP. Biên Hòa, Đồng Nai'
+      );
+      setHotline(branch.phone || '0236 6555 555');
+      setEmail(branch.email || 'cn01@vietanhduc.vn');
+      setAreaScale(branch.areaScale || '450m² (3 Tầng lầu)');
+      setDentalChairs(branch.chairCount || branch.roomCount || 2);
+      setTotalStaff(branch.doctorCount || 5);
+
+      const isMaint = branch.status === 'Maintenance' || branch.status === 'maintenance';
+      const isClosed = branch.status === 'Closed' || branch.status === 'closed' || branch.isActive === false;
+      setStatus(isMaint ? 'maintenance' : isClosed ? 'closed' : 'active');
+
+      if (branch.weekdayHours) {
+        const parts = branch.weekdayHours.split(' - ');
+        if (parts.length === 2) {
+          setWeekdayOpen(parts[0].trim());
+          setWeekdayClose(parts[1].trim());
+        }
+      }
+      if (branch.sundayHours) {
+        const parts = branch.sundayHours.split(' - ');
+        if (parts.length === 2) {
+          setSundayOpen(parts[0].trim());
+          setSundayClose(parts[1].trim());
+        }
+      }
+      if (Array.isArray(branch.floors) && branch.floors.length > 0) {
+        setFloors(branch.floors);
+      }
+    }
+  }, [branch, isOpen]);
 
   if (!isOpen) return null;
 
@@ -73,14 +112,22 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
   };
 
   const handleReset = () => {
-    setName('Chi nhánh Biên Hòa (Trụ sở chính)');
-    setAddress('123 Đường ABC, Phường Tam Hiệp, TP. Biên Hòa, Đồng Nai');
-    setHotline('0236 6555 555');
-    setEmail('bienhoa@vietanhduc.vn');
-    setDentalChairs(8);
-    setTotalStaff(18);
-    setAreaScale('450m² (3 Tầng lầu)');
-    setStatus('active');
+    setName(branch?.name || 'Chi nhánh Biên Hòa (Trụ sở chính)');
+    setAddress(
+      branch?.address && branch.address !== 'Đang tải thông tin...'
+        ? branch.address
+        : '123 Đường ABC, Phường Tam Hiệp, TP. Biên Hòa, Đồng Nai'
+    );
+    setHotline(branch?.phone || '0236 6555 555');
+    setEmail(branch?.email || 'cn01@vietanhduc.vn');
+    setDentalChairs(branch?.chairCount || branch?.roomCount || 2);
+    setTotalStaff(branch?.doctorCount || 5);
+    setAreaScale(branch?.areaScale || '450m² (3 Tầng lầu)');
+    setWeekdayOpen('08:00');
+    setWeekdayClose('20:00');
+    setSundayOpen('08:00');
+    setSundayClose('17:00');
+    setStatus(branch?.status === 'Active' || branch?.isActive !== false ? 'active' : 'maintenance');
     setOnlineBooking(true);
   };
 
@@ -94,8 +141,15 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
         phone: hotline,
         email,
         roomCount: dentalChairs,
+        chairCount: dentalChairs,
         doctorCount: totalStaff,
-        status: status === 'active' ? 'Active' : 'Maintenance',
+        areaScale,
+        weekdayHours: `${weekdayOpen} - ${weekdayClose}`,
+        sundayHours: `${sundayOpen} - ${sundayClose}`,
+        floors,
+        status: status === 'active' ? 'Active' : status === 'maintenance' ? 'Maintenance' : 'Closed',
+        statusLabel: status === 'active' ? 'ĐANG HOẠT ĐỘNG' : status === 'maintenance' ? 'BẢO TRÌ TẠM THỜI' : 'TẠM ĐÓNG CỬA',
+        isActive: status === 'active',
       });
     }
     onClose();

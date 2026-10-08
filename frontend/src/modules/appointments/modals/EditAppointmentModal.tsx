@@ -50,6 +50,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [patientDob, setPatientDob] = useState('');
+  const [patientGender, setPatientGender] = useState<'Nam' | 'Nữ' | 'Khác'>('Nam');
   const [medicalAlerts, setMedicalAlerts] = useState('');
   const [branchId, setBranchId] = useState('');
   const [doctorId, setDoctorId] = useState('');
@@ -70,6 +71,8 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
       setPatientName(appointment.patientName || '');
       setPatientPhone(appointment.patientPhone || '');
       setPatientDob(appointment.patientDob || '');
+      const rawGen = (appointment as any).patientGender || (appointment as any).rawItem?.patient?.gender;
+      setPatientGender(rawGen === 'Nu' || rawGen === 'Nữ' ? 'Nữ' : rawGen === 'Khác' ? 'Khác' : 'Nam');
       setMedicalAlerts(appointment.medicalAlerts || '');
       setBranchId(appointment.branchId || branches[0]?.id || '');
       setDoctorId(appointment.doctorId || doctors[0]?.id || '');
@@ -142,6 +145,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
         patientPhone: patientPhone.trim(),
         dateOfBirth: patientDob || undefined,
         birthYear: patientDob ? parseInt(patientDob.split('-')[0], 10) : undefined,
+        gender: patientGender,
         medicalAlerts: finalAlerts || undefined,
         branchId,
         doctorId,
@@ -283,7 +287,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Ngày Sinh (Hồ sơ y bạ):</label>
               <input
@@ -294,15 +298,27 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
               />
             </div>
             <div>
+              <label className="block font-semibold text-slate-700 mb-1">Giới Tính:</label>
+              <select
+                value={patientGender}
+                onChange={(e) => setPatientGender(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+              >
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div>
               <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1">
                 <HeartPulse className="w-3.5 h-3.5 text-amber-500" />
-                Cảnh Báo Y Tế / Dị Ứng Thuốc:
+                Cảnh Báo Y Tế / Dị Ứng:
               </label>
               <input
                 type="text"
                 value={medicalAlerts}
                 onChange={(e) => setMedicalAlerts(e.target.value)}
-                placeholder="VD: Dị ứng Lidocaine, cao huyết áp..."
+                placeholder="VD: Dị ứng Lidocaine..."
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>

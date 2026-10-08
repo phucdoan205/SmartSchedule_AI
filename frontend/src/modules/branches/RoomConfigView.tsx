@@ -31,6 +31,7 @@ export interface RoomItem {
 
 interface RoomConfigViewProps {
   selectedBranchId: string;
+  branchName?: string;
   onSelectBranch: (id: string) => void;
   onBack: () => void;
   onOpenAddRoom: () => void;
@@ -43,6 +44,7 @@ interface RoomConfigViewProps {
 
 export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
   selectedBranchId,
+  branchName,
   onSelectBranch,
   onBack,
   onOpenAddRoom,
@@ -52,6 +54,12 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
   onToggleWebBooking,
   onReopenRoom,
 }) => {
+  // Tính toán KPI động từ danh sách phòng thực tế
+  const totalRooms = rooms.length;
+  const inUseRooms = rooms.filter((r) => r.status === 'InUse').length;
+  const maintenanceRooms = rooms.filter((r) => r.status === 'Maintenance').length;
+  const activeRooms = rooms.filter((r) => r.status === 'Ready' || r.status === 'Sterilized').length;
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Breadcrumb Navigation */}
@@ -77,7 +85,7 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
           <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500 font-medium">
             <div className="flex items-center gap-1.5 font-bold text-sky-800 bg-sky-50 px-3 py-1 rounded-xl border border-sky-200">
               <MapPin className="w-3.5 h-3.5 text-sky-600" />
-              <span>{MOCK_BRANCHES.find((b) => b.id === selectedBranchId)?.name || 'Chi nhánh đang chọn'}</span>
+              <span>{branchName || MOCK_BRANCHES.find((b) => b.id === selectedBranchId)?.name || 'Chi nhánh đang chọn'}</span>
             </div>
             <span>Thiết lập danh sách ghế nha khoa, gán bác sĩ phụ trách và quản lý trạng thái bảo trì thiết bị.</span>
           </div>
@@ -92,7 +100,7 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
         </button>
       </div>
 
-      {/* Summary Bar (Khớp 100% Ảnh "giao diện button cấu hình.png") */}
+      {/* Summary Bar - Dữ liệu thực tế tự động tính toán */}
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-4 text-xs font-extrabold">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-lg font-extrabold">
@@ -100,19 +108,19 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
           </div>
           <div>
             <span className="text-[10px] text-slate-400 block uppercase tracking-wider">TỔNG SỐ</span>
-            <span className="text-base text-slate-900 font-extrabold">8 Phòng</span>
+            <span className="text-base text-slate-900 font-extrabold">{totalRooms} Phòng</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap font-bold text-[11px] sm:text-xs">
           <span className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" /> 6 Đang hoạt động
+            <span className="w-2 h-2 rounded-full bg-emerald-500" /> {activeRooms} Đang hoạt động
           </span>
           <span className="flex items-center gap-2 text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-200">
-            <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" /> 1 Đang khám
+            <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" /> {inUseRooms} Đang khám
           </span>
           <span className="flex items-center gap-2 text-amber-800 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-            <span className="w-2 h-2 rounded-full bg-amber-500" /> 1 Bảo trì / Khử trùng
+            <span className="w-2 h-2 rounded-full bg-amber-500" /> {maintenanceRooms} Bảo trì / Khử trùng
           </span>
         </div>
       </div>
@@ -270,22 +278,6 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
             </div>
           );
         })}
-
-        {/* Card: Thêm phòng khám mới */}
-        <div
-          onClick={onOpenAddRoom}
-          className="bg-white rounded-3xl border-2 border-dashed border-slate-300 hover:border-sky-400 p-6 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer transition-all hover:bg-sky-50/20 group min-h-[340px]"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 group-hover:bg-sky-100 text-slate-600 group-hover:text-sky-600 flex items-center justify-center text-2xl font-extrabold transition-colors">
-            +
-          </div>
-          <h3 className="text-base font-extrabold text-slate-900 group-hover:text-sky-600 transition-colors">
-            Thêm phòng khám mới
-          </h3>
-          <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">
-            Cài đặt thiết bị và phân bổ không gian mới cho chi nhánh.
-          </p>
-        </div>
       </div>
     </div>
   );

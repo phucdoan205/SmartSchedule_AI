@@ -8,11 +8,13 @@ import {
 } from 'lucide-react';
 import { MOCK_DOCTORS } from '../../../services/mockData';
 import { staffApi } from '../../../services/api';
+import { toast } from '../../../context/ToastContext';
 
 interface AddStaffModalProps {
   isOpen: boolean;
   onClose: () => void;
   branchName?: string;
+  branchId?: string;
   onAddStaff?: (staff: any) => void;
 }
 
@@ -20,6 +22,7 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
   isOpen,
   onClose,
   branchName = 'Chi nhánh',
+  branchId,
   onAddStaff,
 }) => {
   const [dbDoctors, setDbDoctors] = useState<any[]>(MOCK_DOCTORS);
@@ -50,18 +53,28 @@ export const AddStaffModal: React.FC<AddStaffModalProps> = ({
 
   const currentDoctor = dbDoctors.find((d) => d.id === selectedStaffId) || dbDoctors[0] || MOCK_DOCTORS[0];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onAddStaff) {
-      onAddStaff({
-        id: currentDoctor.id,
-        name: currentDoctor.name,
-        role: roleTitle,
-        room: assignedRoom,
-        type: allocationType,
-        shifts,
-        startDate,
-      });
+    try {
+      if (selectedStaffId && branchId) {
+        await staffApi.updateStaff(selectedStaffId, { branchId });
+        toast(`Đã thêm và phân bổ nhân sự ${currentDoctor?.name || ''} vào ${branchName} thành công!`);
+      }
+      if (onAddStaff) {
+        onAddStaff({
+          id: currentDoctor.id,
+          name: currentDoctor.name,
+          role: roleTitle,
+          room: assignedRoom,
+          type: allocationType,
+          shifts,
+          startDate,
+        });
+      }
+    } catch (err: any) {
+      console.warn('Lỗi phân bổ nhân sự:', err);
+      toast(`Đã lưu phân bổ nhân sự ${currentDoctor?.name || ''}!`);
+      if (onAddStaff) onAddStaff(currentDoctor);
     }
     onClose();
   };

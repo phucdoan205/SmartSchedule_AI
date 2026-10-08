@@ -33,7 +33,7 @@ interface ScheduleItem {
   id: string;
   staffId: string;
   date: string; // '2026-08-17' (YYYY-MM-DD)
-  shiftType: 'morning' | 'afternoon' | 'leave' | 'overtime';
+  shiftType: 'morning' | 'afternoon' | 'fullday' | 'leave' | 'overtime';
   startTime: string;
   endTime: string;
   room?: string;
@@ -237,17 +237,17 @@ export const StaffSchedulePage: React.FC = () => {
             staffId: sc.staffId,
             date: sc.date.split('T')[0],
             shiftType:
-              sc.shiftType === 'afternoon'
+              sc.shiftType === 'fullday' || sc.shiftType === 'full_day' || sc.shiftType === 'standard'
+                ? 'fullday'
+                : sc.shiftType === 'afternoon'
                 ? 'afternoon'
-                : sc.shiftType === 'full_day' || sc.shiftType === 'fullday'
-                ? 'morning'
-                : sc.shiftType === 'evening'
+                : sc.shiftType === 'evening' || sc.shiftType === 'overtime'
                 ? 'overtime'
                 : sc.shiftType === 'leave'
                 ? 'leave'
-                : 'morning',
+                : 'fullday',
             startTime: sc.startTime || '08:00',
-            endTime: sc.endTime || (sc.shiftType === 'afternoon' ? '17:30' : '12:00'),
+            endTime: sc.endTime || (sc.shiftType === 'afternoon' ? '17:30' : sc.shiftType === 'morning' ? '12:00' : '17:30'),
             room: sc.room || 'Phòng khám tiêu chuẩn',
             statusLabel: sc.isAvailable ? undefined : '(Tạm ngưng)',
           }))
@@ -395,86 +395,90 @@ export const StaffSchedulePage: React.FC = () => {
     });
   };
 
-  // Apply standard shift directly (Ca Sáng: 08:00 - 12:00, Ca Chiều: 13:30 - 17:30)
-  const handleApplyStandardShift = async (type: 'morning' | 'afternoon' | 'fullday') => {
+  // Apply standard shift directly (Ca tiêu chuẩn: 08:00 - 17:30, Tăng ca: 18:00 - 20:30, Nghỉ phép)
+  const handleApplyStandardShift = async (type: 'fullday' | 'overtime' | 'leave') => {
     if (!quickPicker) return;
 
     const { staffId, date, staffName } = quickPicker;
 
     if (type === 'fullday') {
-      // Create both morning and afternoon shifts
-      const morningItem: ScheduleItem = {
-        id: `shift-m-${Date.now()}`,
+      const fullDayItem: ScheduleItem = {
+        id: `shift-f-${Date.now()}`,
         staffId,
         date,
-        shiftType: 'morning',
+        shiftType: 'fullday',
         startTime: '08:00',
-        endTime: '12:00',
-        room: 'Ghế tiêu chuẩn',
-      };
-      const afternoonItem: ScheduleItem = {
-        id: `shift-a-${Date.now() + 1}`,
-        staffId,
-        date,
-        shiftType: 'afternoon',
-        startTime: '13:30',
         endTime: '17:30',
         room: 'Ghế tiêu chuẩn',
       };
 
-      setShifts((prev) => [...prev, morningItem, afternoonItem]);
-
-      try {
-        await Promise.all([
-          staffSchedulesApi.create({
-            staffId,
-            date,
-            shiftType: 'MORNING',
-            startTime: '08:00',
-            endTime: '12:00',
-          }),
-          staffSchedulesApi.create({
-            staffId,
-            date,
-            shiftType: 'AFTERNOON',
-            startTime: '13:30',
-            endTime: '17:30',
-          }),
-        ]);
-      } catch (err) {
-        console.warn('API shift create notice:', err);
-      }
-
-      showToast(`Đã áp dụng ca cả ngày (08:00 - 17:30) cho ${staffName}!`);
-    } else {
-      const isMorning = type === 'morning';
-      const newItem: ScheduleItem = {
-        id: `shift-${Date.now()}`,
-        staffId,
-        date,
-        shiftType: isMorning ? 'morning' : 'afternoon',
-        startTime: isMorning ? '08:00' : '13:30',
-        endTime: isMorning ? '12:00' : '17:30',
-        room: 'Ghế tiêu chuẩn',
-      };
-
-      setShifts((prev) => [...prev, newItem]);
+      setShifts((prev) => [...prev.filter((s) => !(s.staffId === staffId && s.date === date)), fullDayItem]);
 
       try {
         await staffSchedulesApi.create({
           staffId,
           date,
-          shiftType: isMorning ? 'MORNING' : 'AFTERNOON',
-          startTime: isMorning ? '08:00' : '13:30',
-          endTime: isMorning ? '12:00' : '17:30',
+          shiftType: 'fullday',
+          startTime: '08:00',
+          endTime: '17:30',
         });
       } catch (err) {
         console.warn('API shift create notice:', err);
       }
 
-      showToast(
-        `Đã áp dụng ${isMorning ? 'Ca Sáng (08:00 - 12:00)' : 'Ca Chiều (13:30 - 17:30)'} cho ${staffName}!`
-      );
+      showToast(`Đã gán Ca tiêu chuẩn (08:00 - 17:30) cho ${staffName}!`);
+    } else if (type === 'overtime') {
+      const otItem: ScheduleItem = {
+        id: `shift-ot-${Date.now()}`,
+        staffId,
+        date,
+        shiftType: 'overtime',
+        startTime: '18:00',
+        endTime: '20:30',
+        room: 'Ghế tiêu chuẩn',
+      };
+
+      setShifts((prev) => [...prev, otItem]);
+
+      try {
+        await staffSchedulesApi.create({
+          staffId,
+          date,
+          shiftType: 'overtime',
+          startTime: '18:00',
+          endTime: '20:30',
+        });
+      } catch (err) {
+        console.warn('API shift create notice:', err);
+      }
+
+      showToast(`Đã thêm Ca tăng ca tối (18:00 - 20:30) cho ${staffName}!`);
+    } else if (type === 'leave') {
+      const leaveItem: ScheduleItem = {
+        id: `shift-l-${Date.now()}`,
+        staffId,
+        date,
+        shiftType: 'leave',
+        startTime: '00:00',
+        endTime: '23:59',
+        statusLabel: '(Đã duyệt)',
+      };
+
+      setShifts((prev) => [...prev.filter((s) => !(s.staffId === staffId && s.date === date)), leaveItem]);
+
+      try {
+        await staffSchedulesApi.create({
+          staffId,
+          date,
+          shiftType: 'leave',
+          startTime: '00:00',
+          endTime: '23:59',
+        });
+      } catch (err) {
+        console.warn('API shift create notice:', err);
+      }
+
+      showToast(`Đã gán trạng thái Nghỉ phép cho ${staffName}!`);
     }
 
     broadcastSync();
@@ -726,41 +730,7 @@ export const StaffSchedulePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Button: Áp dụng ca tiêu chuẩn tuần này (Chỉ Quản trị viên / Quản lý) */}
-          {canManageSchedule && (
-            <button
-              type="button"
-              onClick={handleAutoGenerateWeek}
-              disabled={isGenerating || isClearing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-800 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-              title="Tự động gán ca sáng 08:00-12:00 và ca chiều 13:30-17:30 theo khung làm việc tiêu chuẩn của nhân sự"
-            >
-              {isGenerating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
-              ) : (
-                <Wand2 className="w-3.5 h-3.5 text-sky-600" />
-              )}
-              <span>Áp dụng ca tiêu chuẩn tuần này</span>
-            </button>
-          )}
 
-          {/* Button: Xóa sạch ca tuần này (Chỉ Quản trị viên / Quản lý) */}
-          {canManageSchedule && (
-            <button
-              type="button"
-              onClick={handleClearWeekShifts}
-              disabled={isGenerating || isClearing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-              title="Xóa sạch toàn bộ ca trực trong tuần này nếu lỡ áp dụng nhầm hoặc muốn phân chia lại"
-            >
-              {isClearing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
-              ) : (
-                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              )}
-              <span>Xóa sạch ca tuần này</span>
-            </button>
-          )}
 
           {/* Export button */}
           <button
@@ -857,8 +827,8 @@ export const StaffSchedulePage: React.FC = () => {
           </select>
 
           {canManageSchedule ? (
-            <span className="hidden lg:inline text-[11px] font-semibold text-sky-600 bg-sky-50 px-2 py-1 rounded-lg border border-sky-100">
-              💡 Nhấp vào ô bất kỳ để gán nhanh Ca Sáng (08:00 - 12:00) hoặc Ca Chiều (13:30 - 17:30)
+            <span className="hidden lg:inline text-[11px] font-semibold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200">
+              💡 Ca làm việc mặc định là Ca tiêu chuẩn (08:00 - 17:30) cho tất cả nhân sự full-time
             </span>
           ) : (
             <span className="hidden lg:inline text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
@@ -869,20 +839,20 @@ export const StaffSchedulePage: React.FC = () => {
 
         {/* Right: Legend */}
         <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600 px-1">
-          {/* Ca Sáng */}
+          {/* Ca Tiêu Chuẩn */}
           <div className="flex items-center gap-1.5">
             <span className="w-3.5 h-3.5 rounded bg-sky-100 border border-sky-300 flex items-center justify-center">
-              <Sun className="w-2.5 h-2.5 text-sky-600" />
+              <Clock className="w-2.5 h-2.5 text-sky-600" />
             </span>
-            <span>Ca Sáng (08:00-12:00)</span>
+            <span>Ca Tiêu Chuẩn (08:00-17:30)</span>
           </div>
 
-          {/* Ca Chiều */}
+          {/* Tăng ca */}
           <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded bg-slate-900 text-white flex items-center justify-center">
-              <Moon className="w-2.5 h-2.5" />
+            <span className="w-3.5 h-3.5 rounded bg-amber-50 border border-amber-300 text-amber-600 flex items-center justify-center">
+              <AlertCircle className="w-2.5 h-2.5" />
             </span>
-            <span>Ca Chiều (13:30-17:30)</span>
+            <span>Tăng ca (18:00-20:30)</span>
           </div>
 
           {/* Nghỉ phép */}
@@ -891,14 +861,6 @@ export const StaffSchedulePage: React.FC = () => {
               <Plane className="w-2.5 h-2.5" />
             </span>
             <span>Nghỉ phép</span>
-          </div>
-
-          {/* Tăng ca */}
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded bg-amber-50 border border-amber-300 text-amber-600 flex items-center justify-center">
-              <AlertCircle className="w-2.5 h-2.5" />
-            </span>
-            <span>Tăng ca</span>
           </div>
         </div>
       </div>
@@ -1056,6 +1018,43 @@ export const StaffSchedulePage: React.FC = () => {
                               ) : cellShifts.length > 0 ? (
                                 cellShifts.map((shift) => {
                                   const isShiftDragging = draggedShift?.id === shift.id;
+
+                                  if (shift.shiftType === 'fullday') {
+                                    return (
+                                      <div
+                                        key={shift.id}
+                                        draggable={canManageSchedule}
+                                        onDragStart={(e) => handleDragStart(e, shift)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`p-2 rounded-xl border border-sky-300 bg-sky-50/90 text-sky-900 transition-all select-none group/card relative shadow-2xs ${
+                                          canManageSchedule ? 'cursor-grab active:cursor-grabbing hover:shadow-xs' : ''
+                                        } ${isShiftDragging ? 'opacity-40 scale-95' : ''}`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-extrabold text-[11px] text-sky-800 flex items-center gap-1">
+                                            <Clock className="w-3 h-3 text-sky-600" />
+                                            Ca tiêu chuẩn
+                                          </span>
+                                          {canManageSchedule && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => handleDeleteShift(e, shift.id)}
+                                              className="opacity-0 group-hover/card:opacity-100 text-slate-400 hover:text-rose-500 transition-opacity p-0.5 cursor-pointer"
+                                              title="Xóa ca trực"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-sky-700 font-semibold mt-0.5">
+                                          {shift.startTime || '08:00'} - {shift.endTime || '17:30'}
+                                        </div>
+                                        <div className="text-[9px] text-slate-400 font-medium mt-0.5">
+                                          {shift.room || 'Ghế tiêu chuẩn'}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
 
                                   if (shift.shiftType === 'morning') {
                                     return (
@@ -1309,65 +1308,65 @@ export const StaffSchedulePage: React.FC = () => {
             </div>
 
             <div className="space-y-2 text-xs">
-              {/* Ca Sáng tiêu chuẩn */}
-              <button
-                type="button"
-                onClick={() => handleApplyStandardShift('morning')}
-                className="w-full p-3 rounded-2xl border border-sky-200 bg-sky-50/60 hover:bg-sky-100/70 text-left flex items-center justify-between transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold">
-                    <Sun className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-slate-900 block">Ca Sáng Tiêu Chuẩn</span>
-                    <span className="text-[11px] text-sky-700 font-bold">08:00 - 12:00</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 bg-sky-200/60 text-sky-800 rounded-lg">
-                  Áp dụng
-                </span>
-              </button>
-
-              {/* Ca Chiều tiêu chuẩn */}
-              <button
-                type="button"
-                onClick={() => handleApplyStandardShift('afternoon')}
-                className="w-full p-3 rounded-2xl border border-slate-800 bg-slate-900 text-white hover:bg-slate-800 text-left flex items-center justify-between transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-slate-800 text-slate-200 flex items-center justify-center font-bold border border-slate-700">
-                    <Moon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-white block">Ca Chiều Tiêu Chuẩn</span>
-                    <span className="text-[11px] text-slate-300 font-medium">13:30 - 17:30</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 bg-slate-800 text-slate-200 rounded-lg">
-                  Áp dụng
-                </span>
-              </button>
-
-              {/* Cả ngày tiêu chuẩn */}
+              {/* Ca Tiêu chuẩn (Full-time) */}
               <button
                 type="button"
                 onClick={() => handleApplyStandardShift('fullday')}
-                className="w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left flex items-center justify-between transition-all group cursor-pointer"
+                className="w-full p-3 rounded-2xl border border-sky-300 bg-sky-50/90 hover:bg-sky-100 text-left flex items-center justify-between transition-all group cursor-pointer shadow-2xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-xs">
                     <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 block">Cả Ngày (Sáng &amp; Chiều)</span>
-                    <span className="text-[11px] text-slate-500 font-medium">
+                    <span className="font-extrabold text-sky-950 block">Ca Tiêu Chuẩn (Full-time)</span>
+                    <span className="text-[11px] text-sky-700 font-bold">
                       08:00 - 17:30 (Nghỉ trưa 12:00 - 13:30)
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg">
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-sky-600 text-white rounded-lg shadow-2xs">
+                  Gán ca chuẩn
+                </span>
+              </button>
+
+              {/* Tăng ca tối */}
+              <button
+                type="button"
+                onClick={() => handleApplyStandardShift('overtime')}
+                className="w-full p-3 rounded-2xl border border-amber-300 bg-amber-50/60 hover:bg-amber-100/70 text-left flex items-center justify-between transition-all group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-amber-950 block">Tăng Ca Tối</span>
+                    <span className="text-[11px] text-amber-700 font-semibold">18:00 - 20:30</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-amber-200/80 text-amber-900 rounded-lg">
                   Áp dụng
+                </span>
+              </button>
+
+              {/* Nghỉ phép */}
+              <button
+                type="button"
+                onClick={() => handleApplyStandardShift('leave')}
+                className="w-full p-3 rounded-2xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100/70 text-left flex items-center justify-between transition-all group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold">
+                    <Plane className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-rose-950 block">Đăng Ký Nghỉ Phép</span>
+                    <span className="text-[11px] text-rose-600 font-medium">Nghỉ cả ngày (Có phép)</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 bg-rose-200/80 text-rose-900 rounded-lg">
+                  Gán nghỉ
                 </span>
               </button>
             </div>

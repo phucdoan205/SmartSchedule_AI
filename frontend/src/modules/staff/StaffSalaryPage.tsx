@@ -372,15 +372,6 @@ export const StaffSalaryPage: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-8 min-h-screen">
-      {/* Back button */}
-      <button
-        type="button"
-        onClick={() => navigate('/admin/staff')}
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-sky-600 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Quay lại Bác sĩ &amp; Nhân sự
-      </button>
 
       {/* ─── Header: Matching Reference Design ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

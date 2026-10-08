@@ -89,12 +89,26 @@ export class AuditLogsService {
         status: item.status || 'SUCCESS',
         targetEntity: item.targetEntity,
         details: item.details,
+        createdAt: item.createdAt,
       };
 
       if (groupsMap.has(groupKey)) {
         const existingGroup = groupsMap.get(groupKey);
-        existingGroup.actions.push(childAction);
-        existingGroup.actionsCount = existingGroup.actions.length;
+        // Chống hiển thị trùng lặp: Nếu có hành động giống hệt về nội dung và đối tượng diễn ra trong vòng 5 giây
+        const isDuplicate = existingGroup.actions.some((prevAct: any) => {
+          if (prevAct.action === childAction.action && prevAct.targetEntity === childAction.targetEntity) {
+            const timeDiff = Math.abs(
+              new Date(item.createdAt).getTime() - new Date(prevAct.createdAt).getTime(),
+            );
+            return timeDiff <= 5000;
+          }
+          return false;
+        });
+
+        if (!isDuplicate) {
+          existingGroup.actions.push(childAction);
+          existingGroup.actionsCount = existingGroup.actions.length;
+        }
       } else {
         const newGroup = {
           id: item.id,
@@ -178,6 +192,23 @@ export class AuditLogsService {
     ipAddress?: string;
     userAgent?: string;
   }) {
+    // Chống ghi trùng log: Kiểm tra xem cùng module, cùng hành động, cùng đối tượng có vừa được ghi trong 4 giây qua không
+    try {
+      const recentDuplicate = await this.prisma.auditLog.findFirst({
+        where: {
+          module: (data.module || 'SYSTEM').toUpperCase(),
+          action: data.action,
+          targetEntity: data.targetEntity || null,
+          createdAt: { gte: new Date(Date.now() - 4000) },
+        },
+      });
+      if (recentDuplicate) {
+        return recentDuplicate;
+      }
+    } catch (checkErr) {
+      // Tiếp tục ghi log nếu câu truy vấn kiểm tra gặp sự cố
+    }
+
     let attempts = 0;
     while (attempts < 5) {
       try {

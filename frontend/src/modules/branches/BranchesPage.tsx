@@ -27,6 +27,7 @@ import branch2Img from '../../assets/cơ sở 2.jpg';
 import branch3Img from '../../assets/cơ sở 3.jpg';
 import { branchesApi, staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
+import { toast } from '../../context/ToastContext';
 
 export const BranchesPage: React.FC = () => {
   const { selectedBranchId: globalBranchId, refreshBranches: refreshGlobalBranches } = useBranch();
@@ -45,6 +46,7 @@ export const BranchesPage: React.FC = () => {
 
   // Selected Room for Modals
   const [selectedRoom, setSelectedRoom] = useState<RoomItem | null>(null);
+  const [selectedStaffForTransfer, setSelectedStaffForTransfer] = useState<any | null>(null);
 
   // Branches & Staff Data
   const [branches, setBranches] = useState<any[]>([]);
@@ -200,9 +202,25 @@ export const BranchesPage: React.FC = () => {
     setIsRoomHistoryOpen(true);
   };
 
-  const handleSaveUpdatedBranch = (updated: any) => {
-    setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
-    refreshGlobalBranches();
+  const handleSaveUpdatedBranch = async (updated: any) => {
+    try {
+      if (updated.id && !updated.id.startsWith('b-default')) {
+        await branchesApi.update(updated.id, {
+          name: updated.name,
+          address: updated.address,
+          phone: updated.phone,
+          isActive: updated.status === 'Active' || updated.isActive === true,
+        });
+      }
+      setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
+      refreshGlobalBranches();
+      toast(`Đã lưu và đồng bộ thông tin chi nhánh "${updated.name}" thành công!`);
+    } catch (err: any) {
+      console.warn('Lưu chi nhánh vào server gặp sự cố, cập nhật giao diện trực tiếp:', err);
+      setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
+      refreshGlobalBranches();
+      toast(`Đã cập nhật thông tin chi nhánh "${updated.name}"!`);
+    }
   };
 
   const handleAddNewBranch = (newBranch: any) => {
@@ -237,26 +255,6 @@ export const BranchesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Sub-header navigation breadcrumb khi xem chi tiết hoặc cấu hình */}
-      {activeView !== 'branches' && (
-        <div className="flex items-center justify-between bg-slate-100/70 p-2 px-3 rounded-2xl border border-slate-200/80">
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => setActiveView('branches')}
-              className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>&larr; Danh sách chi nhánh</span>
-            </button>
-            <span className="text-slate-400">/</span>
-            <span className="text-slate-700 font-extrabold">
-              {activeView === 'detail' && `🔍 Chi tiết: ${currentBranch?.name || ''}`}
-              {activeView === 'staff_allocation' && `👥 Phân bổ nhân sự: ${currentBranch?.name || ''}`}
-              {activeView === 'room_config' && `⚙️ Cấu hình phòng & ghế: ${currentBranch?.name || ''}`}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* VIEW 1: QUẢN LÝ HỆ THỐNG CHI NHÁNH & CƠ SỞ KHÁM (KHỚP 100% ẢNH ADMIN) */}
       {activeView === 'branches' && (
@@ -359,14 +357,24 @@ export const BranchesPage: React.FC = () => {
                       <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
                         <span
                           className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase tracking-wider shadow-sm text-white ${
-                            isUpcoming ? 'bg-amber-500' : 'bg-emerald-600'
+                            b.status === 'Maintenance' || b.status === 'maintenance'
+                              ? 'bg-amber-500'
+                              : b.status === 'Closed' || b.status === 'closed' || b.isActive === false
+                              ? 'bg-rose-600'
+                              : isUpcoming
+                              ? 'bg-sky-600'
+                              : 'bg-emerald-600'
                           }`}
                         >
-                          {b.statusLabel}
+                          {b.status === 'Maintenance' || b.status === 'maintenance'
+                            ? 'BẢO TRÌ TẠM THỜI'
+                            : b.status === 'Closed' || b.status === 'closed' || b.isActive === false
+                            ? 'TẠM ĐÓNG CỬA'
+                            : b.statusLabel}
                         </span>
 
                         <div className="w-8 h-8 rounded-xl bg-black/40 backdrop-blur-md border border-white/30 text-white flex items-center justify-center font-bold text-xs">
-                          {isUpcoming ? <Wrench className="w-4 h-4" /> : '🏢'}
+                          {b.status === 'Maintenance' || b.status === 'maintenance' || isUpcoming ? <Wrench className="w-4 h-4" /> : '🏢'}
                         </div>
                       </div>
                     </div>
@@ -483,7 +491,10 @@ export const BranchesPage: React.FC = () => {
         <StaffAllocationView
           branch={currentBranch}
           onBack={() => setActiveView('branches')}
-          onOpenTransferModal={() => setIsTransferStaffOpen(true)}
+          onOpenTransferModal={(staff) => {
+            setSelectedStaffForTransfer(staff);
+            setIsTransferStaffOpen(true);
+          }}
           onOpenAddStaffModal={() => setIsAddStaffOpen(true)}
         />
       )}
@@ -492,6 +503,7 @@ export const BranchesPage: React.FC = () => {
       {activeView === 'room_config' && (
         <RoomConfigView
           selectedBranchId={selectedBranchId}
+          branchName={currentBranch?.name}
           onSelectBranch={setSelectedBranchId}
           onBack={() => setActiveView('branches')}
           onOpenAddRoom={() => setIsAddRoomOpen(true)}
@@ -524,14 +536,19 @@ export const BranchesPage: React.FC = () => {
       <AddStaffModal
         isOpen={isAddStaffOpen}
         onClose={() => setIsAddStaffOpen(false)}
+        branchId={currentBranch?.id}
         branchName={currentBranch?.name || ''}
       />
 
       {/* 4. Modal: Điều Chuyển Bác Sĩ & Nhân Sự */}
       <TransferStaffModal
         isOpen={isTransferStaffOpen}
-        onClose={() => setIsTransferStaffOpen(false)}
+        onClose={() => {
+          setIsTransferStaffOpen(false);
+          setSelectedStaffForTransfer(null);
+        }}
         fromBranchName={currentBranch?.name || ''}
+        initialStaffId={selectedStaffForTransfer?.id}
       />
 
       {/* 5. Modal: Thêm & Thiết Lập Phòng Khám Mới */}

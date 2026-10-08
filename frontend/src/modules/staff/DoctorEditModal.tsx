@@ -1241,51 +1241,6 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
                   </div>
                 </div>
 
-                {/* Quyền tự chọn ca làm việc (Công tắc cho phép/khóa quyền) */}
-                <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                      allowSelfSchedule ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                      <CalendarDays className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-800">
-                          Quyền tự chọn ca làm việc
-                        </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          allowSelfSchedule
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>
-                          {allowSelfSchedule ? 'Nhân sự tự chọn ca' : 'Khóa quyền (Quản lý chọn)'}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                        {allowSelfSchedule
-                          ? `Cho phép ${doctorShortName} tự đăng ký & điều chỉnh ca làm việc trên hệ thống`
-                          : `Đã khóa quyền tự chọn ca. Lịch làm việc do Quản lý/Admin trực tiếp phân bổ`}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Toggle Switch */}
-                  <button
-                    type="button"
-                    onClick={() => setAllowSelfSchedule((v) => !v)}
-                    className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${
-                      allowSelfSchedule ? 'bg-emerald-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
-                        allowSelfSchedule ? 'left-6' : 'left-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
                 {/* Cổng Đặt lịch trực tuyến (Chỉ áp dụng cho Bác sĩ) */}
                 {isDoctor && (
                 <div className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-center justify-between gap-3">

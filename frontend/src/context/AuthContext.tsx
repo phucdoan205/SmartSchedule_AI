@@ -10,6 +10,7 @@ export interface UserProfile {
   phone: string;
   avatarUrl?: string;
   branch?: any;
+  branchId?: string;
   roles: string[];
   permissions?: string[];
   doctorProfile?: any;

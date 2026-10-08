@@ -45,6 +45,8 @@ export const SmartSchedulePage: React.FC = () => {
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [patientDob, setPatientDob] = useState('');
+  const [patientGender, setPatientGender] = useState<'Nam' | 'Nữ' | 'Khác'>('Nam');
+  const [patientNotes, setPatientNotes] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -89,6 +91,7 @@ export const SmartSchedulePage: React.FC = () => {
           patientName: item.patient?.fullName || 'Khách hàng',
           patientPhone: item.patient?.phone || '',
           patientDob,
+          patientGender: item.patient?.gender || 'Nam',
           medicalAlerts: item.patient?.medicalAlerts || '',
           doctorName: item.doctor?.fullName || 'Bác sĩ trực',
           doctorId: item.doctorId,
@@ -313,18 +316,22 @@ export const SmartSchedulePage: React.FC = () => {
         patientPhone,
         dateOfBirth: patientDob || undefined,
         birthYear: patientDob ? parseInt(patientDob.split('-')[0], 10) : undefined,
+        gender: patientGender,
         branchId: branchId || branches[0]?.id || 'CN01',
         doctorId: doctorId || doctors[0]?.id,
         chairId: 'chair-bh-01',
         serviceIds: [serviceId || services[0]?.id],
         startTime,
         durationMinutes: 60,
+        notes: patientNotes.trim() || undefined,
         isAiRecommended: true,
       });
       setIsModalOpen(false);
       setPatientName('');
       setPatientPhone('');
       setPatientDob('');
+      setPatientGender('Nam');
+      setPatientNotes('');
       toast(`Đã tạo thành công lịch hẹn mới cho bệnh nhân ${patientName}!`);
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         const ch = new BroadcastChannel('smartschedule_sync');
@@ -530,7 +537,7 @@ export const SmartSchedulePage: React.FC = () => {
             <label className="block font-semibold text-slate-700 mb-1">Họ &amp; Tên Bệnh Nhân:</label>
             <input type="text" required value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Nguyễn Văn A" className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Số Điện Thoại:</label>
               <input type="text" required value={patientPhone} onChange={(e) => setPatientPhone(e.target.value)} placeholder="0912345678" className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50" />
@@ -539,6 +546,29 @@ export const SmartSchedulePage: React.FC = () => {
               <label className="block font-semibold text-slate-700 mb-1">Ngày Sinh (Hồ sơ y bạ):</label>
               <input type="date" value={patientDob} onChange={(e) => setPatientDob(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50" />
             </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Giới Tính:</label>
+              <select
+                value={patientGender}
+                onChange={(e) => setPatientGender(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              >
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Ghi Chú / Triệu Chứng (nếu có):</label>
+            <input
+              type="text"
+              value={patientNotes}
+              onChange={(e) => setPatientNotes(e.target.value)}
+              placeholder="VD: Đau buốt răng số 6, tư vấn thẩm mỹ răng..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50"
+            />
           </div>
 
           {/* Chọn Ngày & Giờ Hẹn Khám Rõ Ràng */}

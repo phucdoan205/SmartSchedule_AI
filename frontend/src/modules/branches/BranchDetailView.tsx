@@ -46,7 +46,7 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
           </button>
           <span>&gt;</span>
           <span className="text-slate-900 font-bold">
-            Chi tiết: {branchName} {isHeadquarters ? '(Trụ sở chính)' : ''}
+            Chi tiết: {branchName} {isHeadquarters && !branchName.includes('Trụ sở chính') ? '(Trụ sở chính)' : ''}
           </span>
         </div>
 
@@ -75,9 +75,19 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
               Thông tin chi tiết: {branchName}
             </h1>
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-extrabold text-xs rounded-full border border-emerald-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Đang hoạt động
-            </span>
+            {branch?.status === 'Maintenance' || branch?.status === 'maintenance' ? (
+              <span className="px-3 py-1 bg-amber-50 text-amber-800 font-extrabold text-xs rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Bảo trì tạm thời
+              </span>
+            ) : branch?.status === 'Closed' || branch?.status === 'closed' || branch?.isActive === false ? (
+              <span className="px-3 py-1 bg-rose-50 text-rose-700 font-extrabold text-xs rounded-full border border-rose-200 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-rose-500" /> Tạm đóng cửa
+              </span>
+            ) : (
+              <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-extrabold text-xs rounded-full border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Đang hoạt động
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1 font-semibold">
             {isHeadquarters ? 'Trụ sở chính – Hoạt động từ năm 2018' : 'Cơ sở trực thuộc hệ thống SmartSchedule'}
@@ -119,7 +129,7 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
 
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-              <span className="text-[11px]">{branch?.email || 'bienhoa@vietanhduc.vn'}</span>
+              <span className="text-[11px]">{branch?.email || 'cn01@vietanhduc.vn'}</span>
             </div>
           </div>
         </div>
@@ -136,12 +146,12 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
           <div className="space-y-2.5 pt-1 font-bold text-slate-800 text-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-slate-600">Thứ 2 - Thứ 7</span>
-              <span className="font-extrabold text-slate-900">08:00 - 20:00</span>
+              <span className="font-extrabold text-slate-900">{branch?.weekdayHours || '08:00 - 20:00'}</span>
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-slate-600">Chủ Nhật</span>
-              <span className="font-extrabold text-slate-900">08:00 - 17:00</span>
+              <span className="font-extrabold text-slate-900">{branch?.sundayHours || '08:00 - 17:00'}</span>
             </div>
           </div>
         </div>
@@ -159,20 +169,20 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
             <div className="flex items-center gap-2">
               <Armchair className="w-4 h-4 text-slate-400" />
               <span className="text-[11px] font-bold text-slate-800">
-                {branch?.roomCount || 8} Ghế nha khoa
+                {branch?.chairCount || branch?.roomCount || 2} Ghế nha khoa
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-slate-400" />
               <span className="text-[11px] font-bold text-slate-800">
-                {branch?.doctorCount || 18} Bác sĩ &amp; KTV
+                {branch?.doctorCount || 5} Bác sĩ &amp; KTV
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-slate-400 font-mono text-sm">📐</span>
-              <span className="text-[11px] text-slate-600">Diện tích: 450m² (3 Tầng lầu)</span>
+              <span className="text-[11px] text-slate-600">Diện tích: {branch?.areaScale || '450m² (3 Tầng lầu)'}</span>
             </div>
           </div>
         </div>
@@ -245,44 +255,29 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
         <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Sơ đồ bố trí cơ sở</h3>
 
         <div className="space-y-3 text-xs">
-          {/* Tầng 1 */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-start gap-4 hover:bg-slate-50 transition-colors">
-            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 font-extrabold flex items-center justify-center shrink-0 text-sm">
-              T1
-            </div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Tầng 1</h4>
-              <p className="text-xs text-slate-600 font-semibold mt-0.5 flex items-center gap-1.5">
-                <span>🏢</span> Khu tiếp đón &amp; 3 Ghế khám tổng quát / Cạo vôi răng
-              </p>
-            </div>
-          </div>
-
-          {/* Tầng 2 */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-start gap-4 hover:bg-slate-50 transition-colors">
-            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 font-extrabold flex items-center justify-center shrink-0 text-sm">
-              T2
-            </div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Tầng 2</h4>
-              <p className="text-xs text-slate-600 font-semibold mt-0.5 flex items-center gap-1.5">
-                <span>🦷</span> Khu phục hình răng sứ &amp; Phòng chụp X-quang CT Cone Beam
-              </p>
-            </div>
-          </div>
-
-          {/* Tầng 3 */}
-          <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-start gap-4 hover:bg-slate-50 transition-colors">
-            <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 font-extrabold flex items-center justify-center shrink-0 text-sm">
-              T3
-            </div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 text-sm">Tầng 3</h4>
-              <p className="text-xs text-slate-600 font-semibold mt-0.5 flex items-center gap-1.5">
-                <span>🏥</span> 2 Phòng phẫu thuật vô trùng Cấy ghép Implant &amp; Ghép xương
-              </p>
-            </div>
-          </div>
+          {(branch?.floors || [
+            'Khu tiếp đón & 3 Ghế khám tổng quát / Cạo vôi răng',
+            'Khu phục hình răng sứ & Phòng chụp X-quang CT Cone Beam',
+            '2 Phòng phẫu thuật vô trùng Cấy ghép Implant & Ghép xương',
+          ]).map((floorDesc: string, idx: number) => {
+            const icons = ['🏢', '🦷', '🏥', '🔬', '💊'];
+            return (
+              <div
+                key={idx}
+                className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 flex items-start gap-4 hover:bg-slate-50 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 font-extrabold flex items-center justify-center shrink-0 text-sm">
+                  T{idx + 1}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">Tầng {idx + 1}</h4>
+                  <p className="text-xs text-slate-600 font-semibold mt-0.5 flex items-center gap-1.5">
+                    <span>{icons[idx % icons.length]}</span> {floorDesc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -382,30 +382,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <User className="w-3.5 h-3.5 text-slate-400" />
                 <span>Hồ sơ cá nhân</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  navigate('/admin/settings');
-                }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-sky-600 font-medium text-left transition-colors"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                <span>Bảo mật & Quyền hạn</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  navigate('/?preview=true');
-                }}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sky-700 hover:bg-sky-50 font-semibold text-left transition-colors cursor-pointer"
-              >
-                <Globe className="w-3.5 h-3.5 text-sky-500" />
-                <span>Xem Website Khách Hàng</span>
-              </button>
             </div>
 
             <div className="border-t border-slate-100 my-1" />

@@ -48,10 +48,10 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   onSubmit,
 }) => {
   const [leaveType, setLeaveType] = useState<'annual' | 'sick' | 'personal' | 'maternity'>('annual');
-  const [startDate, setStartDate] = useState('2026-08-24');
-  const [endDate, setEndDate] = useState('2026-08-25');
-  const [startShift, setStartShift] = useState('Ca Sáng (08:00 - 12:00)');
-  const [endShift, setEndShift] = useState('Ca Chiều (13:30 - 17:30)');
+  const [startDate, setStartDate] = useState('2026-10-12');
+  const [endDate, setEndDate] = useState('2026-10-13');
+  const [startShift, setStartShift] = useState('Cả ngày (Ca tiêu chuẩn: 08:00 - 17:30)');
+  const [endShift, setEndShift] = useState('Cả ngày (Ca tiêu chuẩn: 08:00 - 17:30)');
   const [substituteDoctorId, setSubstituteDoctorId] = useState(MOCK_DOCTORS[0]?.id || 'nv-001');
   const [approver, setApprover] = useState('Nguyễn Văn A (Giám Đốc Điều Hành / Trưởng khoa)');
   const [reason, setReason] = useState('');
@@ -283,9 +283,9 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                         onChange={(e) => setStartShift(e.target.value)}
                         className="w-full px-2 py-2 rounded-xl border border-slate-200 bg-white text-[11px] font-medium text-slate-800 focus:outline-none focus:border-sky-400 cursor-pointer"
                       >
-                        <option>Ca Sáng (08:00 - 12:00)</option>
-                        <option>Ca Chiều (13:30 - 17:30)</option>
-                        <option>Cả ngày (08:00 - 17:30)</option>
+                        <option>Cả ngày (Ca tiêu chuẩn: 08:00 - 17:30)</option>
+                        <option>Nửa ca Sáng (08:00 - 12:00)</option>
+                        <option>Nửa ca Chiều (13:30 - 17:30)</option>
                       </select>
                     </div>
 
@@ -295,9 +295,9 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                         onChange={(e) => setEndShift(e.target.value)}
                         className="w-full px-2 py-2 rounded-xl border border-slate-200 bg-white text-[11px] font-medium text-slate-800 focus:outline-none focus:border-sky-400 cursor-pointer"
                       >
-                        <option>Ca Chiều (13:30 - 17:30)</option>
-                        <option>Ca Sáng (08:00 - 12:00)</option>
-                        <option>Cả ngày (08:00 - 17:30)</option>
+                        <option>Cả ngày (Ca tiêu chuẩn: 08:00 - 17:30)</option>
+                        <option>Nửa ca Sáng (08:00 - 12:00)</option>
+                        <option>Nửa ca Chiều (13:30 - 17:30)</option>
                       </select>
                     </div>
                   </div>

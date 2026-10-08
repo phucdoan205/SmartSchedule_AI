@@ -46,6 +46,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
 
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
+  const [patientGender, setPatientGender] = useState<'Nam' | 'Nữ' | 'Khác'>('Nam');
   const [patientNote, setPatientNote] = useState('');
 
   const [createdAppointment, setCreatedAppointment] = useState<any>(null);
@@ -129,6 +130,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         const appointment = await appointmentsApi.book({
           patientName,
           patientPhone,
+          gender: patientGender,
           branchId: selectedBranch,
           doctorId: selectedDoctor,
           chairId: availableChair ? availableChair.id : 'chair-bh-01',
@@ -366,18 +368,33 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
               />
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-800 mb-1">
-                Số Điện Thoại Nhận Mã QR Lịch Hẹn <span className="text-rose-500">*</span>:
-              </label>
-              <input
-                type="tel"
-                required
-                value={patientPhone}
-                onChange={(e) => setPatientPhone(e.target.value)}
-                placeholder="VD: 0912345678"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Số Điện Thoại Nhận Mã QR <span className="text-rose-500">*</span>:
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={patientPhone}
+                  onChange={(e) => setPatientPhone(e.target.value)}
+                  placeholder="VD: 0912345678"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">Giới Tính:</label>
+                <select
+                  value={patientGender}
+                  onChange={(e) => setPatientGender(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 font-medium text-slate-700"
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+              </div>
             </div>
 
             <div>

@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Loader2,
   Briefcase,
+  Plane,
 } from 'lucide-react';
 import { MOCK_DOCTORS, MOCK_SERVICES } from '../../services/mockData';
 import { ShiftModal } from './ShiftModal';
@@ -38,7 +39,7 @@ const WEEK_DAYS = [
   { label: 'CN', date: '23/08' },
 ];
 
-type ShiftType = 'morning' | 'afternoon' | 'fullday' | 'off' | null;
+type ShiftType = 'morning' | 'afternoon' | 'fullday' | 'overtime' | 'off' | null;
 
 interface DayShift {
   type: ShiftType;
@@ -136,29 +137,58 @@ const ShiftBadge: React.FC<{ type: ShiftType; time?: string; room?: string; pati
   isToday,
 }) => {
   if (!type) return <span className="text-xs text-slate-300 italic">—</span>;
-  if (type === 'off') return <span className="text-xs text-slate-400 italic">{time}</span>;
+  if (type === 'off') {
+    if (time === 'Nghỉ phép') {
+      return (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 text-rose-800 p-2 text-[11px] font-bold text-center shadow-2xs">
+          <div className="flex items-center justify-center gap-1 text-rose-700 font-extrabold">
+            <Plane className="w-3 h-3 text-rose-500" />
+            <span>Nghỉ phép</span>
+          </div>
+          <div className="text-[10px] text-rose-500 font-medium mt-0.5">(Đã duyệt)</div>
+        </div>
+      );
+    }
+    return <span className="text-xs text-slate-400 italic">{time}</span>;
+  }
 
+  const isFullday = type === 'fullday';
+  const isOvertime = type === 'overtime';
   const isMorning = type === 'morning';
   const isAfternoon = type === 'afternoon';
-  const isFullday = type === 'fullday';
 
   const bg = isToday
-    ? 'bg-sky-100 border-sky-300 text-sky-900'
+    ? 'bg-sky-100/90 border-sky-300 text-sky-950 shadow-2xs'
+    : isOvertime
+    ? 'bg-amber-50 border-amber-300 text-amber-950'
+    : isFullday
+    ? 'bg-sky-50/70 border-sky-200 text-sky-950'
     : isMorning
     ? 'bg-slate-100 border-slate-200 text-slate-700'
-    : isAfternoon
-    ? 'bg-slate-800 border-slate-700 text-white'
-    : 'bg-slate-100 border-slate-200 text-slate-700';
+    : 'bg-slate-800 border-slate-700 text-white';
 
-  const label = isMorning ? 'Ca Sáng' : isAfternoon ? 'Ca Chiều' : 'Ca Sáng & Ca Chiều';
+  const label = isFullday
+    ? 'Ca tiêu chuẩn'
+    : isOvertime
+    ? 'Tăng ca tối'
+    : isMorning
+    ? 'Ca Sáng'
+    : 'Ca Chiều';
 
   return (
     <div className={`rounded-xl border px-2.5 py-2 text-[11px] font-bold ${bg}`}>
-      <div className="font-extrabold">{label}</div>
-      <div className={`font-normal text-[10px] mt-0.5 ${isAfternoon && !isToday ? 'text-slate-300' : 'text-slate-500'}`}>
-        {isFullday ? '08:00 - 18:00' : time}
+      <div className="font-extrabold flex items-center justify-between">
+        <span>{label}</span>
+        {isFullday && (
+          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-200/70 text-sky-800">
+            Full-time
+          </span>
+        )}
       </div>
-      {room && <div className={`text-[10px] font-medium mt-0.5 ${isAfternoon && !isToday ? 'text-slate-400' : 'text-slate-400'}`}>{room}</div>}
+      <div className={`font-semibold text-[10px] mt-0.5 ${isToday ? 'text-sky-700' : 'text-slate-600'}`}>
+        {time || (isFullday ? '08:00 - 17:30' : '08:00 - 12:00')}
+      </div>
+      {room && <div className="text-[10px] font-medium text-slate-400 mt-0.5">{room}</div>}
       {patients !== undefined && patients > 0 && (
         <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-sky-600">
           <Users className="w-2.5 h-2.5" /> {patients} bệnh nhân
@@ -471,73 +501,43 @@ export const DoctorDetailPage: React.FC = () => {
         };
       }
 
-      const hasMorning = dayShifts.some((s: any) => s.shiftType === 'morning');
-      const hasAfternoon = dayShifts.some((s: any) => s.shiftType === 'afternoon');
-      const hasFull = dayShifts.some((s: any) => s.shiftType === 'full_day' || s.shiftType === 'fullday');
       const hasOvertime = dayShifts.some((s: any) => s.shiftType === 'evening' || s.shiftType === 'overtime');
       const hasLeave = dayShifts.some((s: any) => s.isLeave || s.shiftType === 'leave');
-
       const room = dayShifts[0]?.room || 'Ghế 02';
 
       if (hasLeave) {
         return { type: 'off', time: 'Nghỉ phép', room, patients: 0, isToday: d.isToday };
       }
-      if (hasFull || (hasMorning && hasAfternoon)) {
-        return {
-          type: 'fullday',
-          time: docHours,
-          room,
-          patients: dayAppts.length,
-          isToday: d.isToday,
-          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
-        };
-      }
-      if (hasMorning) {
-        return {
-          type: 'morning',
-          time: '08:00 - 12:00',
-          room,
-          patients: dayAppts.length,
-          isToday: d.isToday,
-          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
-        };
-      }
-      if (hasAfternoon) {
-        return {
-          type: 'afternoon',
-          time: '13:30 - 18:00',
-          room,
-          patients: dayAppts.length,
-          isToday: d.isToday,
-          extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
-        };
-      }
       if (hasOvertime) {
         return {
-          type: 'afternoon',
+          type: 'overtime',
           time: '18:00 - 20:30 (Tăng ca)',
           room,
           patients: dayAppts.length,
           isToday: d.isToday,
         };
       }
+
+      // Toàn bộ nhân sự làm việc Full-time -> Ca tiêu chuẩn mặc định theo hồ sơ
       return {
         type: 'fullday',
-        time: docHours,
-        room: 'Ghế 02',
+        time: docHours || '08:00 - 17:30',
+        room,
         patients: dayAppts.length,
         isToday: d.isToday,
+        extraTime: d.isToday && dayAppts.length > 0 ? `${dayAppts.length} ca hôm nay` : undefined,
       };
     });
   }, [currentWeekDays, weekShiftsData, doctorAppointmentsList, doctor?.workDays, doctor?.workHours]);
 
-  // Tab 2 stats
-  const totalShiftsCount = computedDoctorShifts.filter((s) => s.type && s.type !== 'off').length || 6;
+  // Tab 2 stats (Tính chuẩn theo ca tiêu chuẩn Full-time: 8.5h/ca)
+  const totalShiftsCount = computedDoctorShifts.filter((s) => s.type && s.type !== 'off').length;
   const totalHoursCount = computedDoctorShifts.reduce((acc, s) => {
     if (s.type === 'fullday') return acc + 8.5;
-    if (s.type === 'morning' || s.type === 'afternoon') return acc + 4.5;
+    if (s.type === 'overtime') return acc + 2.5;
+    if (s.type === 'morning' || s.type === 'afternoon') return acc + 4.25;
     return acc;
-  }, 0) || 40.5;
+  }, 0);
   const totalWeekPatients = computedDoctorShifts.reduce((acc, s) => acc + (s.patients || 0), 0);
 
   // Tab 1: Assigned services mapped from modal & database

@@ -393,7 +393,7 @@ export class AppointmentsService {
     await this.auditLogsService.log({
       userId: operatorUserId || null,
       module: 'APPOINTMENTS',
-      action: `Cập nhật trạng thái lịch hẹn: ${updated.appointmentCode} (${patientName}) -> ${toLabel}`,
+      action: `Chuyển trạng thái lịch hẹn [${fromLabel} ➔ ${toLabel}]: ${updated.appointmentCode} (${patientName})`,
       details: `Chuyển trạng thái lịch hẹn từ [${fromLabel}] sang [${toLabel}]. Lý do: ${reason || 'Thao tác cập nhật từ bảng điều phối lịch hẹn'}. ${actionByText}`.trim(),
       targetEntity: updated.appointmentCode,
       status: 'SUCCESS',

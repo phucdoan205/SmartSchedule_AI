@@ -22,3 +22,5 @@ async function check() {
 }
 
 check().catch(console.error).finally(() => prisma.$disconnect());
+
+
