@@ -319,39 +319,10 @@ export const LeaveRegisterPage: React.FC = () => {
     }, 2800);
   };
 
-  // Determine current user's role code
-  const getUserRoleCode = () => {
-    if (!user || !user.roles || user.roles.length === 0) return 'owner';
-    const roles = user.roles;
-    if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
-    if (roles.includes('Kế Toán') || roles.includes('ke_toan') || roles.includes('ACCOUNTANT') || roles.includes('Kế toán') || user?.email === 'dinh@gmail.com') return 'ke_toan';
-    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa')) return 'doctor';
-    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
-    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên')) return 'nurse';
-    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên xét nghiệm')) return 'technician';
-    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh')) return 'manager';
-    return roles[0];
-  };
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
 
-  const userRoleCode = getUserRoleCode();
-
-  // Strict role check: Only Admin, Manager, and Accountant can see whole clinic requests or approve
-  const isManagementOrAccountant = useMemo(() => {
-    if (!user) return false;
-    const r = (userRoleCode || '').toLowerCase();
-    const email = (user.email || '').toLowerCase().trim();
-    const roles = (user.roles || []).map((x: string) => x.toLowerCase());
-
-    if (email === 'admin@smartschedule.ai' || email === 'admin') return true;
-    if (email === 'dinh@gmail.com') return true;
-    if (r === 'owner' || r === 'super_admin' || r === 'admin' || r === 'ke_toan' || r === 'manager') return true;
-    if (roles.some((x) => x.includes('admin') || x.includes('chủ') || x.includes('kế toán') || x.includes('quản lý'))) return true;
-
-    return false;
-  }, [user, userRoleCode]);
-
-  const canViewAll = isManagementOrAccountant && rolePermissionStore.canViewAllLeaves(userRoleCode);
-  const canApprove = isManagementOrAccountant && rolePermissionStore.canApproveLeave(userRoleCode);
+  const canViewAll = rolePermissionStore.canViewAllLeaves(userRoleCode, user);
+  const canApprove = rolePermissionStore.canApproveLeave(userRoleCode, user);
 
   // Persist history changes
   const saveHistory = (items: LeaveHistoryItem[]) => {

@@ -8,6 +8,8 @@ import { Tabs, type TabItem } from '../../components/common/Tabs';
 import { auditLogsApi } from '../../services/api';
 import { toast } from '../../context/ToastContext';
 import { exportToExcel } from '../../utils/excelExport';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 interface ChildAction {
   id: string;
@@ -31,6 +33,10 @@ interface MasterGroupLog {
 }
 
 export const AuditLogsPage: React.FC = () => {
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canExportAuditLogs = rolePermissionStore.canExportAuditLogs(userRoleCode, user);
+
   const [activeTab, setActiveTab] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -328,14 +334,16 @@ export const AuditLogsPage: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-sky-600' : ''}`} />
             </button>
 
-            <button
-              type="button"
-              onClick={handleExport}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Xuất Báo Cáo Excel</span>
-            </button>
+            {canExportAuditLogs && (
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-md transition-all cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Xuất Báo Cáo Excel</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

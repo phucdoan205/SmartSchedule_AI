@@ -6,6 +6,8 @@ import { CreateReceiptModal, type ReceiptData } from '../../components/dental/Cr
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 import { patientsApi, financeApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 interface PatientRecord {
   id: string;
@@ -22,6 +24,10 @@ interface PatientRecord {
 export const PatientsPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedBranchId } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canCreateReceipt = rolePermissionStore.canCreateReceipt(userRoleCode, user);
+
   const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -152,32 +158,34 @@ export const PatientsPage: React.FC = () => {
       header: 'THAO TÁC & PHIẾU THU',
       cell: (row) => (
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPatientForReceipt(row);
-              setCurrentReceiptData({
-                patientName: row.name,
-                patientId: row.id,
-                amount: 500000,
-                description: `Phiếu thu dịch vụ khám nha khoa - ${row.name}`,
-                paymentMethod: 'VietQR',
-                collector: row.lastDoctor !== 'Chưa khám' ? row.lastDoctor : 'Thu ngân chi nhánh',
-                isEvatEnabled: true,
-                customerType: 'Cá nhân',
-                taxCode: '',
-                buyerName: row.name,
-                buyerAddress: 'Hồ Chí Minh',
-                buyerEmail: '',
-                vatRate: '0% VAT - Dịch vụ y tế',
-                sendZns: true,
-              });
-              setIsReceiptModalOpen(true);
-            }}
-            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-          >
-            <Receipt className="w-3.5 h-3.5" /> Phiếu thu
-          </button>
+          {canCreateReceipt && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPatientForReceipt(row);
+                setCurrentReceiptData({
+                  patientName: row.name,
+                  patientId: row.id,
+                  amount: 500000,
+                  description: `Phiếu thu dịch vụ khám nha khoa - ${row.name}`,
+                  paymentMethod: 'VietQR',
+                  collector: row.lastDoctor !== 'Chưa khám' ? row.lastDoctor : 'Thu ngân chi nhánh',
+                  isEvatEnabled: true,
+                  customerType: 'Cá nhân',
+                  taxCode: '',
+                  buyerName: row.name,
+                  buyerAddress: 'Hồ Chí Minh',
+                  buyerEmail: '',
+                  vatRate: '0% VAT - Dịch vụ y tế',
+                  sendZns: true,
+                });
+                setIsReceiptModalOpen(true);
+              }}
+              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <Receipt className="w-3.5 h-3.5" /> Phiếu thu
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate(`/admin/patients/${row.id}`)}

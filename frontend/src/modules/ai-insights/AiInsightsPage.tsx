@@ -13,8 +13,15 @@ import {
   PieChart,
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 export const AiInsightsPage: React.FC = () => {
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canConfigureAi = rolePermissionStore.canConfigureAi(userRoleCode, user);
+  const canExportAi = rolePermissionStore.canExportAi(userRoleCode, user);
+
   const [toggleOptimization, setToggleOptimization] = useState(true);
 
   // Bar height data for 7 days (T2 - CN)
@@ -54,13 +61,15 @@ export const AiInsightsPage: React.FC = () => {
             <span>Tháng này</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => toast('Đã xuất báo cáo phân tích AI (.PDF) thành công!')}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
-          >
-            <Download className="w-4 h-4" /> Xuất báo cáo
-          </button>
+          {canExportAi && (
+            <button
+              type="button"
+              onClick={() => toast('Đã xuất báo cáo phân tích AI (.PDF) thành công!')}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-4 h-4" /> Xuất báo cáo
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,11 +136,15 @@ export const AiInsightsPage: React.FC = () => {
               <p className="text-[11px] text-emerald-700">Dự kiến tăng 45% tỷ lệ lấp đầy khung giờ vắng.</p>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+            <label className={`relative inline-flex items-center shrink-0 ${canConfigureAi ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`} title={canConfigureAi ? 'Bật/tắt tối ưu' : 'Bạn không có quyền điều chỉnh thuật toán AI'}>
               <input
                 type="checkbox"
                 checked={toggleOptimization}
-                onChange={(e) => setToggleOptimization(e.target.checked)}
+                disabled={!canConfigureAi}
+                onChange={(e) => {
+                  if (!canConfigureAi) return;
+                  setToggleOptimization(e.target.checked);
+                }}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />

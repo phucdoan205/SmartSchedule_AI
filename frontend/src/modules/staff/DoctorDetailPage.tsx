@@ -27,6 +27,8 @@ import { ShiftModal } from './ShiftModal';
 import { DoctorEditModal } from './DoctorEditModal';
 import { staffApi, staffSchedulesApi, appointmentsApi, dentalServicesApi } from '../../services/api';
 import { exportToExcel } from '../../utils/excelExport';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 // ─── Mock data for tabs ─────────────────────────────────────────────────────
 const WEEK_DAYS = [
@@ -202,6 +204,14 @@ const ShiftBadge: React.FC<{ type: ShiftType; time?: string; room?: string; pati
 export const DoctorDetailPage: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canEditStaff = rolePermissionStore.canEditStaff(userRoleCode, user);
+  const canDeleteStaff = rolePermissionStore.canDeleteStaff(userRoleCode, user);
+  const canEditSchedule = rolePermissionStore.canEditSchedule(userRoleCode, user);
+  const canExportSchedule = rolePermissionStore.canExportSchedule(userRoleCode, user);
+  const canExportStaff = rolePermissionStore.canExportStaff(userRoleCode, user);
+
   const [activeTab, setActiveTab] = useState<string>('services');
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -915,22 +925,26 @@ export const DoctorDetailPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div />
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-all shadow-xs"
-          >
-            <Edit className="w-3.5 h-3.5" />
-            Chỉnh sửa hồ sơ
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsShiftModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            Thêm ca trực
-          </button>
+          {canEditStaff && (
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              Chỉnh sửa hồ sơ
+            </button>
+          )}
+          {canEditSchedule && (
+            <button
+              type="button"
+              onClick={() => setIsShiftModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Thêm ca trực
+            </button>
+          )}
         </div>
       </div>
 
@@ -1096,14 +1110,16 @@ export const DoctorDetailPage: React.FC = () => {
                   <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
                     Vui lòng bấm nút &ldquo;Chỉnh sửa hồ sơ&rdquo; để chọn và thêm các dịch vụ chuyên môn cho bác sĩ.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Thêm dịch vụ ngay
-                  </button>
+                  {canEditStaff && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Thêm dịch vụ ngay
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
@@ -1196,14 +1212,16 @@ export const DoctorDetailPage: React.FC = () => {
                       <Printer className="w-3.5 h-3.5" />
                       In lịch
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleExportSchedule}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Xuất Excel
-                    </button>
+                    {canExportSchedule && (
+                      <button
+                        type="button"
+                        onClick={handleExportSchedule}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Xuất Excel
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1380,14 +1398,16 @@ export const DoctorDetailPage: React.FC = () => {
                     Hiển thị 1-{filteredTreatments.length} trong {totalTreatmentsCount} ca điều trị
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleExportTreatments}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3 h-3" />
-                      Xuất danh sách ca khám (Excel)
-                    </button>
+                    {canExportStaff && (
+                      <button
+                        type="button"
+                        onClick={handleExportTreatments}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <Download className="w-3 h-3" />
+                        Xuất danh sách ca khám (Excel)
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1838,6 +1858,8 @@ export const DoctorDetailPage: React.FC = () => {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         doctor={currentDoctor}
+        canDeleteStaff={canDeleteStaff}
+        canEditStaff={canEditStaff}
         onSave={(updated) => {
           setDoctor((prev: any) => ({ ...prev, ...updated }));
         }}

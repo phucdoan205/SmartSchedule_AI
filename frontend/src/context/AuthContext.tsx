@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/';
   };
 
-  const isAdmin = Boolean(user && isStaffRole(user.roles));
+  const isAdmin = Boolean(user && isStaffRole(user.roles, user.employeeCode));
 
   return (
     <AuthContext.Provider

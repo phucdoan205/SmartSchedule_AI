@@ -8,10 +8,10 @@ import { authApi, apiClient } from '../../services/api';
 /**
  * Trang đăng nhập thống nhất — kết nối trực tiếp API Backend & Hỗ trợ Google Login.
  */
-import { isStaffRole } from '../../services/rolePermissionStore';
+import { isStaffRole, rolePermissionStore } from '../../services/rolePermissionStore';
 
-const isInternalStaffRole = (roles?: string[]) => {
-  return isStaffRole(roles);
+const isInternalStaffRole = (roles?: string[], employeeCode?: string) => {
+  return isStaffRole(roles, employeeCode);
 };
 
 export const LoginPage: React.FC = () => {
@@ -32,7 +32,7 @@ export const LoginPage: React.FC = () => {
   const [isChangingPw, setIsChangingPw] = useState(false);
   const [pendingDestination, setPendingDestination] = useState('/admin/overview');
 
-  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,12 +40,13 @@ export const LoginPage: React.FC = () => {
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       if (isAdmin) {
-        navigate('/admin/overview', { replace: true });
+        const dest = rolePermissionStore.getFirstAllowedPathForRole(user?.roles?.[0], user);
+        navigate(dest, { replace: true });
       } else {
         navigate('/', { replace: true });
       }
     }
-  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+  }, [isLoading, isAuthenticated, isAdmin, navigate, user]);
 
   // Lắng nghe callback đăng nhập Google OAuth2 nếu có
   useEffect(() => {
@@ -119,10 +120,11 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      const isStaff = isInternalStaffRole(res.user?.roles);
+      const isStaff = isInternalStaffRole(res.user?.roles, res.user?.employeeCode);
       const requestedFrom = (location.state as any)?.from?.pathname;
+      const firstAllowed = rolePermissionStore.getFirstAllowedPathForRole(res.user?.roles?.[0], res.user);
       const destination = isStaff
-        ? (requestedFrom && requestedFrom.startsWith('/admin') ? requestedFrom : '/admin/overview')
+        ? (requestedFrom && requestedFrom.startsWith('/admin') ? requestedFrom : firstAllowed)
         : (requestedFrom && !requestedFrom.startsWith('/admin') ? requestedFrom : '/');
 
       // Kiểm tra mật khẩu mặc định (123456) hoặc cờ bắt buộc đổi mật khẩu (Yêu cầu 1)

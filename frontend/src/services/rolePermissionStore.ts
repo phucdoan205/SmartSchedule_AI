@@ -47,6 +47,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
       { id: 'p_apt_view', code: 'appointments_view', name: 'Xem danh sách lịch hẹn (Toàn bộ)' },
       { id: 'p_apt_add', code: 'appointments_create', name: 'Thêm & đặt lịch hẹn khám mới' },
       { id: 'p_apt_edit', code: 'appointments_edit', name: 'Sửa giờ / Chuyển ca / Hủy lịch hẹn' },
+      { id: 'p_apt_exp', code: 'appointments_export', name: 'Xuất danh sách lịch hẹn Excel/CSV' },
       { id: 'p_apt_qr', code: 'appointments_checkin', name: 'Quét mã QR Check-in Kiosk tự động' },
     ],
   },
@@ -74,6 +75,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
       { id: 'p_stf_create', code: 'staff_create', name: 'Thêm hồ sơ bác sĩ / nhân sự mới' },
       { id: 'p_stf_edit', code: 'staff_edit', name: 'Chỉnh sửa hồ sơ, chuyên khoa & hợp đồng' },
       { id: 'p_stf_delete', code: 'staff_delete', name: 'Tạm khóa hoặc cho thôi việc nhân sự' },
+      { id: 'p_stf_exp', code: 'staff_export', name: 'Xuất danh sách nhân sự ra file Excel' },
     ],
   },
   {
@@ -84,7 +86,8 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     iconName: 'CalendarDays',
     subPermissions: [
       { id: 'p_sch_view', code: 'schedule_view', name: 'Xem lịch trực ca của các phòng khám' },
-      { id: 'p_sch_edit', code: 'schedule_edit', name: 'Phân ca & điều phối bác sĩ khám' },
+      { id: 'p_sch_edit', code: 'schedule_edit', name: 'Phân ca, xếp lịch & điều phối nhân sự' },
+      { id: 'p_sch_exp', code: 'schedule_export', name: 'Xuất bảng phân ca làm việc ra file Excel' },
     ],
   },
   {
@@ -96,7 +99,8 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     subPermissions: [
       { id: 'p_sal_view', code: 'salary_view', name: 'Xem bảng tính lương cơ bản & hoa hồng' },
       { id: 'p_sal_edit', code: 'salary_edit', name: 'Điều chỉnh phụ cấp, thưởng & tỷ lệ hoa hồng' },
-      { id: 'p_sal_manage', code: 'salary_manage', name: 'Quyền kế toán: Duyệt & Chốt sổ lương toàn viện' },
+      { id: 'p_sal_manage', code: 'salary_manage', name: 'Chốt bảng lương tháng & duyệt toàn viện' },
+      { id: 'p_sal_exp', code: 'salary_export', name: 'Xuất bảng tổng hợp lương Excel/PDF' },
     ],
   },
   {
@@ -155,8 +159,11 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     path: '/admin/maintenance',
     iconName: 'Wrench',
     subPermissions: [
-      { id: 'p_eq_view', code: 'equipment_view', name: 'Xem danh mục ghế máy & trang thiết bị' },
-      { id: 'p_eq_edit', code: 'equipment_edit', name: 'Cập nhật trạng thái bảo trì ghế & máy X-Quang' },
+      { id: 'p_eq_view', code: 'equipment_view', name: 'Xem danh mục ghế máy & trang thiết bị y tế' },
+      { id: 'p_eq_create', code: 'equipment_create', name: 'Thêm mới thiết bị máy móc vào hệ thống' },
+      { id: 'p_eq_schedule', code: 'equipment_schedule', name: 'Lên lịch bảo dưỡng & kiểm định thiết bị' },
+      { id: 'p_eq_edit', code: 'equipment_edit', name: 'Chỉnh sửa thông tin & cập nhật trạng thái máy' },
+      { id: 'p_eq_export', code: 'equipment_export', name: 'Xuất biên bản kiểm định & hồ sơ kỹ thuật' },
     ],
   },
   {
@@ -167,7 +174,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     iconName: 'Bell',
     subPermissions: [
       { id: 'p_not_view', code: 'notifications_view', name: 'Xem cảnh báo bảo trì định kỳ thiết bị' },
-      { id: 'p_not_create', code: 'notifications_create', name: 'Tạo lệnh yêu cầu kỹ thuật khẩn cấp' },
+      { id: 'p_not_create', code: 'notifications_create', name: 'Báo sự cố khẩn cấp & Tạo lệnh yêu cầu kỹ thuật' },
     ],
   },
   {
@@ -179,6 +186,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     subPermissions: [
       { id: 'p_ai_view', code: 'ai_view', name: 'Xem gợi ý xếp ca & cảnh báo quá tải AI' },
       { id: 'p_ai_cfg', code: 'ai_configure', name: 'Điều chỉnh trọng số thuật toán AI' },
+      { id: 'p_ai_exp', code: 'ai_export', name: 'Xuất báo cáo phân tích xu hướng AI' },
     ],
   },
   {
@@ -189,6 +197,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     iconName: 'ScrollText',
     subPermissions: [
       { id: 'p_aud_view', code: 'audit_view', name: 'Xem lịch sử truy cập & thay đổi dữ liệu' },
+      { id: 'p_aud_exp', code: 'audit_export', name: 'Xuất báo cáo nhật ký kiểm toán Excel' },
     ],
   },
   {
@@ -437,6 +446,16 @@ export const rolePermissionStore = {
                 enabled: r.code === 'owner',
                 subPermissions: subPerms,
               };
+            } else {
+              if (!parsed[r.code][m.code].subPermissions) {
+                parsed[r.code][m.code].subPermissions = {};
+              }
+              m.subPermissions.forEach((sp) => {
+                if (parsed[r.code][m.code].subPermissions[sp.code] === undefined) {
+                  parsed[r.code][m.code].subPermissions[sp.code] =
+                    r.code === 'owner' || Boolean(parsed[r.code][m.code].enabled);
+                }
+              });
             }
           });
         });
@@ -455,29 +474,41 @@ export const rolePermissionStore = {
         Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
       if (dbRoles.length === 0) return this.getRoles();
 
-      const existingRoles = [...this.getRoles()];
-      let changed = false;
+      const defaultRoleMap: Record<string, string> = {
+        'SUPER_ADMIN': 'owner',
+        'DOCTOR': 'doctor',
+        'RECEPTIONIST': 'receptionist',
+        'NURSE': 'nurse',
+        'TECHNICIAN': 'technician',
+        'Kế Toán': 'ke_toan',
+        'BRANCH_MANAGER': 'manager',
+      };
 
+      const systemRoles = DEFAULT_ROLES.map((defRole) => {
+        const foundDb = dbRoles.find(
+          (dr) =>
+            dr.name === defRole.name ||
+            defaultRoleMap[dr.name] === defRole.code ||
+            dr.name.toLowerCase() === defRole.name.toLowerCase(),
+        );
+        if (foundDb) {
+          return {
+            ...defRole,
+            id: foundDb.id,
+            subtitle: foundDb.description || defRole.subtitle,
+          };
+        }
+        return defRole;
+      });
+
+      const customDbRoles: SystemRoleItem[] = [];
       dbRoles.forEach((dr) => {
         if (!dr.name || dr.name.toUpperCase() === 'PATIENT') return;
+        const isDefault =
+          Object.keys(defaultRoleMap).includes(dr.name) ||
+          systemRoles.some((sr) => sr.id === dr.id || sr.name.toLowerCase() === dr.name.toLowerCase());
 
-        const found = existingRoles.find(
-          (er) =>
-            er.id === dr.id ||
-            er.code.toLowerCase() === dr.name.toLowerCase() ||
-            er.name.toLowerCase() === dr.name.toLowerCase(),
-        );
-
-        if (found) {
-          if (!found.id || found.id !== dr.id) {
-            found.id = dr.id;
-            changed = true;
-          }
-          if (dr.description && found.subtitle !== dr.description) {
-            found.subtitle = dr.description;
-            changed = true;
-          }
-        } else {
+        if (!isDefault) {
           const code =
             dr.name
               .toLowerCase()
@@ -485,25 +516,53 @@ export const rolePermissionStore = {
               .replace(/[\u0300-\u036f]/g, '')
               .replace(/[^a-z0-9]/g, '_')
               .replace(/_+/g, '_')
-              .replace(/^_|_$/g, '') || `role_${Date.now()}`;
+              .replace(/^_|_$/g, '') || `role_${dr.id.slice(0, 6)}`;
 
-          existingRoles.push({
+          customDbRoles.push({
             id: dr.id,
             code,
             name: dr.name,
-            subtitle: dr.description || '(Chức vụ từ CSDL)',
+            subtitle: dr.description || 'Chức vụ mới',
             iconName: dr.name.toLowerCase().includes('kế toán') ? 'DollarSign' : 'UserCheck',
             isSystem: false,
           });
-          changed = true;
         }
       });
 
-      if (changed) {
-        localStorage.setItem(STORAGE_KEY_ROLES, JSON.stringify(existingRoles));
-        this.notify();
-      }
-      return existingRoles;
+      const nextRoles = [...systemRoles, ...customDbRoles];
+      localStorage.setItem(STORAGE_KEY_ROLES, JSON.stringify(nextRoles));
+
+      // Reconstruct matrix directly from database permissions
+      const currentMatrix = this.getMatrix();
+      dbRoles.forEach((dr) => {
+        const matchedSystemRole = nextRoles.find(
+          (r) => r.id === dr.id || r.name.toLowerCase() === dr.name.toLowerCase(),
+        );
+        if (!matchedSystemRole) return;
+        const roleCode = matchedSystemRole.code;
+
+        if (Array.isArray(dr.permissions) && dr.permissions.length > 0) {
+          if (!currentMatrix[roleCode]) currentMatrix[roleCode] = {};
+          SYSTEM_MODULES.forEach((mod) => {
+            const hasModule =
+              dr.permissions!.includes(mod.code) ||
+              mod.subPermissions.some((sp) => dr.permissions!.includes(sp.code));
+            const subPerms: Record<string, boolean> = {};
+            mod.subPermissions.forEach((sp) => {
+              subPerms[sp.code] =
+                dr.permissions!.includes(sp.code) || (hasModule && dr.name === 'SUPER_ADMIN');
+            });
+            currentMatrix[roleCode][mod.code] = {
+              enabled: hasModule || dr.name === 'SUPER_ADMIN',
+              subPermissions: subPerms,
+            };
+          });
+        }
+      });
+
+      localStorage.setItem(STORAGE_KEY_MATRIX, JSON.stringify(currentMatrix));
+      this.notify();
+      return nextRoles;
     } catch (e) {
       console.warn('Could not sync roles from backend:', e);
       return this.getRoles();
@@ -607,6 +666,34 @@ export const rolePermissionStore = {
     return updatedRole;
   },
 
+  async deleteRole(idOrCode: string): Promise<void> {
+    const roles = this.getRoles();
+    const target = roles.find((r) => r.id === idOrCode || r.code === idOrCode);
+    if (!target) {
+      throw new Error('Không tìm thấy chức vụ cần xóa');
+    }
+
+    if (target.code === 'owner') {
+      throw new Error('Không thể xóa quyền Chủ phòng khám hệ thống');
+    }
+
+    const deleteTargetId = target.id || target.code;
+
+    // Call backend API
+    await apiClient.delete(`/roles/${deleteTargetId}`);
+
+    // Remove from roles list
+    const nextRoles = roles.filter((r) => r.id !== target.id && r.code !== target.code);
+    localStorage.setItem(STORAGE_KEY_ROLES, JSON.stringify(nextRoles));
+
+    // Remove from matrix
+    const matrix = this.getMatrix();
+    delete matrix[target.code];
+    localStorage.setItem(STORAGE_KEY_MATRIX, JSON.stringify(matrix));
+
+    this.notify();
+  },
+
   saveMatrix(newMatrix: MatrixState) {
     localStorage.setItem(STORAGE_KEY_MATRIX, JSON.stringify(newMatrix));
 
@@ -633,45 +720,96 @@ export const rolePermissionStore = {
   },
 
   // Check if a path is allowed for a user role
-  isModuleAllowedForRole(roleNameOrCode?: string, path?: string): boolean {
+  // Check if a path is allowed for a user role
+  isModuleAllowedForRole(roleNameOrCode?: string, path?: string, user?: any): boolean {
     if (!path) return true;
     const matrix = this.getMatrix();
     const roles = this.getRoles();
 
+    const effectiveCode = (user ? this.getUserRoleCode(user) : '') || roleNameOrCode || '';
+    if (!effectiveCode) return false;
+
     // Owner / SUPER_ADMIN or ADMIN always sees everything
-    if (!roleNameOrCode || roleNameOrCode === 'SUPER_ADMIN' || roleNameOrCode === 'ADMIN' || roleNameOrCode === 'owner' || roleNameOrCode === 'Chủ phòng khám') {
+    const lower = effectiveCode.toLowerCase();
+    if (
+      lower === 'owner' ||
+      lower === 'super_admin' ||
+      lower === 'admin' ||
+      lower === 'chủ phòng khám' ||
+      user?.email === 'admin@smartschedule.ai'
+    ) {
       return true;
     }
 
     // Match role code
     const matchedRole = roles.find(
       (r) =>
-        r.code.toLowerCase() === roleNameOrCode.toLowerCase() ||
-        r.name.toLowerCase() === roleNameOrCode.toLowerCase()
+        r.id === effectiveCode ||
+        r.code.toLowerCase() === lower ||
+        r.name.toLowerCase() === lower,
     );
 
-    const roleCode = matchedRole ? matchedRole.code : roleNameOrCode.toLowerCase();
+    const roleCode = matchedRole ? matchedRole.code : lower;
 
     // Match module by path
     const matchedModule = SYSTEM_MODULES.find((m) => m.path === path);
     if (!matchedModule) return true; // If not in restricted modules list, permit
 
-    // Clinic schedule is always viewable for all staff roles
-    if (matchedModule.code === 'staff_schedule') {
+    const roleState = matrix[roleCode]?.[matchedModule.code];
+    if (roleState !== undefined) {
+      return Boolean(roleState.enabled);
+    }
+
+    // Fallback: check user.permissions if available
+    if (user?.permissions && Array.isArray(user.permissions)) {
+      return (
+        user.permissions.includes(matchedModule.code) ||
+        matchedModule.subPermissions.some((sp) => user.permissions.includes(sp.code))
+      );
+    }
+
+    return false;
+  },
+
+  getFirstAllowedPathForRole(roleNameOrCode?: string, user?: any): string {
+    const effectiveCode = (user ? this.getUserRoleCode(user) : '') || roleNameOrCode || '';
+    const lower = effectiveCode.toLowerCase();
+    if (
+      lower === 'owner' ||
+      lower === 'super_admin' ||
+      lower === 'admin' ||
+      lower === 'chủ phòng khám' ||
+      user?.email === 'admin@smartschedule.ai'
+    ) {
+      return '/admin/overview';
+    }
+
+    for (const mod of SYSTEM_MODULES) {
+      if (this.isModuleAllowedForRole(effectiveCode, mod.path, user)) {
+        return mod.path;
+      }
+    }
+    return '/admin/overview';
+  },
+
+  hasSubPermission(roleNameOrCode?: string, subPermCode?: string, user?: any): boolean {
+    if (!subPermCode) return false;
+    const effectiveCode = (user ? this.getUserRoleCode(user) : '') || roleNameOrCode || '';
+    if (!effectiveCode) return false;
+
+    const lower = effectiveCode.toLowerCase();
+    if (
+      lower === 'owner' ||
+      lower === 'super_admin' ||
+      lower === 'admin' ||
+      lower === 'chủ phòng khám' ||
+      user?.email === 'admin@smartschedule.ai'
+    ) {
       return true;
     }
 
-    const roleState = matrix[roleCode]?.[matchedModule.code];
-    if (!roleState) return true; // Default fallback to visible
-
-    return Boolean(roleState.enabled);
-  },
-
-  hasSubPermission(roleNameOrCode?: string, subPermCode?: string): boolean {
-    if (!roleNameOrCode || !subPermCode) return false;
-    const lower = roleNameOrCode.toLowerCase();
-    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
-      return true;
+    if (user?.permissions && Array.isArray(user.permissions)) {
+      if (user.permissions.includes(subPermCode)) return true;
     }
 
     const matrix = this.getMatrix();
@@ -679,8 +817,9 @@ export const rolePermissionStore = {
 
     const matchedRole = roles.find(
       (r) =>
+        r.id === effectiveCode ||
         r.code.toLowerCase() === lower ||
-        r.name.toLowerCase() === lower
+        r.name.toLowerCase() === lower,
     );
     const roleCode = matchedRole ? matchedRole.code : lower;
 
@@ -697,6 +836,99 @@ export const rolePermissionStore = {
     return false;
   },
 
+  getUserRoleCode(user?: any): string {
+    if (!user) return '';
+    const roles: string[] = Array.isArray(user.roles) ? user.roles : [];
+    const email = (user.email || '').toLowerCase().trim();
+
+    // 1. Explicit owner / Super Admin
+    if (
+      email === 'admin@smartschedule.ai' ||
+      roles.includes('SUPER_ADMIN') ||
+      roles.includes('ADMIN') ||
+      roles.includes('owner') ||
+      roles.includes('Chủ phòng khám')
+    ) {
+      return 'owner';
+    }
+
+    // 2. Kế toán
+    if (
+      roles.includes('Kế Toán') ||
+      roles.includes('ke_toan') ||
+      roles.includes('ACCOUNTANT') ||
+      roles.includes('Kế toán') ||
+      email === 'dinh@gmail.com'
+    ) {
+      return 'ke_toan';
+    }
+
+    // 3. Bác sĩ
+    if (
+      roles.includes('DOCTOR') ||
+      roles.includes('doctor') ||
+      roles.includes('Bác sĩ chuyên khoa') ||
+      roles.includes('Bác sĩ chuyên môn')
+    ) {
+      return 'doctor';
+    }
+
+    // 4. Lễ tân
+    if (
+      roles.includes('RECEPTIONIST') ||
+      roles.includes('receptionist') ||
+      roles.includes('Lễ tân') ||
+      roles.includes('Lễ tân phòng khám')
+    ) {
+      return 'receptionist';
+    }
+
+    // 5. Điều dưỡng
+    if (
+      roles.includes('NURSE') ||
+      roles.includes('nurse') ||
+      roles.includes('Điều dưỡng viên') ||
+      roles.includes('Điều dưỡng & Phụ tá nha khoa') ||
+      roles.includes('Điều dưỡng & Phụ tá')
+    ) {
+      return 'nurse';
+    }
+
+    // 6. Kỹ thuật viên
+    if (
+      roles.includes('TECHNICIAN') ||
+      roles.includes('technician') ||
+      roles.includes('Kỹ thuật viên') ||
+      roles.includes('Kỹ thuật viên xét nghiệm') ||
+      roles.includes('Kỹ thuật viên phòng mổ & Lab')
+    ) {
+      return 'technician';
+    }
+
+    // 7. Quản lý chi nhánh
+    if (
+      roles.includes('BRANCH_MANAGER') ||
+      roles.includes('manager') ||
+      roles.includes('Quản lý chi nhánh') ||
+      roles.includes('Giám đốc / Quản lý chi nhánh')
+    ) {
+      return 'manager';
+    }
+
+    // 8. Custom dynamic roles from matrix
+    const sysRoles = this.getRoles();
+    for (const r of roles) {
+      const found = sysRoles.find(
+        (sr) =>
+          sr.code.toLowerCase() === r.toLowerCase() ||
+          sr.name.toLowerCase() === r.toLowerCase(),
+      );
+      if (found) return found.code;
+    }
+
+    return roles[0] || '';
+  },
+
   canFilterBranches(roleNameOrCode?: string): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
@@ -706,52 +938,238 @@ export const rolePermissionStore = {
     return this.hasSubPermission(roleNameOrCode, 'branches_filter');
   },
 
-  canEditServices(roleNameOrCode?: string): boolean {
+  canEditServices(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
     if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
       return true;
     }
-    return this.hasSubPermission(roleNameOrCode, 'services_edit') || this.hasSubPermission(roleNameOrCode, 'services_create');
+    return this.hasSubPermission(roleNameOrCode, 'services_edit', user) || this.hasSubPermission(roleNameOrCode, 'services_create', user);
   },
 
-  canToggleServices(roleNameOrCode?: string): boolean {
+  canToggleServices(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
     if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
       return true;
     }
-    return this.hasSubPermission(roleNameOrCode, 'services_toggle') || this.hasSubPermission(roleNameOrCode, 'services_edit');
+    return this.hasSubPermission(roleNameOrCode, 'services_toggle', user) || this.hasSubPermission(roleNameOrCode, 'services_edit', user);
   },
 
-  canViewAllLeaves(roleNameOrCode?: string): boolean {
+  canViewAllLeaves(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
-    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'manager' || lower === 'quản lý chi nhánh') {
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
       return true;
     }
-    if (lower === 'ke_toan' || lower === 'accountant' || lower.includes('kế toán')) {
-      return true;
-    }
-    return this.hasSubPermission(roleNameOrCode, 'leave_view_all') || this.hasSubPermission(roleNameOrCode, 'leave_approve');
+    return this.hasSubPermission(roleNameOrCode, 'leave_view_all', user) || this.hasSubPermission(roleNameOrCode, 'leave_approve', user);
   },
 
-  canApproveLeave(roleNameOrCode?: string): boolean {
+  canApproveLeave(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
-    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'manager' || lower === 'quản lý chi nhánh') {
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
       return true;
     }
-    return this.hasSubPermission(roleNameOrCode, 'leave_approve');
+    return this.hasSubPermission(roleNameOrCode, 'leave_approve', user);
   },
 
-  canManagePayroll(roleNameOrCode?: string): boolean {
+  canManagePayroll(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
-    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám' || lower === 'ke_toan' || lower === 'accountant' || lower.includes('kế toán')) {
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') {
       return true;
     }
-    return this.hasSubPermission(roleNameOrCode, 'salary_manage') || this.hasSubPermission(roleNameOrCode, 'salary_edit');
+    return this.hasSubPermission(roleNameOrCode, 'salary_manage', user) || this.hasSubPermission(roleNameOrCode, 'salary_edit', user);
+  },
+
+  canCreateAppointment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'appointments_create', user);
+  },
+
+  canEditAppointment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'appointments_edit', user);
+  },
+
+  canExportAppointments(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'appointments_export', user) || this.hasSubPermission(roleNameOrCode, 'appointments_view', user);
+  },
+
+  canCreatePatient(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'patients_create', user);
+  },
+
+  canEditPatient(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'patients_edit', user);
+  },
+
+  canUpdateDentalChart(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'patients_dental_chart', user);
+  },
+
+  canCreateStaff(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'staff_create', user);
+  },
+
+  canEditStaff(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'staff_edit', user);
+  },
+
+  canDeleteStaff(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'staff_delete', user);
+  },
+
+  canExportStaff(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'staff_export', user) || this.hasSubPermission(roleNameOrCode, 'staff_view', user);
+  },
+
+  canEditSchedule(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'schedule_edit', user);
+  },
+
+  canExportSchedule(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'schedule_export', user) || this.hasSubPermission(roleNameOrCode, 'schedule_view', user);
+  },
+
+  canEditSalary(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'salary_edit', user);
+  },
+
+  canExportSalary(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'salary_export', user) || this.hasSubPermission(roleNameOrCode, 'salary_view', user);
+  },
+
+  canEditBranches(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'branches_edit', user);
+  },
+
+  canCreateService(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'services_create', user);
+  },
+
+  canCreateReceipt(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'finance_receipt', user);
+  },
+
+  canExportFinance(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'finance_export', user) || this.hasSubPermission(roleNameOrCode, 'finance_view', user);
+  },
+
+  canConfigureAi(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'ai_configure', user);
+  },
+
+  canExportAi(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'ai_export', user) || this.hasSubPermission(roleNameOrCode, 'ai_view', user);
+  },
+
+  canExportAuditLogs(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'audit_export', user) || this.hasSubPermission(roleNameOrCode, 'audit_view', user);
+  },
+
+  canEditSettings(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'settings_edit', user);
+  },
+
+  canCreateEquipment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'equipment_create', user);
+  },
+
+  canScheduleEquipment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'equipment_schedule', user);
+  },
+
+  canEditEquipment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'equipment_edit', user);
+  },
+
+  canExportEquipment(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'equipment_export', user);
+  },
+
+  canCreateUrgentReport(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    return this.hasSubPermission(roleNameOrCode, 'notifications_create', user);
   },
 
   subscribe(listener: Listener) {
@@ -776,7 +1194,13 @@ export const rolePermissionStore = {
  * Kiểm tra linh hoạt xem một tài khoản có thuộc vai trò nhân sự / quản trị hay không.
  * Nếu tài khoản có bất kỳ vai trò nào trong hệ thống (khác PATIENT thuần túy), coi như là nhân sự.
  */
-export const isStaffRole = (roles?: string[]): boolean => {
+export const isStaffRole = (roles?: string[], employeeCode?: string): boolean => {
+  if (employeeCode) {
+    const empUpper = employeeCode.trim().toUpperCase();
+    if (empUpper.startsWith('NV') || empUpper.includes('ADMIN')) {
+      return true;
+    }
+  }
   if (!roles || !Array.isArray(roles) || roles.length === 0) return false;
   const nonPatientRoles = roles.filter((r) => {
     const upper = (r || '').trim().toUpperCase();
@@ -790,4 +1214,5 @@ export const isStaffRole = (roles?: string[]): boolean => {
   });
   return nonPatientRoles.length > 0;
 };
+
 

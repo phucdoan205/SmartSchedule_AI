@@ -904,6 +904,7 @@ export class StaffService {
       let role = await tx.role.findFirst({
         where: {
           OR: [
+            { id: data.roleName },
             { name: data.roleName },
             { name: { equals: data.roleName, mode: 'insensitive' } },
             { description: { equals: data.roleName, mode: 'insensitive' } },
@@ -917,7 +918,30 @@ export class StaffService {
           role = await tx.role.findFirst({ where: { name: { contains: 'Kế', mode: 'insensitive' } } });
         } else if (lower.includes('bác sĩ') || lower.includes('doctor')) {
           role = await tx.role.findFirst({ where: { name: 'DOCTOR' } });
+        } else if (lower.includes('lễ tân') || lower.includes('receptionist')) {
+          role = await tx.role.findFirst({ where: { name: 'RECEPTIONIST' } });
+        } else if (lower.includes('điều dưỡng') || lower.includes('nurse')) {
+          role = await tx.role.findFirst({ where: { name: 'NURSE' } });
+        } else if (lower.includes('kỹ thuật') || lower.includes('technician')) {
+          role = await tx.role.findFirst({ where: { name: 'TECHNICIAN' } });
+        } else if (lower.includes('quản lý') || lower.includes('manager')) {
+          role = await tx.role.findFirst({ where: { name: 'BRANCH_MANAGER' } });
         }
+      }
+
+      // If still not found, create the role dynamically so this staff ALWAYS has a role
+      if (!role && data.roleName && data.roleName.trim()) {
+        role = await tx.role.create({
+          data: {
+            name: data.roleName.trim(),
+            description: `Chức vụ ${data.roleName.trim()}`,
+          },
+        });
+      }
+
+      // Fallback if needed
+      if (!role) {
+        role = await tx.role.findFirst({ where: { name: 'DOCTOR' } });
       }
 
       if (role) {

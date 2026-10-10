@@ -27,10 +27,16 @@ import branch2Img from '../../assets/cơ sở 2.jpg';
 import branch3Img from '../../assets/cơ sở 3.jpg';
 import { branchesApi, staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 import { toast } from '../../context/ToastContext';
 
 export const BranchesPage: React.FC = () => {
   const { selectedBranchId: globalBranchId, refreshBranches: refreshGlobalBranches } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canEditBranches = rolePermissionStore.canEditBranches(userRoleCode, user);
+
   // Navigation State
   const [activeView, setActiveView] = useState<'branches' | 'detail' | 'staff_allocation' | 'room_config'>('branches');
   const [selectedBranchId, setSelectedBranchId] = useState<string>('b-bienhoa');
@@ -273,13 +279,15 @@ export const BranchesPage: React.FC = () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsAddBranchOpen(true)}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Thêm chi nhánh mới
-            </button>
+            {canEditBranches && (
+              <button
+                type="button"
+                onClick={() => setIsAddBranchOpen(true)}
+                className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Thêm chi nhánh mới
+              </button>
+            )}
           </div>
 
           {/* Top 3 Summary KPI Cards (Dữ Liệu Thật 100% Từ Cơ Sở Dữ Liệu) */}

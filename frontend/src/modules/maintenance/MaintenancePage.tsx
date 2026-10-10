@@ -7,6 +7,8 @@ import { ScheduleMaintenanceModal } from './ScheduleMaintenanceModal';
 import { AddEquipmentModal } from './AddEquipmentModal';
 import { EditEquipmentModal } from './EditEquipmentModal';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 import { equipmentApi } from '../../services/api';
 
 const STATUS_MAP: Record<string, { label: string; dot: string; badge: string }> = {
@@ -22,6 +24,14 @@ const STATUS_MAP: Record<string, { label: string; dot: string; badge: string }> 
 
 export const MaintenancePage: React.FC = () => {
   const { selectedBranchId, selectedBranch } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+
+  const canAddEquipment = rolePermissionStore.canCreateEquipment(userRoleCode, user);
+  const canScheduleEquipment = rolePermissionStore.canScheduleEquipment(userRoleCode, user);
+  const canExportEquipment = rolePermissionStore.canExportEquipment(userRoleCode, user);
+  const canEditEquipment = rolePermissionStore.canEditEquipment(userRoleCode, user);
+
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -110,33 +120,39 @@ export const MaintenancePage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* Add equipment button */}
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
+          {canAddEquipment && (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
               Thêm thiết bị mới
-          </button>
+            </button>
+          )}
 
           {/* Export */}
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Xuất biên bản kiểm định
-          </button>
+          {canExportEquipment && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Xuất biên bản kiểm định
+            </button>
+          )}
 
           {/* Schedule button */}
-          <button
-            type="button"
-            onClick={() => setIsScheduleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-700 rounded-xl shadow-md transition-colors cursor-pointer"
-          >
-            <Calendar className="w-3.5 h-3.5" />
+          {canScheduleEquipment && (
+            <button
+              type="button"
+              onClick={() => setIsScheduleModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-700 rounded-xl shadow-md transition-colors cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5" />
               Lên lịch bảo dưỡng mới
-          </button>
+            </button>
+          )}
         </div>
       </div>
 
@@ -308,16 +324,20 @@ export const MaintenancePage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDeviceForEdit(device);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-sky-50 hover:text-sky-700 border border-slate-200 hover:border-sky-200 rounded-xl transition-all cursor-pointer shadow-2xs"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-sky-600" /> Chỉnh sửa
-                        </button>
+                        {canEditEquipment ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDeviceForEdit(device);
+                              setIsEditModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-sky-50 hover:text-sky-700 border border-slate-200 hover:border-sky-200 rounded-xl transition-all cursor-pointer shadow-2xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-sky-600" /> Chỉnh sửa
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic font-normal">Chỉ xem</span>
+                        )}
                       </td>
                     </tr>
                   );

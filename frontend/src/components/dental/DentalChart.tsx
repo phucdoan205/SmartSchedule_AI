@@ -75,6 +75,7 @@ interface DentalChartProps {
     colorStatus?: string | null;
   }>;
   onUpdateCondition?: (toothNumber: number, condition: ToothCondition) => void;
+  readOnly?: boolean;
 }
 
 export const DentalChart: React.FC<DentalChartProps> = ({
@@ -83,6 +84,7 @@ export const DentalChart: React.FC<DentalChartProps> = ({
   patientId = '',
   dentalCharts = [],
   onUpdateCondition,
+  readOnly = false,
 }) => {
   const [teeth, setTeeth] = useState<Record<number, ToothInfo>>(() => {
     const base = createDefaultTeethData();
@@ -535,54 +537,56 @@ export const DentalChart: React.FC<DentalChartProps> = ({
               </p>
 
               {/* Quick condition selector */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-                <span className="text-[10px] font-bold text-slate-400">Đổi trạng thái:</span>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateCondition(selectedTooth.number, 'implant')}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
-                    selectedTooth.condition === 'implant' ? 'bg-cyan-500 text-white border-cyan-600' : 'bg-white text-slate-600 hover:bg-cyan-50'
-                  }`}
-                >
-                  Implant
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateCondition(selectedTooth.number, 'crown')}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
-                    selectedTooth.condition === 'crown' ? 'bg-sky-500 text-white border-sky-600' : 'bg-white text-slate-600 hover:bg-sky-50'
-                  }`}
-                >
-                  Răng sứ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateCondition(selectedTooth.number, 'decay')}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
-                    selectedTooth.condition === 'decay' ? 'bg-amber-400 text-slate-900 border-amber-500' : 'bg-white text-slate-600 hover:bg-amber-50'
-                  }`}
-                >
-                  Sâu răng
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateCondition(selectedTooth.number, 'extracted')}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
-                    selectedTooth.condition === 'extracted' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Đã nhổ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateCondition(selectedTooth.number, 'healthy')}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
-                    selectedTooth.condition === 'healthy' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-slate-600 hover:bg-emerald-50'
-                  }`}
-                >
-                  Bình thường
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                  <span className="text-[10px] font-bold text-slate-400">Đổi trạng thái:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCondition(selectedTooth.number, 'implant')}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
+                      selectedTooth.condition === 'implant' ? 'bg-cyan-500 text-white border-cyan-600' : 'bg-white text-slate-600 hover:bg-cyan-50'
+                    }`}
+                  >
+                    Implant
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCondition(selectedTooth.number, 'crown')}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
+                      selectedTooth.condition === 'crown' ? 'bg-sky-500 text-white border-sky-600' : 'bg-white text-slate-600 hover:bg-sky-50'
+                    }`}
+                  >
+                    Răng sứ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCondition(selectedTooth.number, 'decay')}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
+                      selectedTooth.condition === 'decay' ? 'bg-amber-400 text-slate-900 border-amber-500' : 'bg-white text-slate-600 hover:bg-amber-50'
+                    }`}
+                  >
+                    Sâu răng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCondition(selectedTooth.number, 'extracted')}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
+                      selectedTooth.condition === 'extracted' ? 'bg-slate-700 text-white border-slate-800' : 'bg-white text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Đã nhổ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCondition(selectedTooth.number, 'healthy')}
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition-colors ${
+                      selectedTooth.condition === 'healthy' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-white text-slate-600 hover:bg-emerald-50'
+                    }`}
+                  >
+                    Bình thường
+                  </button>
+                </div>
+              )}
             </div>
 
             {selectedTooth.doctor && (

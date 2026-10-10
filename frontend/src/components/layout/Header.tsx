@@ -43,21 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     });
   }, []);
 
-  // Determine current user role code
-  const getUserRoleCode = () => {
-    if (!user || !user.roles || user.roles.length === 0) return 'owner';
-    const roles = user.roles;
-    if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
-    if (roles.includes('Kế Toán') || roles.includes('ke_toan') || roles.includes('ACCOUNTANT') || roles.includes('Kế toán') || user?.email === 'dinh@gmail.com') return 'ke_toan';
-    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa') || roles.includes('Bác sĩ chuyên môn')) return 'doctor';
-    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
-    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên') || roles.includes('Điều dưỡng & Phụ tá nha khoa')) return 'nurse';
-    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên') || roles.includes('Kỹ thuật viên xét nghiệm') || roles.includes('Kỹ thuật viên phòng mổ & Lab')) return 'technician';
-    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh') || roles.includes('Giám đốc / Quản lý chi nhánh')) return 'manager';
-    return roles[0];
-  };
-
-  const userRoleCode = getUserRoleCode();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
   const canFilterBranches = rolePermissionStore.canFilterBranches(userRoleCode);
 
   const getRoleTitle = () => {

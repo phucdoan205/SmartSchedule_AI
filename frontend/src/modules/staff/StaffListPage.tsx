@@ -17,6 +17,7 @@ import { StaffModal } from './StaffModal';
 import { rolePermissionStore, type SystemRoleItem } from '../../services/rolePermissionStore';
 import { staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
 import { exportToExcel } from '../../utils/excelExport';
 
 const getDisplayRole = (doc: any) => {
@@ -42,6 +43,11 @@ const isClinicalStaff = (doc: any) => {
 export const StaffListPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedBranchId, selectedBranch } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canCreateStaff = rolePermissionStore.canCreateStaff(userRoleCode, user);
+  const canExportStaff = rolePermissionStore.canExportStaff(userRoleCode, user);
+
   const [roles, setRoles] = useState<SystemRoleItem[]>(() => rolePermissionStore.getRoles());
   const [doctorsList, setDoctorsList] = useState<DoctorStaff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -215,14 +221,16 @@ export const StaffListPage: React.FC = () => {
           </h1>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsStaffModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-98 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Thêm nhân sự mới</span>
-        </button>
+        {canCreateStaff && (
+          <button
+            type="button"
+            onClick={() => setIsStaffModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all cursor-pointer active:scale-98 self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm nhân sự mới</span>
+          </button>
+        )}
       </div>
 
       {/* 3 KPI Summary Cards matching Image 1 */}
@@ -320,14 +328,16 @@ export const StaffListPage: React.FC = () => {
         </div>
 
         {/* Nút Xuất Excel (File .xlsx chuẩn không lỗi font) */}
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Xuất Excel</span>
-        </button>
+        {canExportStaff && (
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Xuất Excel</span>
+          </button>
+        )}
       </div>
 
       {/* Main Staff Data Table */}

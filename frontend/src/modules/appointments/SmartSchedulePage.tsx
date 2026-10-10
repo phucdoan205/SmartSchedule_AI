@@ -21,9 +21,16 @@ import { Modal } from '../../components/common/Modal';
 import { EditAppointmentModal } from './modals/EditAppointmentModal';
 import { toast } from '../../context/ToastContext';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 export const SmartSchedulePage: React.FC = () => {
   const { selectedBranchId, branches: globalBranches, selectedBranch } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canCreateAppointment = rolePermissionStore.canCreateAppointment(userRoleCode, user);
+  const canEditAppointment = rolePermissionStore.canEditAppointment(userRoleCode, user);
+  const canExportAppointments = rolePermissionStore.canExportAppointments(userRoleCode, user);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -227,17 +234,20 @@ export const SmartSchedulePage: React.FC = () => {
     },
     {
       header: 'THAO TÁC',
-      cell: (row) => (
-        <button
-          type="button"
-          onClick={() => handleOpenEdit(row)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all cursor-pointer shadow-2xs"
-          title="Chỉnh sửa lịch hẹn khi có sai sót"
-        >
-          <Edit3 className="w-3.5 h-3.5 text-sky-600" />
-          <span>Sửa Lịch</span>
-        </button>
-      ),
+      cell: (row) =>
+        canEditAppointment ? (
+          <button
+            type="button"
+            onClick={() => handleOpenEdit(row)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-all cursor-pointer shadow-2xs"
+            title="Chỉnh sửa lịch hẹn khi có sai sót"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-sky-600" />
+            <span>Sửa Lịch</span>
+          </button>
+        ) : (
+          <span className="text-xs text-slate-400 italic">Chỉ xem</span>
+        ),
     },
   ];
 
@@ -252,6 +262,11 @@ export const SmartSchedulePage: React.FC = () => {
   const handleDragStart = (id: string) => setDraggedId(id);
 
   const handleDrop = async (targetStatus: Appointment['status']) => {
+    if (!canEditAppointment) {
+      toast('Bạn không có quyền chuyển trạng thái ca khám', 'error');
+      setDraggedId(null);
+      return;
+    }
     if (!draggedId) return;
     const prev = appointments;
     setAppointments((a) => a.map((apt) => (apt.id === draggedId ? { ...apt, status: targetStatus } : apt)));
@@ -362,16 +377,20 @@ export const SmartSchedulePage: React.FC = () => {
             <button id="btn-view-kanban" type="button" onClick={() => setViewMode('kanban')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${viewMode === 'kanban' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}><Kanban className="w-3.5 h-3.5" /> Bảng Kéo Thả</button>
             <button id="btn-view-table" type="button" onClick={() => setViewMode('table')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${viewMode === 'table' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}><List className="w-3.5 h-3.5" /> Danh Sách Bảng</button>
           </div>
-          <button
-            id="btn-export-excel"
-            type="button"
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-            title="Xuất danh sách lịch hẹn ra file Excel (CSV)"
-          >
-            <FileDown className="w-4 h-4" /> Xuất Excel
-          </button>
-          <button id="btn-create-appointment" type="button" onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"><Plus className="w-4 h-4" /> Đặt Lịch Mới</button>
+          {canExportAppointments && (
+            <button
+              id="btn-export-excel"
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+              title="Xuất danh sách lịch hẹn ra file Excel (CSV)"
+            >
+              <FileDown className="w-4 h-4" /> Xuất Excel
+            </button>
+          )}
+          {canCreateAppointment && (
+            <button id="btn-create-appointment" type="button" onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"><Plus className="w-4 h-4" /> Đặt Lịch Mới</button>
+          )}
         </div>
       </div>
 

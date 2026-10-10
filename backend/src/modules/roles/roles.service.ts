@@ -31,6 +31,7 @@ export class RolesService implements OnModuleInit {
       { name: 'RECEPTIONIST', description: 'Lễ tân phòng khám (Tiếp đón & Lịch hẹn)' },
       { name: 'NURSE', description: 'Điều dưỡng viên (Hỗ trợ điều trị & Chăm sóc)' },
       { name: 'TECHNICIAN', description: 'Kỹ thuật viên xét nghiệm (Chẩn đoán hình ảnh & X-Quang)' },
+      { name: 'Kế Toán', description: 'Kế toán toàn viện (Tài chính & Lương thưởng)' },
       { name: 'BRANCH_MANAGER', description: 'Quản lý chi nhánh (Vận hành & Cơ sở)' },
     ];
 
@@ -260,17 +261,28 @@ export class RolesService implements OnModuleInit {
       let role = await this.prisma.role.findFirst({
         where: {
           OR: [
+            { id: roleCodeOrName },
             { name: canonicalName },
             { name: roleCodeOrName },
+            { name: { equals: canonicalName, mode: 'insensitive' } },
+            { name: { equals: roleCodeOrName, mode: 'insensitive' } },
           ],
         },
       });
 
       if (!role) {
-        role = await this.prisma.role.create({
-          data: { name: canonicalName, description: `Chức vụ ${canonicalName}` },
-        });
+        // Only create if canonicalName is not an internal slug of a default role
+        const isDefaultSlug = ['super_admin', 'branch_manager', 'bac_si_chuyen_mon', 'bac_si_chuyen_khoa'].includes(
+          roleCodeOrName.toLowerCase(),
+        );
+        if (!isDefaultSlug) {
+          role = await this.prisma.role.create({
+            data: { name: canonicalName, description: `Chức vụ ${canonicalName}` },
+          });
+        }
       }
+
+      if (!role) continue;
 
       // Delete existing role permissions
       await this.prisma.rolePermission.deleteMany({
@@ -323,6 +335,71 @@ export class RolesService implements OnModuleInit {
     return {
       success: true,
       message: 'Lưu ma trận phân quyền RBAC thành công',
+    };
+  }
+
+  async deleteRole(idOrName: string, operatorUserId?: string) {
+    let target = await this.prisma.role.findFirst({
+      where: {
+        OR: [
+          { id: idOrName },
+          { name: idOrName },
+          { name: { equals: idOrName, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        _count: { select: { userRoles: true } },
+      },
+    });
+
+    if (!target) {
+      throw new BadRequestException('Không tìm thấy chức vụ cần xóa');
+    }
+
+    const upper = target.name.toUpperCase();
+    if (upper === 'SUPER_ADMIN' || upper === 'PATIENT') {
+      throw new BadRequestException('Không thể xóa vai trò mặc định của hệ thống');
+    }
+
+    if (target._count.userRoles > 0) {
+      throw new BadRequestException(
+        `Chức vụ "${target.name}" hiện đang có ${target._count.userRoles} nhân sự trực thuộc. Vui lòng chuyển chức vụ của nhân sự sang vai trò khác trước khi xóa.`,
+      );
+    }
+
+    // Xóa liên kết phân quyền trước
+    await this.prisma.rolePermission.deleteMany({
+      where: { roleId: target.id },
+    });
+
+    // Xóa vai trò
+    await this.prisma.role.delete({
+      where: { id: target.id },
+    });
+
+    const finalUserId = operatorUserId || undefined;
+    await this.auditLogsService.log({
+      userId: finalUserId,
+      module: 'RBAC_SECURITY',
+      action: `Xóa chức danh / vai trò: ${target.name}`,
+      details: `Đã xóa vai trò "${target.name}" khỏi hệ thống phân quyền.`,
+      targetEntity: target.name,
+      status: 'SUCCESS',
+    });
+
+    if (finalUserId) {
+      await this.notificationsService.create({
+        userId: finalUserId,
+        title: 'Xóa vai trò thành công',
+        content: `Đã xóa chức vụ "${target.name}" khỏi hệ thống phân quyền.`,
+        type: 'ROLE_CHANGE',
+        link: '/admin/settings',
+      });
+    }
+
+    return {
+      success: true,
+      message: `Đã xóa chức vụ "${target.name}" thành công!`,
     };
   }
 }

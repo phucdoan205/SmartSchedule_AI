@@ -7,12 +7,18 @@ interface ScheduleMaintenanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm?: () => void;
+  initialPriority?: 'normal' | 'high' | 'urgent';
+  initialActionType?: string;
+  modalTitle?: string;
 }
 
 export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  initialPriority = 'normal',
+  initialActionType = 'BẢO TRÌ ĐỊNH KỲ',
+  modalTitle,
 }) => {
   const { branches, selectedBranchId } = useBranch();
   const [deviceList, setDeviceList] = useState<any[]>([]);
@@ -22,7 +28,7 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
   const [form, setForm] = useState({
     branchId: selectedBranchId !== 'ALL' ? selectedBranchId : '',
     deviceId: '',
-    actionType: 'BẢO TRÌ ĐỊNH KỲ',
+    actionType: initialActionType,
     scheduledDate: new Date().toISOString().split('T')[0],
     scheduledTime: '07:30',
     repeatCycle: 'Lặp lại mỗi tháng 1 lần',
@@ -31,10 +37,16 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
     estimatedCost: '0',
     autoLockChair: true,
   });
-  const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+  const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>(initialPriority);
 
   useEffect(() => {
     if (isOpen) {
+      setPriority(initialPriority);
+      setForm((prev) => ({
+        ...prev,
+        actionType: initialActionType,
+        branchId: selectedBranchId !== 'ALL' ? selectedBranchId : prev.branchId,
+      }));
       setLoadingDevices(true);
       equipmentApi
         .getAll({ branchId: form.branchId || undefined, limit: 50 })
@@ -89,13 +101,15 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
         {/* Header */}
         <div className="flex items-start justify-between p-4 sm:p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center shrink-0">
-              <CalendarCheck className="w-5 h-5 text-sky-600" />
+            <div className={`w-10 h-10 ${priority === 'urgent' ? 'bg-red-100 text-red-600' : 'bg-sky-100 text-sky-600'} rounded-xl flex items-center justify-center shrink-0`}>
+              {priority === 'urgent' ? <Wrench className="w-5 h-5" /> : <CalendarCheck className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Lên Lịch Bảo Dưỡng &amp; Kiểm Định Thiết Bị Mới</h2>
+              <h2 className="text-base font-bold text-slate-900">
+                {modalTitle || (priority === 'urgent' ? 'Báo Sự Cố & Tạo Lệnh Kỹ Thuật Khẩn Cấp' : 'Lên Lịch Bảo Dưỡng & Kiểm Định Thiết Bị Mới')}
+              </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Thiết lập kế hoạch bảo trì định kỳ lưu trực tiếp vào cơ sở dữ liệu và tự động đồng bộ
+                {priority === 'urgent' ? 'Gửi yêu cầu can thiệp khẩn cấp và cảnh báo đến bộ phận kỹ thuật thiết bị' : 'Thiết lập kế hoạch bảo trì định kỳ lưu trực tiếp vào cơ sở dữ liệu và tự động đồng bộ'}
               </p>
             </div>
           </div>

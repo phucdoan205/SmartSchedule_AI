@@ -34,6 +34,8 @@ import { staffApi, appointmentApi } from '../../services/api';
 import { exportToExcel } from '../../utils/excelExport';
 import { toast } from '../../context/ToastContext';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 export interface StaffSalaryRecord {
   id: string;
@@ -60,6 +62,12 @@ export interface StaffSalaryRecord {
 export const StaffSalaryPage: React.FC = () => {
   const navigate = useNavigate();
   const { selectedBranchId } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+
+  const canManagePayroll = rolePermissionStore.canManagePayroll(userRoleCode, user);
+  const canEditSalary = rolePermissionStore.canEditSalary(userRoleCode, user);
+  const canExportSalary = rolePermissionStore.canExportSalary(userRoleCode, user);
 
   const [isLoading, setIsLoading] = useState(true);
   const [salaryRecords, setSalaryRecords] = useState<StaffSalaryRecord[]>([]);
@@ -402,24 +410,28 @@ export const StaffSalaryPage: React.FC = () => {
           </div>
 
           {/* Export Excel Button */}
-          <button
-            type="button"
-            onClick={handleExportPayrollExcel}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Xuất phiếu lương (Excel/PDF)</span>
-          </button>
+          {canExportSalary && (
+            <button
+              type="button"
+              onClick={handleExportPayrollExcel}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Xuất phiếu lương (Excel/PDF)</span>
+            </button>
+          )}
 
           {/* Batch Approve Button */}
-          <button
-            type="button"
-            onClick={() => setIsFinalizeConfirmOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
-          >
-            <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Chốt bảng lương tháng</span>
-          </button>
+          {canManagePayroll && (
+            <button
+              type="button"
+              onClick={() => setIsFinalizeConfirmOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+            >
+              <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Chốt bảng lương tháng</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -692,28 +704,32 @@ export const StaffSalaryPage: React.FC = () => {
                           </button>
 
                           {/* 2. Duyệt chốt nhanh */}
-                          <button
-                            type="button"
-                            onClick={() => handleToggleApproval(row.id)}
-                            className={`p-1.5 rounded-lg border transition-colors shadow-2xs cursor-pointer ${
-                              isApproved
-                                ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
-                                : 'border-slate-200 bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
-                            }`}
-                            title={isApproved ? 'Đã duyệt (Bấm để hủy duyệt)' : 'Duyệt & Chốt lương nhân sự'}
-                          >
-                            <CheckCheck className="w-3.5 h-3.5" />
-                          </button>
+                          {canManagePayroll && (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleApproval(row.id)}
+                              className={`p-1.5 rounded-lg border transition-colors shadow-2xs cursor-pointer ${
+                                isApproved
+                                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
+                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                              }`}
+                              title={isApproved ? 'Đã duyệt (Bấm để hủy duyệt)' : 'Duyệt & Chốt lương nhân sự'}
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
 
                           {/* 3. Điều chỉnh thưởng / phụ cấp */}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedStaffForAdjustment(row)}
-                            className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:border-amber-300 transition-colors shadow-2xs cursor-pointer"
-                            title="Điều chỉnh thưởng nóng / phụ cấp / khấu trừ"
-                          >
-                            <Sliders className="w-3.5 h-3.5" />
-                          </button>
+                          {canEditSalary && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStaffForAdjustment(row)}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:border-amber-300 transition-colors shadow-2xs cursor-pointer"
+                              title="Điều chỉnh thưởng nóng / phụ cấp / khấu trừ"
+                            >
+                              <Sliders className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

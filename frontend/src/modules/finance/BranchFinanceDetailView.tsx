@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { financeApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 interface BranchFinanceDetailViewProps {
   branchId: string;
@@ -28,6 +30,11 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
   onOpenVietQrModal,
 }) => {
   const { branches } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canCreateReceipt = rolePermissionStore.canCreateReceipt(userRoleCode, user);
+  const canExportFinance = rolePermissionStore.canExportFinance(userRoleCode, user);
+
   const [txSearchQuery, setTxSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -131,21 +138,25 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenVietQrModal}
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <ArrowRightLeft className="w-3.5 h-3.5 text-sky-600" /> Đối soát VietQR hôm nay
-          </button>
+          {canCreateReceipt && (
+            <button
+              type="button"
+              onClick={onOpenVietQrModal}
+              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-sky-600" /> Đối soát VietQR hôm nay
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onOpenExportModal}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" /> Xuất file Excel kế toán
-          </button>
+          {canExportFinance && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" /> Xuất file Excel kế toán
+            </button>
+          )}
         </div>
       </div>
 

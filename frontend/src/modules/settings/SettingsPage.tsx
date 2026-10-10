@@ -30,8 +30,10 @@ import {
   Bell,
   ScrollText,
   Award,
+  Trash2,
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   rolePermissionStore,
   type SystemRoleItem,
@@ -40,6 +42,10 @@ import {
 } from '../../services/rolePermissionStore';
 
 export const SettingsPage: React.FC = () => {
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canEditSettings = rolePermissionStore.canEditSettings(userRoleCode, user);
+
   const [roles, setRoles] = useState<SystemRoleItem[]>(() => rolePermissionStore.getRoles());
   const [modules] = useState<SystemModuleItem[]>(() => rolePermissionStore.getModules());
   const [matrix, setMatrix] = useState<MatrixState>(() => rolePermissionStore.getMatrix());
@@ -58,6 +64,11 @@ export const SettingsPage: React.FC = () => {
   const [roleToEdit, setRoleToEdit] = useState<SystemRoleItem | null>(null);
   const [editRoleName, setEditRoleName] = useState('');
   const [editRoleDesc, setEditRoleDesc] = useState('');
+
+  // Delete role modal state
+  const [isDeleteRoleModalOpen, setIsDeleteRoleModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState<SystemRoleItem | null>(null);
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
 
   // Refs for horizontal auto-scroll to selected role column
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -293,6 +304,32 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  // Open delete role modal
+  const handleOpenDeleteModal = (r: SystemRoleItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setRoleToDelete(r);
+    setIsDeleteRoleModalOpen(true);
+  };
+
+  // Confirm delete role
+  const handleConfirmDeleteRole = async () => {
+    if (!roleToDelete) return;
+    try {
+      setIsDeletingRole(true);
+      await rolePermissionStore.deleteRole(roleToDelete.id || roleToDelete.code);
+      toast(`Đã xóa thành công chức vụ "${roleToDelete.name}" khỏi hệ thống!`, 'success');
+      if (selectedRoleCode === roleToDelete.code) {
+        setSelectedRoleCode('owner');
+      }
+      setIsDeleteRoleModalOpen(false);
+      setRoleToDelete(null);
+    } catch (err: any) {
+      toast('Lỗi khi xóa vai trò: ' + (err?.response?.data?.message || err.message || 'Không thể xóa'), 'error');
+    } finally {
+      setIsDeletingRole(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header Section */}
@@ -309,25 +346,27 @@ export const SettingsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsAddRoleModalOpen(true)}
-            className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 font-bold text-xs text-slate-800 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 text-slate-600" />
-            <span>Thêm chức vụ</span>
-          </button>
+        {canEditSettings && (
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsAddRoleModalOpen(true)}
+              className="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 font-bold text-xs text-slate-800 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 text-slate-600" />
+              <span>Thêm chức vụ</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Save className="w-4 h-4" />
-            <span>Lưu cấu hình</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Lưu cấu hình</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {savedSuccess && (
@@ -413,26 +452,36 @@ export const SettingsPage: React.FC = () => {
                       <span className={`font-extrabold text-[12px] truncate ${isSelected ? 'text-sky-900' : 'text-slate-900'}`}>
                         {r.name}
                       </span>
-                      {!r.isSystem && (
-                        <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-200 shrink-0">
-                          Tự tạo
-                        </span>
-                      )}
                     </div>
                     <p className={`text-[10px] truncate mt-0.5 font-semibold ${isSelected ? 'text-sky-600' : 'text-slate-400'}`}>
                       {r.subtitle}
                     </p>
                   </div>
 
-                  {/* Edit role button */}
-                  <button
-                    type="button"
-                    title="Chỉnh sửa vai trò"
-                    onClick={(e) => handleOpenEditModal(r, e)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-100 transition-colors shrink-0 cursor-pointer"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Actions: Edit & Delete buttons */}
+                  {canEditSettings && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        title="Chỉnh sửa vai trò"
+                        onClick={(e) => handleOpenEditModal(r, e)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-100 transition-colors shrink-0 cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+
+                      {r.code !== 'owner' && (
+                        <button
+                          type="button"
+                          title="Xóa vai trò"
+                          onClick={(e) => handleOpenDeleteModal(r, e)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Active indicator */}
                   <div className={`shrink-0 transition-all ${
@@ -443,18 +492,6 @@ export const SettingsPage: React.FC = () => {
                 </button>
               );
             })}
-          </div>
-
-          {/* Add role button — pinned at bottom */}
-          <div className="px-3 pb-4 pt-2 border-t border-slate-100 shrink-0">
-            <button
-              type="button"
-              onClick={() => setIsAddRoleModalOpen(true)}
-              className="w-full py-2.5 bg-slate-50 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-700 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Thêm Chức Vụ Mới</span>
-            </button>
           </div>
         </div>
 
@@ -556,13 +593,20 @@ export const SettingsPage: React.FC = () => {
                             >
                               <button
                                 type="button"
-                                onClick={() => toggleModuleForRole(r.code, mod.code)}
+                                disabled={!canEditSettings}
+                                onClick={() => canEditSettings && toggleModuleForRole(r.code, mod.code)}
                                 title={
-                                  isModuleEnabled
+                                  !canEditSettings
+                                    ? 'Bạn không có quyền chỉnh sửa phân quyền hệ thống'
+                                    : isModuleEnabled
                                     ? `Đang BẬT trên Sidebar cho ${r.name} (Nhấp để tắt)`
                                     : `Đang TẮT trên Sidebar cho ${r.name} (Nhấp để bật)`
                                 }
-                                className="inline-flex items-center justify-center p-1 rounded-lg hover:bg-slate-200/50 transition-colors cursor-pointer"
+                                className={`inline-flex items-center justify-center p-1 rounded-lg transition-colors ${
+                                  canEditSettings
+                                    ? 'hover:bg-slate-200/50 cursor-pointer'
+                                    : 'cursor-not-allowed opacity-60'
+                                }`}
                               >
                                 {isModuleEnabled ? (
                                   <CheckSquare className="w-5 h-5 text-sky-600 fill-sky-50" />
@@ -606,11 +650,22 @@ export const SettingsPage: React.FC = () => {
                                 >
                                   <button
                                     type="button"
+                                    disabled={!canEditSettings}
                                     onClick={() =>
-                                      toggleSubPermissionForRole(r.code, mod.code, sp.code)
+                                      canEditSettings && toggleSubPermissionForRole(r.code, mod.code, sp.code)
                                     }
-                                    title={isChecked ? 'Bỏ chọn quyền này' : 'Cấp quyền này'}
-                                    className="inline-flex items-center justify-center p-1 rounded-lg hover:bg-slate-200/50 transition-colors cursor-pointer"
+                                    title={
+                                      !canEditSettings
+                                        ? 'Bạn không có quyền chỉnh sửa phân quyền hệ thống'
+                                        : isChecked
+                                        ? 'Bỏ chọn quyền này'
+                                        : 'Cấp quyền này'
+                                    }
+                                    className={`inline-flex items-center justify-center p-1 rounded-lg transition-colors ${
+                                      canEditSettings
+                                        ? 'hover:bg-slate-200/50 cursor-pointer'
+                                        : 'cursor-not-allowed opacity-60'
+                                    }`}
                                   >
                                     {isChecked ? (
                                       <CheckSquare className="w-4 h-4 text-teal-600 fill-teal-50" />
@@ -768,6 +823,68 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Role Confirmation Modal */}
+      {isDeleteRoleModalOpen && roleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden animate-scaleUp">
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Xác Nhận Xóa Vai Trò</h3>
+                  <p className="text-xs text-slate-500">Thao tác này sẽ gỡ bỏ vai trò khỏi hệ thống</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteRoleModalOpen(false);
+                  setRoleToDelete(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Bạn có chắc chắn muốn xóa chức vụ <strong className="text-slate-900">"{roleToDelete.name}"</strong>?
+              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
+                ⚠️ Lưu ý: Nếu chức vụ đang có nhân sự trực thuộc, bạn cần phân công nhân sự sang chức vụ khác trước khi xóa.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeletingRole}
+                onClick={() => {
+                  setIsDeleteRoleModalOpen(false);
+                  setRoleToDelete(null);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-xl cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingRole}
+                onClick={handleConfirmDeleteRole}
+                className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeletingRole ? 'Đang xóa...' : 'Xóa Vai Trò'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

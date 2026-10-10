@@ -12,6 +12,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useBranch } from '../../context/BranchContext';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 import { financeApi } from '../../services/api';
 
 interface FinancialOverviewViewProps {
@@ -24,6 +26,10 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
   onOpenExportModal,
 }) => {
   const { selectedBranchId, selectedBranch } = useBranch();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canExportFinance = rolePermissionStore.canExportFinance(userRoleCode, user);
+
   const [searchBranchQuery, setSearchBranchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [overviewData, setOverviewData] = useState<any>(null);
@@ -112,13 +118,15 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
           </div>
 
           {/* Export Button */}
-          <button
-            type="button"
-            onClick={onOpenExportModal}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" /> Xuất báo cáo
-          </button>
+          {canExportFinance && (
+            <button
+              type="button"
+              onClick={onOpenExportModal}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" /> Xuất báo cáo
+            </button>
+          )}
         </div>
       </div>
 

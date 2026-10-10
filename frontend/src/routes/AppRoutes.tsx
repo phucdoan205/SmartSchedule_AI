@@ -41,22 +41,31 @@ import { AuditLogsPage } from '../modules/audit-logs/AuditLogsPage';
 import { SettingsPage } from '../modules/settings/SettingsPage';
 import { AdminProfilePage } from '../modules/profile/AdminProfilePage';
 
+import { rolePermissionStore } from '../services/rolePermissionStore';
+
 /**
  * Route trang chủ thông minh:
  * - Khách hàng / Bệnh nhân / Khách vãng lai: Hiển thị Landing Page đặt lịch.
- * - Admin, Bác sĩ, Nhân viên đã đăng nhập: Tự động chuyển hướng vào Trang Quản Trị (/admin/overview),
+ * - Admin, Bác sĩ, Nhân viên đã đăng nhập: Tự động chuyển hướng vào Trang Quản Trị theo quyền hạn,
  *   trừ khi có tham số ?preview=true (chế độ xem trước giao diện khách hàng).
  */
 const RootIndexRoute: React.FC<{ onOpenBookingWizard: () => void }> = ({ onOpenBookingWizard }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === 'true' || searchParams.get('view') === 'client';
 
   if (isAuthenticated && isAdmin && !isPreview) {
-    return <Navigate to="/admin/overview" replace />;
+    const target = rolePermissionStore.getFirstAllowedPathForRole(user?.roles?.[0], user);
+    return <Navigate to={target} replace />;
   }
 
   return <UserHomePage onOpenBookingWizard={onOpenBookingWizard} />;
+};
+
+const AdminIndexRedirect: React.FC = () => {
+  const { user } = useAuth();
+  const target = rolePermissionStore.getFirstAllowedPathForRole(user?.roles?.[0], user);
+  return <Navigate to={target} replace />;
 };
 
 export const AppRoutes: React.FC = () => {
@@ -109,7 +118,7 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/admin/overview" replace />} />
+          <Route index element={<AdminIndexRedirect />} />
           <Route path="overview" element={<OverviewPage />} />
 
           {/* Doctor & Staff Sub-Modules */}

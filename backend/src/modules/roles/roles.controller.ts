@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Param, Body, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, Req } from '@nestjs/common';
 import { RolesService } from './roles.service.js';
 
 @Controller('roles')
@@ -31,4 +31,11 @@ export class RolesController {
     const userId = req.user?.sub || req.user?.id;
     return this.rolesService.saveMatrix(body.matrix || {}, userId);
   }
+
+  @Delete(':id')
+  async deleteRole(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.rolesService.deleteRole(id, userId);
+  }
 }
+

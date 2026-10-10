@@ -45,21 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const { user, logout, isAdmin } = useAuth();
 
-  // Determine current user's role code
-  const getUserRoleCode = () => {
-    if (!user || !user.roles || user.roles.length === 0) return 'owner';
-    const roles = user.roles;
-    if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN') || roles.includes('owner') || roles.includes('Chủ phòng khám')) return 'owner';
-    if (roles.includes('Kế Toán') || roles.includes('ke_toan') || roles.includes('ACCOUNTANT') || roles.includes('Kế toán') || user?.email === 'dinh@gmail.com') return 'ke_toan';
-    if (roles.includes('DOCTOR') || roles.includes('doctor') || roles.includes('Bác sĩ chuyên khoa') || roles.includes('Bác sĩ chuyên môn')) return 'doctor';
-    if (roles.includes('RECEPTIONIST') || roles.includes('receptionist') || roles.includes('Lễ tân') || roles.includes('Lễ tân phòng khám')) return 'receptionist';
-    if (roles.includes('NURSE') || roles.includes('nurse') || roles.includes('Điều dưỡng viên') || roles.includes('Điều dưỡng & Phụ tá nha khoa')) return 'nurse';
-    if (roles.includes('TECHNICIAN') || roles.includes('technician') || roles.includes('Kỹ thuật viên') || roles.includes('Kỹ thuật viên xét nghiệm') || roles.includes('Kỹ thuật viên phòng mổ & Lab')) return 'technician';
-    if (roles.includes('BRANCH_MANAGER') || roles.includes('manager') || roles.includes('Quản lý chi nhánh') || roles.includes('Giám đốc / Quản lý chi nhánh')) return 'manager';
-    return roles[0];
-  };
-
-  const userRoleCode = getUserRoleCode();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
 
   // Dynamic badge styling matching the logged in role
   const getRoleBadgeConfig = () => {
@@ -91,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         };
       case 'ke_toan':
         return {
-          label: 'Kế Toán Viên',
+          label: 'Kế Toán Toàn Viện',
           badgeClass: 'text-cyan-400 bg-cyan-950/90 border-cyan-800',
         };
       case 'manager':
@@ -99,11 +85,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Quản Lý Chi Nhánh',
           badgeClass: 'text-blue-400 bg-blue-950/90 border-blue-800',
         };
-      default:
+      default: {
+        const found = rolePermissionStore.getRoles().find(
+          (r) => r.code === userRoleCode || r.name === user?.roles?.[0]
+        );
         return {
-          label: user?.roles?.[0] || 'Nhân Sự',
+          label: found?.name || user?.roles?.[0] || 'Nhân Sự',
           badgeClass: 'text-sky-400 bg-sky-950/90 border-sky-800',
         };
+      }
     }
   };
 
@@ -175,17 +165,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
   ];
 
-  // Filter groups according to current role permissions
+  // Filter groups according to current role permissions strictly
   const filteredMenuGroups = useMemo(() => {
     return menuGroups
       .map((group) => ({
         ...group,
         items: group.items.filter((item) => {
-          // Lịch làm việc phòng khám và Đăng ký nghỉ phép luôn mở cho toàn bộ nhân sự nội bộ
-          if (item.path === '/admin/staff/schedule' || item.path === '/admin/staff/leave') {
-            return true;
-          }
-          return rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path);
+          return rolePermissionStore.isModuleAllowedForRole(userRoleCode, item.path, user);
         }),
       }))
       .filter((group) => group.items.length > 0);

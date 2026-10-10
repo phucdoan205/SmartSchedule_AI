@@ -23,7 +23,7 @@ import { MOCK_SERVICES } from '../../services/mockData';
 
 export const ServicesPage: React.FC = () => {
   const { user } = useAuth();
-  const currentRole = user?.roles?.[0] || 'SUPER_ADMIN';
+  const currentRole = rolePermissionStore.getUserRoleCode(user);
 
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -33,8 +33,9 @@ export const ServicesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Permission checks
-  const canEdit = rolePermissionStore.canEditServices(currentRole);
-  const canToggle = rolePermissionStore.canToggleServices(currentRole);
+  const canCreate = rolePermissionStore.canCreateService(currentRole, user);
+  const canEdit = rolePermissionStore.canEditServices(currentRole, user);
+  const canToggle = rolePermissionStore.canToggleServices(currentRole, user);
 
   const loadServices = useCallback(async () => {
     try {
@@ -289,7 +290,7 @@ export const ServicesPage: React.FC = () => {
           </p>
         </div>
 
-        {canEdit && (
+        {canCreate && (
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}

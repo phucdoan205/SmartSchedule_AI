@@ -37,12 +37,19 @@ import { CreateReceiptModal, type ReceiptData } from '../../components/dental/Cr
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
 import { PatientEditModal } from './PatientEditModal';
 import { patientsApi, financeApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 
 const formatCurrency = (value: number) => `${Math.round(value).toLocaleString('vi-VN')}đ`;
 
 export const PatientDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canEditPatient = rolePermissionStore.canEditPatient(userRoleCode, user);
+  const canCreateReceipt = rolePermissionStore.canCreateReceipt(userRoleCode, user);
+  const canUpdateDental = rolePermissionStore.canUpdateDentalChart(userRoleCode, user);
 
   const [patient, setPatient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -323,13 +330,15 @@ export const PatientDetailPage: React.FC = () => {
           </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
-            type="button"
-            onClick={() => setIsEditOpen(true)}
-          >
-            <Edit className="w-3.5 h-3.5" /> Chỉnh sửa thông tin
-          </button>
+          {canEditPatient && (
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              type="button"
+              onClick={() => setIsEditOpen(true)}
+            >
+              <Edit className="w-3.5 h-3.5" /> Chỉnh sửa thông tin
+            </button>
+          )}
           <button
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
             type="button"
@@ -596,31 +605,33 @@ export const PatientDetailPage: React.FC = () => {
                   <span className="text-base text-rose-600">{formatCurrency(currentDebt)}</span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentReceiptData({
-                    patientName: patient.fullName,
-                    patientId: patient.patientCode || patient.id,
-                    amount: currentDebt > 0 ? currentDebt : 500000,
-                    description: `Thanh toán chi phí điều trị - ${patient.fullName}`,
-                    paymentMethod: 'VietQR',
-                    collector: primaryDoctor !== 'Chưa phân công' ? primaryDoctor : 'Thu ngân chi nhánh',
-                    isEvatEnabled: true,
-                    customerType: 'Cá nhân',
-                    taxCode: '',
-                    buyerName: patient.fullName,
-                    buyerAddress: address,
-                    buyerEmail: patient.email || '',
-                    vatRate: '0% VAT - Dịch vụ y tế',
-                    sendZns: true,
-                  });
-                  setIsReceiptOpen(true);
-                }}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer active:scale-98"
-              >
-                <Receipt className="w-4 h-4" /> Lập phiếu thu mới
-              </button>
+              {canCreateReceipt && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentReceiptData({
+                      patientName: patient.fullName,
+                      patientId: patient.patientCode || patient.id,
+                      amount: currentDebt > 0 ? currentDebt : 500000,
+                      description: `Thanh toán chi phí điều trị - ${patient.fullName}`,
+                      paymentMethod: 'VietQR',
+                      collector: primaryDoctor !== 'Chưa phân công' ? primaryDoctor : 'Thu ngân chi nhánh',
+                      isEvatEnabled: true,
+                      customerType: 'Cá nhân',
+                      taxCode: '',
+                      buyerName: patient.fullName,
+                      buyerAddress: address,
+                      buyerEmail: patient.email || '',
+                      vatRate: '0% VAT - Dịch vụ y tế',
+                      sendZns: true,
+                    });
+                    setIsReceiptOpen(true);
+                  }}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer active:scale-98"
+                >
+                  <Receipt className="w-4 h-4" /> Lập phiếu thu mới
+                </button>
+              )}
             </section>
           </aside>
         </div>
@@ -634,6 +645,7 @@ export const PatientDetailPage: React.FC = () => {
               patientName={patient.fullName}
               patientId={patient.patientCode || patient.id}
               dentalCharts={patient.dentalCharts}
+              readOnly={!canUpdateDental}
               onAddDiagnosis={(toothNum) => {
                 setSelectedToothForDiagnosis(toothNum || 11);
                 setIsDiagnosisOpen(true);
@@ -1046,7 +1058,7 @@ export const PatientDetailPage: React.FC = () => {
 
                 <button
                   type="button"
-                  disabled={isSubmittingPayment || nextPaymentAmount <= 0}
+                  disabled={!canCreateReceipt || isSubmittingPayment || nextPaymentAmount <= 0}
                   onClick={handleNextPaymentSubmit}
                   className="mt-3 w-full rounded-xl bg-slate-900 py-3 text-xs font-bold text-white shadow-sm hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                 >

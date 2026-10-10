@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useBranch } from '../../context/BranchContext';
 import { useAuth } from '../../context/AuthContext';
+import { rolePermissionStore } from '../../services/rolePermissionStore';
 import { staffApi, staffSchedulesApi } from '../../services/api';
 import { exportToExcel } from '../../utils/excelExport';
 import { ShiftModal, type ShiftData } from './ShiftModal';
@@ -45,21 +46,10 @@ export const StaffSchedulePage: React.FC = () => {
   const { selectedBranchId, branches } = useBranch();
   const { user } = useAuth();
 
-  // Role-based schedule management check
-  const canManageSchedule = useMemo(() => {
-    if (!user || !user.roles) return false;
-    const managerRoles = [
-      'SUPER_ADMIN',
-      'ADMIN',
-      'BRANCH_MANAGER',
-      'CLINIC_OWNER',
-      'OWNER',
-      'QUẢN TRỊ VIÊN',
-      'QUẢN LÝ CHI NHÁNH',
-      'CHỦ PHÒNG KHÁM',
-    ];
-    return user.roles.some((r) => managerRoles.includes(r.toUpperCase()));
-  }, [user]);
+  // Role-based schedule management check using dynamic RBAC matrix
+  const userRoleCode = rolePermissionStore.getUserRoleCode(user);
+  const canManageSchedule = rolePermissionStore.canEditSchedule(userRoleCode, user);
+  const canExportSchedule = rolePermissionStore.canExportSchedule(userRoleCode, user);
 
   // Check if staff row is the currently logged in user
   const isCurrentStaff = (doc: any) => {
@@ -733,14 +723,16 @@ export const StaffSchedulePage: React.FC = () => {
 
 
           {/* Export button */}
-          <button
-            type="button"
-            onClick={handleExportSchedule}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>Xuất bảng phân ca</span>
-          </button>
+          {canExportSchedule && (
+            <button
+              type="button"
+              onClick={handleExportSchedule}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Xuất bảng phân ca</span>
+            </button>
+          )}
 
           {/* Add Shift Button (Chỉ Quản trị viên / Quản lý) */}
           {canManageSchedule ? (

@@ -53,6 +53,8 @@ export interface DoctorEditModalProps {
     lunchBreak?: string;
   } | null;
   onSave?: (updatedDoctor: any) => void;
+  canDeleteStaff?: boolean;
+  canEditStaff?: boolean;
 }
 
 const AVAILABLE_SERVICES = [
@@ -71,6 +73,8 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   onClose,
   doctor,
   onSave,
+  canDeleteStaff = true,
+  canEditStaff = true,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -333,6 +337,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
   // Handle Save
   const handleSave = async () => {
+    if (!canEditStaff) return;
     const commRateNum = Number(commissionRate) || 0;
     const updatedData = {
       ...(doctor || {}),
@@ -445,6 +450,7 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   };
 
   const handleToggleLock = async () => {
+    if (!canDeleteStaff) return;
     const nextLocked = !isLocked;
     setIsLocked(nextLocked);
 
@@ -776,14 +782,18 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => setStatus('resigned')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                        status === 'resigned'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                      disabled={!canDeleteStaff}
+                      onClick={() => canDeleteStaff && setStatus('resigned')}
+                      title={!canDeleteStaff ? 'Bạn không có quyền tạm khóa hoặc cho thôi việc nhân sự' : 'Tạm khóa hoặc cho thôi việc nhân sự'}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        !canDeleteStaff
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200'
+                          : status === 'resigned'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs cursor-pointer'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 cursor-pointer'
                       }`}
                     >
-                      Đã nghỉ việc
+                      Đã nghỉ việc (Khóa)
                     </button>
                   </div>
                 </div>
@@ -1292,11 +1302,15 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
               {/* Khóa tài khoản bác sĩ button */}
               <button
                 type="button"
+                disabled={!canDeleteStaff}
                 onClick={handleToggleLock}
-                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                  isLocked
-                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
-                    : 'text-rose-600 hover:bg-rose-50 border-transparent hover:border-rose-200'
+                title={!canDeleteStaff ? 'Bạn không có quyền tạm khóa hoặc cho thôi việc nhân sự' : undefined}
+                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  !canDeleteStaff
+                    ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                    : isLocked
+                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 cursor-pointer'
+                    : 'text-rose-600 hover:bg-rose-50 border-transparent hover:border-rose-200 cursor-pointer'
                 }`}
               >
                 {isLocked ? (
@@ -1315,8 +1329,9 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
               {/* Primary action: CẬP NHẬT HỒ SƠ */}
               <button
                 type="button"
-                disabled={isUploadingAvatar}
+                disabled={isUploadingAvatar || !canEditStaff}
                 onClick={handleSave}
+                title={!canEditStaff ? 'Bạn không có quyền chỉnh sửa hồ sơ nhân sự' : undefined}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUploadingAvatar ? (
