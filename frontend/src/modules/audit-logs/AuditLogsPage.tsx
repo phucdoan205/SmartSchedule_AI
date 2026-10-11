@@ -244,6 +244,51 @@ export const AuditLogsPage: React.FC = () => {
       );
     }
 
+    // Kiểm tra mẫu trạng thái đơn lẻ [Trạng thái] (VD: [Bảo trì tạm thời], [Tạm ngưng], [Đang hoạt động])
+    const singleMatch = rawAction.match(/\[(Bảo trì tạm thời|Tạm ngưng|Tạm dừng|Đang hoạt động|Đang bảo trì|Cảnh báo khẩn cấp|Khóa tài khoản|Kích hoạt)\]/);
+    if (singleMatch) {
+      const stateName = singleMatch[1].trim();
+      const cleanActionTitle = rawAction.replace(/\[.*?\]/, '').replace(/\s+/g, ' ').trim();
+
+      const isLocked = stateName.includes('ngưng') || stateName.includes('dừng') || stateName.includes('Dừng') || stateName.includes('Khóa');
+      const isMaint = stateName.includes('bảo trì') || stateName.includes('khẩn cấp');
+      const isSuccess = stateName.includes('hoạt động') || stateName.includes('Kích hoạt');
+
+      const pillColor = isLocked
+        ? 'bg-rose-50 text-rose-800 border-rose-200'
+        : isMaint
+        ? 'bg-amber-50 text-amber-800 border-amber-200'
+        : isSuccess
+        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+        : 'bg-indigo-50 text-indigo-800 border-indigo-200';
+
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className="font-extrabold text-slate-900 leading-snug">
+              {cleanActionTitle}
+            </span>
+
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold border ${pillColor}`}>
+              {stateName}
+            </span>
+
+            {act.targetEntity && (
+              <span className="font-bold text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md shrink-0">
+                {act.targetEntity}
+              </span>
+            )}
+          </div>
+
+          {act.details && act.details !== cleanActionTitle && (
+            <p className="text-[11px] text-slate-500 font-medium pl-0.5 leading-relaxed">
+              {act.details}
+            </p>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-0.5">
         <div className="flex items-center gap-2 flex-wrap min-w-0">

@@ -417,6 +417,7 @@ export const equipmentApi = {
     equipmentId: string;
     branchId?: string;
     technicianId?: string;
+    technicianName?: string;
     actionType: string;
     scheduledAt: string;
     scheduledTime?: string;

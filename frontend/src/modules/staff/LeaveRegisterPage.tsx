@@ -212,10 +212,14 @@ export const LeaveRegisterPage: React.FC = () => {
 
   // Left column quick form state (Aligned with full-time standard shift model)
   const [quickRequesterId, setQuickRequesterId] = useState<string>('');
+  const getTodayIsoString = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
   const [quickType, setQuickType] = useState<'annual' | 'sick' | 'personal'>('annual');
   const [quickShiftScope, setQuickShiftScope] = useState<'full' | 'morning' | 'afternoon'>('full');
-  const [quickStartDate, setQuickStartDate] = useState('');
-  const [quickEndDate, setQuickEndDate] = useState('');
+  const [quickStartDate, setQuickStartDate] = useState(getTodayIsoString);
+  const [quickEndDate, setQuickEndDate] = useState(getTodayIsoString);
   const [quickSubstituteDoctor, setQuickSubstituteDoctor] = useState('');
   const [quickReason, setQuickReason] = useState('');
   const [quickAutoApprove, setQuickAutoApprove] = useState(false);
@@ -648,16 +652,6 @@ export const LeaveRegisterPage: React.FC = () => {
               : 'Gửi yêu cầu nghỉ ca, bàn giao lịch khám tự động và theo dõi tiến độ phê duyệt từ ban giám đốc.'}
           </p>
         </div>
-
-        {/* Top Action Button */}
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tạo đơn xin nghỉ phép mới</span>
-        </button>
       </div>
 
       {/* ─── 3 KPI Stat Cards ─── */}

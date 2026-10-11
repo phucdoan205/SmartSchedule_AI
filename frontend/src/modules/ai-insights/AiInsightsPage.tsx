@@ -182,7 +182,7 @@ export const AiInsightsPage: React.FC = () => {
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>Cảnh báo: 2 ca hẹn có nguy cơ hủy &gt; 75%</span>
             </p>
-            <p className="text-[11px] text-rose-700 pl-5">Đã tự động yêu cầu cọc VietQR 2.000.000đ</p>
+            <p className="text-[11px] text-rose-700 pl-5">Đã tự động yêu cầu cọc VietQR 10.000đ</p>
           </div>
         </div>
 

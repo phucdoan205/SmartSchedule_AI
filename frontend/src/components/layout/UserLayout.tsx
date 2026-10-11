@@ -105,13 +105,13 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
 
           {/* Right Action Buttons */}
           <div className="hidden sm:flex items-center gap-2.5">
-            {isAuthenticated ? (
+            {isAuthenticated && !isAdmin ? (
               <>
-                {/* User Avatar + Name (Link to Profile) */}
+                {/* User Avatar + Name (Link to Profile for regular customers) */}
                 <button
                   type="button"
-                  onClick={() => navigate(isAdmin ? '/admin/profile' : '/profile')}
-                  title={isAdmin ? "Xem hồ sơ quản trị viên" : "Xem hồ sơ cá nhân"}
+                  onClick={() => navigate('/profile')}
+                  title="Xem hồ sơ cá nhân"
                   className="group px-2.5 py-1.5 bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-700 font-bold text-xs rounded-xl border border-slate-200/90 hover:border-sky-300 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
                 >
                   {user?.avatarUrl ? (
@@ -140,7 +140,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                   <LogOut className="w-4 h-4" />
                 </button>
               </>
-            ) : (
+            ) : !isAuthenticated ? (
               <button
                 type="button"
                 onClick={() => navigate('/auth/login')}
@@ -149,7 +149,7 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                 <User className="w-4 h-4 text-sky-600" />
                 <span>Đăng Nhập</span>
               </button>
-            )}
+            ) : null}
 
             <button
               type="button"
@@ -191,7 +191,18 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
             ))}
 
             <div className="pt-3 border-t border-slate-100 space-y-2">
-              {isAuthenticated ? (
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/admin/overview');
+                  }}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-teal-400 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-slate-800 transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Quay lại Trang Quản Trị
+                </button>
+              ) : isAuthenticated ? (
                 <>
                   <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-3">
                     {user?.avatarUrl ? (
@@ -215,11 +226,11 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      navigate(isAdmin ? '/admin/profile' : '/profile');
+                      navigate('/profile');
                     }}
                     className="w-full py-2.5 bg-sky-50 text-sky-800 font-bold text-xs rounded-xl flex items-center justify-center gap-2 border border-sky-200"
                   >
-                    <User className="w-4 h-4" /> {isAdmin ? 'Hồ sơ Quản trị viên' : 'Hồ sơ cá nhân & Lịch sử'}
+                    <User className="w-4 h-4" /> Hồ sơ cá nhân &amp; Lịch sử
                   </button>
                   <button
                     type="button"

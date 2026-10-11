@@ -248,18 +248,24 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
 
       {/* Featured Services */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
           <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-700 text-[11px] font-bold mb-1.5">
+              <span>BẢNG GIÁ NIÊM YẾT MINH BẠCH</span>
+            </div>
             <h2 className="text-2xl font-extrabold text-slate-900">Gói Dịch Vụ Khám Nổi Bật</h2>
-            <p className="text-xs text-slate-500 mt-1">Bảng giá công khai minh bạch, chất lượng chuẩn quốc tế</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Top 10 dịch vụ được khách hàng tin tưởng lựa chọn nhiều nhất • Chi phí ưu đãi cho kỳ kiểm tra
+            </p>
           </div>
 
           <button
             type="button"
             onClick={() => navigate('/pricing')}
-            className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
+            className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-50/80 hover:bg-sky-100 border border-sky-100 transition-all cursor-pointer self-start sm:self-auto"
           >
-            Xem tất cả dịch vụ <ArrowRight className="w-4 h-4" />
+            <span>Xem tất cả ({services.length}) dịch vụ</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -269,57 +275,99 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
             Đang tải dữ liệu dịch vụ...
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {services.map((s) => (
-              <div
-                key={s.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-sky-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
-              >
-                <div className="h-40 w-full bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                  {s.imageUrl ? (
-                    <img
-                      src={s.imageUrl}
-                      alt={s.name}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+              {services.slice(0, 10).map((s) => (
+                <div
+                  key={s.id}
+                  className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all flex flex-col sm:flex-row items-stretch overflow-hidden group"
+                >
+                  {/* Left Side: Thumbnail or Stylized Dental Identity */}
+                  {s.imageUrl && s.imageUrl.trim() !== '' ? (
+                    <div className="w-full sm:w-44 h-40 sm:h-auto shrink-0 relative overflow-hidden bg-slate-100 flex items-center justify-center">
+                      <img
+                        src={s.imageUrl}
+                        alt={s.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {s.code && (
+                        <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold text-sky-800 bg-white/95 backdrop-blur-xs px-2 py-0.5 rounded border border-sky-200 shadow-2xs">
+                          {s.code}
+                        </span>
+                      )}
+                    </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-400 text-xs p-4 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-2xl mb-1 shadow-2xs">
+                    <div className="w-full sm:w-36 py-4 px-3 bg-gradient-to-br from-sky-50/80 via-teal-50/40 to-slate-50 shrink-0 flex flex-col items-center justify-center text-center border-b sm:border-b-0 sm:border-r border-slate-100 relative">
+                      <div className="w-12 h-12 rounded-2xl bg-white shadow-2xs border border-sky-100 flex items-center justify-center text-2xl mb-1.5 group-hover:scale-110 transition-transform">
                         🦷
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">Dịch vụ nha khoa</span>
+                      {s.code && (
+                        <span className="text-[10px] font-extrabold text-sky-800 bg-white/95 px-2 py-0.5 rounded-md border border-sky-200 shadow-2xs">
+                          {s.code}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 max-w-[120px]">
+                        {s.category?.name || (typeof s.category === 'string' ? s.category : 'Nha khoa')}
+                      </span>
                     </div>
                   )}
-                  {s.code && (
-                    <span className="absolute top-2.5 left-2.5 text-[10px] font-bold text-sky-800 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded border border-sky-200 shadow-2xs">
-                      {s.code}
-                    </span>
-                  )}
-                </div>
 
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2">{s.name}</h3>
-                    <p className="text-[11px] text-slate-500">
-                      {s.category?.name || 'Nha khoa'} • {s.durationMinutes} phút
-                    </p>
-                  </div>
+                  {/* Right Side: Information & Action */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 line-clamp-1">
+                          {s.category?.name || (typeof s.category === 'string' ? s.category : 'Nha khoa thẩm mỹ')}
+                        </span>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium shrink-0">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" /> {s.durationMinutes || 30} phút
+                        </span>
+                      </div>
 
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-sm font-extrabold text-teal-600">
-                      {Number(s.standardPrice).toLocaleString('vi-VN')} đ
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenBookingWizard?.(s.id)}
-                      className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
-                    >
-                      Đặt Lịch
-                    </button>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug line-clamp-2">
+                        {s.name}
+                      </h3>
+
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                        {s.description || 'Quy trình vô trùng y khoa chuẩn quốc tế, bác sĩ chuyên khoa phụ trách điều trị trực tiếp.'}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-medium block">Giá niêm yết:</span>
+                        <span className="text-base sm:text-lg font-black text-teal-600">
+                          {Number(s.standardPrice || s.price || 0).toLocaleString('vi-VN')} đ
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenBookingWizard?.(s.id)}
+                        className="px-4 py-2 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-2xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Đặt Lịch</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Bottom Callout to Full Pricing */}
+            {services.length > 10 && (
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/pricing')}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-sky-50 text-sky-700 font-extrabold text-xs rounded-xl border border-sky-200 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                >
+                  <span>Xem thêm {services.length - 10} dịch vụ khác trong Bảng Giá Niêm Yết</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
-            ))}
+            )}
           </div>
         )}
       </section>

@@ -429,9 +429,8 @@ export const SettingsPage: React.FC = () => {
                   : 'bg-violet-600';
 
               return (
-                <button
+                <div
                   key={r.code}
-                  type="button"
                   onClick={() => selectRole(r.code)}
                   className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-3 group ${
                     isSelected
@@ -489,7 +488,7 @@ export const SettingsPage: React.FC = () => {
                   }`}>
                     <div className={`w-1.5 h-6 rounded-full ${dotColor}`} />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

@@ -49,11 +49,13 @@ export class EquipmentController {
 
   @Post('schedule')
   async createSchedule(
+    @Req() req: any,
     @Body()
     body: {
       equipmentId: string;
       branchId?: string;
       technicianId?: string;
+      technicianName?: string;
       actionType: string;
       scheduledAt: string;
       scheduledTime?: string;
@@ -61,7 +63,8 @@ export class EquipmentController {
       isUrgent?: boolean;
     },
   ) {
-    return this.equipmentService.createSchedule(body);
+    const userId = req.user?.sub || req.user?.id;
+    return this.equipmentService.createSchedule(body, userId);
   }
 
   @Post(':id/maintenance')

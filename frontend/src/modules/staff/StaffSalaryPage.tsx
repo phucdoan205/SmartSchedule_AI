@@ -71,7 +71,10 @@ export const StaffSalaryPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [salaryRecords, setSalaryRecords] = useState<StaffSalaryRecord[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState('Tháng 10/2026');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `Tháng ${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  });
   const [activeTab, setActiveTab] = useState<'all' | 'doctor' | 'accountant' | 'nurse' | 'tech_recep'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -142,18 +145,18 @@ export const StaffSalaryPage: React.FC = () => {
         if (isDoc) {
           if (docAppts.length > 0) {
             commission = docAppts.reduce((sum: number, a: any) => {
-              const price = Number(a.services?.[0]?.service?.standardPrice ?? a.services?.[0]?.service?.price ?? 5500000);
+              const price = Number(a.services?.[0]?.service?.standardPrice ?? a.services?.[0]?.service?.price ?? 25000);
               return sum + Math.round((price * activeRate) / 100);
             }, 0);
             caseInfo = `${docAppts.length} ca điều trị`;
           } else {
-            // Baseline clinical ca
-            commission = code === 'NV002' ? 36000000 : code === 'NV005' ? 28000000 : 21000000;
-            caseInfo = code === 'NV002' ? '18 ca Implant' : code === 'NV005' ? '24 ca Sứ Cercon' : '16 ca thẩm mỹ';
+            // Baseline clinical ca aligned with test service pricing (< 50.000đ)
+            commission = code === 'NV002' ? 68000 : code === 'NV005' ? 52000 : 38000;
+            caseInfo = code === 'NV002' ? '14 ca Implant' : code === 'NV005' ? '11 ca Sứ Cercon' : '8 ca thẩm mỹ';
           }
         } else if (isNurse) {
-          commission = 3500000;
-          caseInfo = '35 ca phụ mổ / điều trị';
+          commission = 25000;
+          caseInfo = '15 ca phụ mổ / điều trị';
         } else if (isAcct) {
           commission = 0;
           caseInfo = '24 ca / Chốt sổ tháng';
@@ -277,6 +280,21 @@ export const StaffSalaryPage: React.FC = () => {
   const approvedCount = useMemo(() => {
     return salaryRecords.filter((s) => s.status === 'approved').length;
   }, [salaryRecords]);
+
+  // Dynamically generate current and past months
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+    return [0, 1, 2, 3].map((offset) => {
+      const d = new Date(curYear, curMonth - offset, 1);
+      const label = `Tháng ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      return {
+        value: label,
+        label: offset === 0 ? `${label} (Hiện tại)` : label,
+      };
+    });
+  }, []);
 
   // Save status to localStorage
   const persistStatuses = (records: StaffSalaryRecord[]) => {
@@ -403,9 +421,11 @@ export const StaffSalaryPage: React.FC = () => {
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="font-bold text-sky-600 bg-transparent focus:outline-none cursor-pointer"
             >
-              <option value="Tháng 10/2026">Tháng 10/2026 (Hiện tại)</option>
-              <option value="Tháng 09/2026">Tháng 09/2026</option>
-              <option value="Tháng 08/2026">Tháng 08/2026</option>
+              {monthOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -558,7 +578,10 @@ export const StaffSalaryPage: React.FC = () => {
                 activeTab === 'tech_recep' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Kỹ thuật &amp; Lễ tân ({salaryRecords.filter((s) => s.role.toLowerCase().includes('kỹ thuật') || s.role.toLowerCase().includes('lễ tân')).length})
+              Kỹ thuật &amp; Lễ tân ({salaryRecords.filter((s) => {
+                const r = s.role.toLowerCase();
+                return r.includes('kỹ thuật') || r.includes('lễ tân') || r.includes('quản trị');
+              }).length})
             </button>
           </div>
 
@@ -703,31 +726,19 @@ export const StaffSalaryPage: React.FC = () => {
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* 2. Duyệt chốt nhanh */}
+                          {/* Duyệt chốt nhanh */}
                           {canManagePayroll && (
                             <button
                               type="button"
                               onClick={() => handleToggleApproval(row.id)}
                               className={`p-1.5 rounded-lg border transition-colors shadow-2xs cursor-pointer ${
                                 isApproved
-                                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
                               }`}
                               title={isApproved ? 'Đã duyệt (Bấm để hủy duyệt)' : 'Duyệt & Chốt lương nhân sự'}
                             >
                               <CheckCheck className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-
-                          {/* 3. Điều chỉnh thưởng / phụ cấp */}
-                          {canEditSalary && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedStaffForAdjustment(row)}
-                              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:border-amber-300 transition-colors shadow-2xs cursor-pointer"
-                              title="Điều chỉnh thưởng nóng / phụ cấp / khấu trừ"
-                            >
-                              <Sliders className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>

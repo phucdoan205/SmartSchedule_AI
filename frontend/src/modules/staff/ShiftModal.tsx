@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
 import { MOCK_DOCTORS, MOCK_BRANCHES } from '../../services/mockData';
+import { staffApi, branchesApi } from '../../services/api';
 
 export interface ShiftData {
   id?: string;
@@ -89,6 +90,8 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   initialDate,
   initialShiftType = 'morning',
 }) => {
+  const [doctorList, setDoctorList] = useState<any[]>(MOCK_DOCTORS);
+  const [branchList, setBranchList] = useState<any[]>(MOCK_BRANCHES);
   const [staffId, setStaffId] = useState(initialStaffId || MOCK_DOCTORS[0].id);
   const [branch, setBranch] = useState('Chi nhánh Biên Hòa (Trụ sở chính)');
   const [room, setRoom] = useState(ROOM_OPTIONS[0]);
@@ -109,18 +112,32 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
   const [notes, setNotes] = useState('');
   const [notifyStaff, setNotifyStaff] = useState(true);
 
-  // Sync initial props
+  // Sync initial props and fetch real data
   useEffect(() => {
     if (isOpen) {
       if (initialStaffId) setStaffId(initialStaffId);
       if (initialDate) setDate(initialDate);
       if (initialShiftType) setShiftType(initialShiftType);
+
+      Promise.all([
+        staffApi.getDoctors().catch(() => []),
+        branchesApi.getAll().catch(() => []),
+      ]).then(([docs, brs]) => {
+        if (Array.isArray(docs) && docs.length > 0) {
+          setDoctorList(docs);
+          if (!initialStaffId) setStaffId(docs[0].id);
+        }
+        if (Array.isArray(brs) && brs.length > 0) {
+          setBranchList(brs);
+          setBranch(brs[0].name || brs[0].code);
+        }
+      });
     }
   }, [isOpen, initialStaffId, initialDate, initialShiftType]);
 
   if (!isOpen) return null;
 
-  const selectedDoctor = MOCK_DOCTORS.find((d) => d.id === staffId) || MOCK_DOCTORS[0];
+  const selectedDoctor = doctorList.find((d) => d.id === staffId) || doctorList[0] || MOCK_DOCTORS[0];
   const docName = (selectedDoctor?.name || (selectedDoctor as any)?.fullName || 'Bác sĩ').trim();
   const doctorShortName = docName.split(/\s+/).slice(-2).join(' ') || 'bác sĩ';
 
@@ -229,9 +246,9 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
                       onChange={(e) => setStaffId(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all cursor-pointer"
                     >
-                      {MOCK_DOCTORS.map((doc) => (
+                      {doctorList.map((doc) => (
                         <option key={doc.id} value={doc.id}>
-                          {doc.name} ({doc.specialty})
+                          {doc.name || doc.fullName} ({doc.specialty || 'Chuyên khoa'})
                         </option>
                       ))}
                     </select>
@@ -248,10 +265,11 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({
                     onChange={(e) => setBranch(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all cursor-pointer"
                   >
-                    <option>Chi nhánh Biên Hòa (Trụ sở chính)</option>
-                    <option>Cơ sở Quận 1 (Trung tâm)</option>
-                    <option>Cơ sở Bình Dương</option>
-                    <option>Cơ sở Quận 7</option>
+                    {branchList.map((b) => (
+                      <option key={b.id} value={b.name || b.code}>
+                        {b.name || b.code}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

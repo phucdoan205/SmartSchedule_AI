@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, Search, Check, Calendar, Image as ImageIcon } from 'lucide-react';
+import { Clock, Search, Check, Calendar, ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { servicesApi } from '../../services/api';
 import { Tabs, type TabItem } from '../../components/common/Tabs';
 import { MOCK_SERVICES } from '../../services/mockData';
@@ -27,6 +27,11 @@ export const UserPricingPage: React.FC<UserPricingPageProps> = ({ onOpenBookingW
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(10);
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [activeTab, searchQuery]);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -172,81 +177,115 @@ export const UserPricingPage: React.FC<UserPricingPageProps> = ({ onOpenBookingW
           <p className="text-slate-400">Vui lòng chọn danh mục khác hoặc tìm kiếm từ khóa</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((s) => (
-            <div
-              key={s.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-teal-300 hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
-            >
-              {/* Thumbnail: Image or Dental Icon Box */}
-              <div className="h-44 w-full bg-slate-100 relative overflow-hidden flex items-center justify-center">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            {filteredServices.slice(0, visibleCount).map((s) => (
+              <div
+                key={s.id}
+                className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:shadow-md transition-all flex flex-col sm:flex-row items-stretch overflow-hidden group"
+              >
+                {/* Left Side: Thumbnail or Stylized Dental Identity */}
                 {s.imageUrl && s.imageUrl.trim() !== '' ? (
-                  <img
-                    src={s.imageUrl}
-                    alt={s.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
+                  <div className="w-full sm:w-44 h-40 sm:h-auto shrink-0 relative overflow-hidden bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={s.imageUrl}
+                      alt={s.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    {s.code && (
+                      <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold text-teal-800 bg-white/95 backdrop-blur-xs px-2 py-0.5 rounded-md border border-teal-200 shadow-2xs">
+                        {s.code}
+                      </span>
+                    )}
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-400 text-xs p-4 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-3xl mb-1 shadow-2xs">
+                  <div className="w-full sm:w-36 py-4 px-3 bg-gradient-to-br from-teal-50/80 via-sky-50/40 to-slate-50 shrink-0 flex flex-col items-center justify-center text-center border-b sm:border-b-0 sm:border-r border-slate-100 relative">
+                    <div className="w-12 h-12 rounded-2xl bg-white shadow-2xs border border-teal-100 flex items-center justify-center text-2xl mb-1.5 group-hover:scale-110 transition-transform">
                       🦷
                     </div>
-                    <span className="text-[11px] font-bold text-slate-500">{s.category}</span>
+                    {s.code && (
+                      <span className="text-[10px] font-extrabold text-teal-800 bg-white/95 px-2 py-0.5 rounded-md border border-teal-200 shadow-2xs">
+                        {s.code}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 font-semibold mt-1.5 line-clamp-1 max-w-[120px]">
+                      {s.category}
+                    </span>
                   </div>
                 )}
-                <span className="absolute top-3 left-3 text-[10px] font-bold text-teal-800 bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-md border border-teal-200 shadow-2xs">
-                  {s.code}
-                </span>
-              </div>
 
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-medium">{s.category}</span>
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" /> {s.durationMinutes} phút
-                    </span>
-                  </div>
+                {/* Right Side: Details & Action */}
+                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 line-clamp-1">
+                        {s.category}
+                      </span>
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" /> {s.durationMinutes} phút
+                      </span>
+                    </div>
 
-                  <h3 className="text-base font-bold text-slate-900 leading-snug">{s.name}</h3>
-                  {s.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2">{s.description}</p>
-                  )}
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-teal-700 transition-colors leading-snug line-clamp-2">
+                      {s.name}
+                    </h3>
 
-                  <ul className="space-y-1.5 text-[11px] text-slate-600 pt-2 border-t border-slate-100">
-                    <li className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-teal-500" /> Bác sĩ chuyên khoa trực tiếp khám &amp; điều trị
-                    </li>
-                    {s.warranty && (
-                      <li className="flex items-center gap-1.5 font-semibold text-teal-700">
-                        <Check className="w-3.5 h-3.5 text-teal-500" /> Bảo hành: {s.warranty}
-                      </li>
+                    {s.description && (
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{s.description}</p>
                     )}
-                    <li className="flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5 text-teal-500" /> Đạt chuẩn vô trùng y tế phòng mổ
-                    </li>
-                  </ul>
-                </div>
 
-                <div className="pt-4 border-t border-slate-100 space-y-3">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-slate-400 font-medium">Giá niêm yết:</span>
-                    <span className="text-lg font-extrabold text-teal-600">
-                      {s.price.toLocaleString('vi-VN')} VNĐ
-                    </span>
+                    <ul className="space-y-1 text-[11px] text-slate-600 pt-2 border-t border-slate-100">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                        <span className="line-clamp-1">Bác sĩ chuyên khoa trực tiếp khám &amp; điều trị</span>
+                      </li>
+                      {s.warranty && (
+                        <li className="flex items-center gap-1.5 font-semibold text-teal-700">
+                          <Check className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                          <span className="line-clamp-1">Bảo hành: {s.warranty}</span>
+                        </li>
+                      )}
+                    </ul>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onOpenBookingWizard?.(s.id)}
-                    className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Calendar className="w-4 h-4" /> Đặt Lịch Ngay
-                  </button>
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-medium block">Giá niêm yết:</span>
+                      <span className="text-base sm:text-lg font-black text-teal-600">
+                        {s.price.toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onOpenBookingWizard?.(s.id)}
+                      className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-2xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Đặt Lịch Ngay</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* Load More Pagination */}
+          {filteredServices.length > visibleCount && (
+            <div className="flex flex-col items-center justify-center pt-4 pb-2 space-y-2">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 10)}
+                className="px-8 py-3 bg-white hover:bg-teal-50 text-teal-700 font-extrabold text-xs rounded-xl border border-teal-200 shadow-2xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer group hover:scale-[1.01]"
+              >
+                <ChevronDown className="w-4 h-4 text-teal-600 group-hover:translate-y-0.5 transition-transform" />
+                <span>Xem Thêm Dịch Vụ (+10 Dịch Vụ)</span>
+              </button>
+              <p className="text-[11px] text-slate-400 font-medium">
+                Đang hiển thị {Math.min(visibleCount, filteredServices.length)} trên tổng số {filteredServices.length} dịch vụ
+              </p>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

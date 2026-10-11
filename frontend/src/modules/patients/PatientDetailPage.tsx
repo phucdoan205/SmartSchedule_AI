@@ -35,6 +35,7 @@ import { AddDiagnosisModal } from '../../components/dental/AddDiagnosisModal';
 import { UploadXrayModal } from '../../components/dental/UploadXrayModal';
 import { CreateReceiptModal, type ReceiptData } from '../../components/dental/CreateReceiptModal';
 import { ReceiptPreviewModal } from '../../components/dental/ReceiptPreviewModal';
+import { VietQrPaymentModal } from '../../components/dental/VietQrPaymentModal';
 import { PatientEditModal } from './PatientEditModal';
 import { patientsApi, financeApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -78,6 +79,7 @@ export const PatientDetailPage: React.FC = () => {
   const [nextPaymentAmount, setNextPaymentAmount] = useState<number>(0);
   const [nextPaymentMethod, setNextPaymentMethod] = useState<string>('VIETQR');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [isVietQrModalOpen, setIsVietQrModalOpen] = useState(false);
 
   // Load real patient data
   const loadPatientData = useCallback(async () => {
@@ -176,7 +178,7 @@ export const PatientDetailPage: React.FC = () => {
     if (currentDebt > 0) {
       setNextPaymentAmount(currentDebt);
     } else {
-      setNextPaymentAmount(500000);
+      setNextPaymentAmount(25000);
     }
   }, [currentDebt]);
 
@@ -258,8 +260,8 @@ export const PatientDetailPage: React.FC = () => {
     };
   }, [patient]);
 
-  // Handle next payment submit
-  const handleNextPaymentSubmit = async () => {
+  // Execute receipt creation
+  const executeReceiptPayment = async (method: string) => {
     if (!patient || nextPaymentAmount <= 0) return;
     try {
       setIsSubmittingPayment(true);
@@ -267,17 +269,27 @@ export const PatientDetailPage: React.FC = () => {
         patientId: patient.id,
         amount: nextPaymentAmount,
         description: `Thu viện phí đợt tiếp theo - ${patient.fullName}`,
-        paymentMethod: nextPaymentMethod,
+        paymentMethod: method,
         collector: primaryDoctor !== 'Chưa phân công' ? primaryDoctor : 'Thu ngân chi nhánh',
       });
       await loadPatientData();
-      alert('Tạo phiếu thu & thanh toán thành công!');
     } catch (err) {
       console.error('Lỗi khi thu tiền:', err);
       alert('Có lỗi xảy ra khi tạo phiếu thu!');
     } finally {
       setIsSubmittingPayment(false);
     }
+  };
+
+  // Handle next payment submit
+  const handleNextPaymentSubmit = async () => {
+    if (!patient || nextPaymentAmount <= 0) return;
+    if (nextPaymentMethod === 'VIETQR') {
+      setIsVietQrModalOpen(true);
+      return;
+    }
+    await executeReceiptPayment(nextPaymentMethod);
+    alert('Tạo phiếu thu & thanh toán thành công!');
   };
 
   const tabs: TabItem[] = [
@@ -1077,7 +1089,7 @@ export const PatientDetailPage: React.FC = () => {
         onClose={() => setIsReceiptOpen(false)}
         patientName={patient.fullName}
         patientId={patient.patientCode || patient.id}
-        defaultAmount={currentReceiptData?.amount || 500000}
+        defaultAmount={currentReceiptData?.amount || 25000}
         defaultDescription={currentReceiptData?.description || `Phiếu thu - ${patient.fullName}`}
         onOpenPreview={(data) => {
           setCurrentReceiptData(data);
@@ -1110,6 +1122,19 @@ export const PatientDetailPage: React.FC = () => {
           setIsReceiptOpen(true);
         }}
         receiptData={currentReceiptData}
+      />
+
+      {/* Modal Thanh Toán Chuyển Khoản VietQR BIDV */}
+      <VietQrPaymentModal
+        isOpen={isVietQrModalOpen}
+        onClose={() => setIsVietQrModalOpen(false)}
+        amount={nextPaymentAmount}
+        description={`THU VIEN PHI ${patient.patientCode || 'BN26'}`}
+        patientName={patient.fullName}
+        patientCode={patient.patientCode || patient.id}
+        onPaymentSuccess={async () => {
+          await executeReceiptPayment('VIETQR');
+        }}
       />
 
       {/* DICOM 3D Viewer Modal */}

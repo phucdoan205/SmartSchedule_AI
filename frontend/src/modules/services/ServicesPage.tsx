@@ -414,11 +414,6 @@ export const ServicesPage: React.FC = () => {
                             <h3 className="font-extrabold text-slate-900 text-sm leading-snug">
                               {service.name}
                             </h3>
-                            {service.aiRecommended && (
-                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold rounded-md border border-emerald-200 flex items-center gap-1">
-                                <Sparkles className="w-3 h-3 text-emerald-600" /> AI Đề xuất
-                              </span>
-                            )}
                             {!service.isActive && (
                               <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-200 flex items-center gap-1">
                                 <EyeOff className="w-3 h-3 text-amber-600" /> Ẩn khỏi khách hàng

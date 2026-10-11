@@ -59,29 +59,31 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
   });
 
   const formatVND = (num: number) => {
-    if (!num) return '0 VND';
+    if (!num) return '0 VNĐ';
     if (num >= 1000000000) {
-      return (num / 1000000000).toFixed(2) + 'B VND';
+      return (num / 1000000000).toFixed(2) + ' Tỷ VNĐ';
     }
     if (num >= 1000000) {
-      return Math.round(num / 1000000) + 'M VND';
+      return (num / 1000000).toFixed(2) + ' Tr VNĐ';
     }
-    return num.toLocaleString('vi-VN') + ' VND';
+    return num.toLocaleString('vi-VN') + ' VNĐ';
   };
 
-  const totalRev = overviewData?.totalRevenue || 1420000000;
-  const actualRev = overviewData?.actualRevenue || 1120000000;
-  const debt = overviewData?.debtAmount || 300000000;
-  const profit = overviewData?.profitEstimated || 585000000;
-  const recoveryRate = overviewData?.recoveryRate || 78.8;
+  const totalRev = overviewData?.totalRevenue ?? 700000;
+  const actualRev = overviewData?.actualRevenue ?? 550000;
+  const debt = overviewData?.debtAmount ?? 150000;
+  const profit = overviewData?.profitEstimated ?? 288400;
+  const recoveryRate = overviewData?.recoveryRate ?? 78.6;
   const paymentMethods = overviewData?.paymentMethods || {
-    vietqrPercent: 59,
-    posPercent: 33,
-    cashPercent: 8,
-    vietqr: 670000000,
-    pos: 370000000,
-    cash: 91000000,
+    vietqrPercent: 62,
+    posPercent: 28,
+    cashPercent: 10,
+    vietqr: 341000,
+    pos: 154000,
+    cash: 55000,
   };
+
+  const maxChartVal = Math.max(...branchesList.map((b: any) => b.actual || 0), 400000);
 
   const isAllBranches = !selectedBranchId || selectedBranchId === 'ALL';
   const pageTitle = isAllBranches
@@ -113,7 +115,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
         <div className="flex items-center gap-2.5 flex-wrap shrink-0 text-xs">
           {/* Month Selector Display */}
           <div className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 shadow-xs">
-            <span>Tháng 08/2026</span>
+            <span>{`Tháng ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`}</span>
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
@@ -167,8 +169,8 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
               ) : (
                 <>
-                  {(totalRev / 1000000000).toFixed(2)}B{' '}
-                  <span className="text-xs font-bold text-slate-500">VND</span>
+                  {totalRev.toLocaleString('vi-VN')}{' '}
+                  <span className="text-xs font-bold text-slate-500">VNĐ</span>
                 </>
               )}
             </div>
@@ -195,8 +197,8 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
               ) : (
                 <>
-                  {(actualRev / 1000000000).toFixed(2)}B{' '}
-                  <span className="text-xs font-bold text-slate-500">VND</span>
+                  {actualRev.toLocaleString('vi-VN')}{' '}
+                  <span className="text-xs font-bold text-slate-500">VNĐ</span>
                 </>
               )}
             </div>
@@ -223,8 +225,8 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <Loader2 className="w-6 h-6 animate-spin text-rose-400" />
               ) : (
                 <>
-                  {Math.round(debt / 1000000)}M{' '}
-                  <span className="text-xs font-bold text-slate-500">VND</span>
+                  {debt.toLocaleString('vi-VN')}{' '}
+                  <span className="text-xs font-bold text-slate-500">VNĐ</span>
                 </>
               )}
             </div>
@@ -250,8 +252,8 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
               ) : (
                 <>
-                  {Math.round(profit / 1000000)}M{' '}
-                  <span className="text-xs font-bold text-slate-500">VND</span>
+                  {profit.toLocaleString('vi-VN')}{' '}
+                  <span className="text-xs font-bold text-slate-500">VNĐ</span>
                 </>
               )}
             </div>
@@ -271,7 +273,9 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
               <h3 className="font-extrabold text-slate-900 text-sm">
                 So sánh doanh thu các chi nhánh
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Đơn vị: Triệu VND (Tháng 08/2026)</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Đơn vị: Triệu VND ({`Tháng ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`})
+              </p>
             </div>
             <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
               <MoreHorizontal className="w-4 h-4" />
@@ -284,16 +288,16 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
               {/* Y Axis Grid Lines */}
               <div className="absolute inset-0 flex flex-col justify-between pointer-events-none text-[10px] text-slate-400">
                 <div className="border-b border-dashed border-slate-100 w-full flex justify-between pr-2">
-                  <span>800M</span>
+                  <span>{Math.round(maxChartVal / 1000)}k</span>
                 </div>
                 <div className="border-b border-dashed border-slate-100 w-full flex justify-between pr-2">
-                  <span>600M</span>
+                  <span>{Math.round((maxChartVal * 0.75) / 1000)}k</span>
                 </div>
                 <div className="border-b border-dashed border-slate-100 w-full flex justify-between pr-2">
-                  <span>400M</span>
+                  <span>{Math.round((maxChartVal * 0.5) / 1000)}k</span>
                 </div>
                 <div className="border-b border-dashed border-slate-100 w-full flex justify-between pr-2">
-                  <span>200M</span>
+                  <span>{Math.round((maxChartVal * 0.25) / 1000)}k</span>
                 </div>
                 <div className="w-full flex justify-between pr-2">
                   <span>0</span>
@@ -302,7 +306,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
 
               {/* Bars dynamically generated from branches */}
               {branchesList.map((b: any, idx: number) => {
-                const heightPercent = Math.min(100, Math.round(((b.actual || 0) / 800000000) * 100));
+                const heightPercent = Math.min(100, Math.round(((b.actual || 0) / maxChartVal) * 100));
                 const colors = [
                   'from-sky-700 to-sky-500',
                   'from-teal-700 to-teal-500',
@@ -317,7 +321,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
                     onClick={() => onSelectBranch(b.branchId || b.branchKey || b.id)}
                   >
                     <span className="text-[11px] font-extrabold text-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {Math.round((b.actual || 0) / 1000000)}M
+                      {(b.actual || 0).toLocaleString('vi-VN')}đ
                     </span>
                     <div
                       className={`w-14 sm:w-20 bg-gradient-to-t ${grad} rounded-t-xl transition-all duration-300 group-hover:brightness-110 shadow-sm`}
@@ -382,7 +386,7 @@ export const FinancialOverviewView: React.FC<FinancialOverviewViewProps> = ({
             {/* Inner Center Content */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
               <span className="text-xl font-black text-slate-900 leading-none">
-                {(actualRev / 1000000000).toFixed(2)}B
+                {actualRev >= 1000000 ? `${(actualRev / 1000000).toFixed(1)}M` : `${actualRev.toLocaleString('vi-VN')}đ`}
               </span>
               <span className="text-[10px] font-bold text-slate-500 mt-1">Thực thu</span>
             </div>

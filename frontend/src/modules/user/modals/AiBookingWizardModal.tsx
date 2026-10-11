@@ -8,8 +8,10 @@ import {
   ChevronLeft,
   ArrowRight,
   AlertCircle,
+  QrCode,
 } from 'lucide-react';
 import { Modal } from '../../../components/common/Modal';
+import { VietQrPaymentModal } from '../../../components/dental/VietQrPaymentModal';
 import { branchesApi, servicesApi, staffApi, appointmentsApi } from '../../../services/api';
 
 interface AiBookingWizardModalProps {
@@ -52,6 +54,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
   const [createdAppointment, setCreatedAppointment] = useState<any>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVietQrOpen, setIsVietQrOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -172,9 +175,10 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
   const selectedBranchObj = branches.find((b) => b.id === selectedBranch);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleResetAndClose}
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleResetAndClose}
       title={step === 4 ? 'Đặt Lịch Thành Công!' : 'Trải Nghiệm Đặt Lịch Khám Thông Minh AI (30 Giây)'}
       subtitle={
         step === 4
@@ -434,6 +438,23 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
             <p className="text-slate-600">• Số điện thoại: <strong>{createdAppointment?.patient?.phone || patientPhone}</strong></p>
             <p className="text-slate-600">• Bác sĩ: <strong>{selectedDoctorObj?.name}</strong></p>
             <p className="text-slate-600">• Mã QR Check-in Kiosk: <strong className="font-mono text-teal-700">{createdAppointment?.qrPassCode}</strong></p>
+            {Number(selectedServiceObj?.deposit || 0) > 0 && (
+              <div className="p-3 bg-teal-50 rounded-2xl border border-teal-200 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                <div className="text-left">
+                  <span className="text-[10px] font-bold text-teal-700 uppercase block">Tiền cọc giữ chỗ VietQR</span>
+                  <span className="text-sm font-black text-teal-900">
+                    {Number(selectedServiceObj?.deposit || 0).toLocaleString('vi-VN')} VNĐ
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsVietQrOpen(true)}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-700 hover:to-sky-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <QrCode className="w-3.5 h-3.5" /> Quét VietQR BIDV
+                </button>
+              </div>
+            )}
           </div>
 
           <button
@@ -470,7 +491,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
               {isSubmitting
                 ? 'Đang xử lý đặt lịch...'
                 : step === 3
-                ? 'Xác Nhận Đặt Lịch (AI)'
+                ? 'Xác Nhận Đặt Lịch'
                 : 'Tiếp Theo'}
             </span>
             <ArrowRight className="w-4 h-4" />
@@ -478,5 +499,15 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         </div>
       )}
     </Modal>
+
+    <VietQrPaymentModal
+      isOpen={isVietQrOpen}
+      onClose={() => setIsVietQrOpen(false)}
+      amount={Number(selectedServiceObj?.deposit || 10000)}
+      description={`COC LICH HEN ${createdAppointment?.appointmentCode || 'LH-2026'}`}
+      patientName={createdAppointment?.patient?.fullName || patientName}
+      patientCode={createdAppointment?.appointmentCode}
+    />
+  </>
   );
 };

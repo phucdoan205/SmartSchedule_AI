@@ -21,7 +21,10 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
 }) => {
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
   const [reportType, setReportType] = useState('doanh-thu');
-  const [month, setMonth] = useState('2026-08');
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [isExporting, setIsExporting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 

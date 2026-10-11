@@ -560,24 +560,6 @@ export const EditServiceModal: React.FC<EditServiceModalProps> = ({
                   className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
                 />
               </label>
-
-              {/* AI Recommendation */}
-              <label className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-200 flex items-center justify-between cursor-pointer hover:bg-emerald-50 transition-colors">
-                <div>
-                  <p className="text-xs font-extrabold text-emerald-900 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> AI Đề xuất nổi bật
-                  </p>
-                  <p className="text-[10px] text-emerald-700">
-                    Ưu tiên hiển thị trên banner dịch vụ nổi bật
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isAiRecommended}
-                  onChange={(e) => setIsAiRecommended(e.target.checked)}
-                  className="w-4 h-4 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500 cursor-pointer"
-                />
-              </label>
             </div>
           </div>
 

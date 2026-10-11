@@ -157,7 +157,7 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
           setRealCases(formatted);
         } else {
           // If no appointments recorded yet in DB for this doctor, provide standard clinical sample
-          const samplePrices = [8000000, 5500000, 18000000, 5500000, 8000000];
+          const samplePrices = [35000, 25000, 45000, 20000, 30000];
           const sampleServices = [
             'Mặt Dán Sứ Veneer Emax Siêu Mỏng',
             'Tẩy Trắng Răng Chuyên Sâu Laser Whitening',
@@ -239,14 +239,16 @@ export const StaffSalaryDetailModal: React.FC<StaffSalaryDetailModalProps> = ({
   const allowance = staff.allowance || (isAccountant ? 3000000 : 2500000);
   const kpiBonus = staff.kpiBonus || (isAccountant ? 2000000 : 3500000);
 
-  // If clinical: commission calculated from cases or passed
-  const calculatedCommission = isClinical
-    ? realCases.reduce((acc, c) => acc + c.commission, 0) || (staff.commission || 0)
+  // Exact commission matching outside table record
+  const calculatedCommission = staff.commission !== undefined
+    ? staff.commission
+    : isClinical
+    ? realCases.reduce((acc, c) => acc + c.commission, 0)
     : 0;
 
-  const insuranceDeduction = Math.round(salaryBase * 0.08); // 8% BHXH/BHYT
-  const totalNet = salaryBase + allowance + calculatedCommission + kpiBonus - (isClinical ? 0 : insuranceDeduction);
-  const totalCases = isClinical ? realCases.length : 24;
+  // Total net income precisely matches outside table (Lương cứng + Phụ cấp + Hoa hồng + Thưởng KPI)
+  const totalNet = salaryBase + allowance + calculatedCommission + kpiBonus;
+  const totalCases = isClinical ? (realCases.length || staff.totalCases || 24) : 24;
   const workHours = staff.workHours || (isClinical ? 176 : 192);
 
   const handleToggleApprove = () => {

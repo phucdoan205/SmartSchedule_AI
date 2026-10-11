@@ -122,24 +122,6 @@ export const StaffAllocationView: React.FC<StaffAllocationViewProps> = ({
             Điều phối nhân sự thường trực, bác sĩ luân chuyển và kỹ thuật viên phụ trách tại chi nhánh.
           </p>
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={onOpenTransferModal}
-            className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
-          >
-            <ArrowRightLeft className="w-4 h-4 text-sky-600" /> Điều chuyển nhân sự
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenAddStaffModal}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 shrink-0"
-          >
-            <Plus className="w-4 h-4" /> Thêm nhân sự vào chi nhánh
-          </button>
-        </div>
       </div>
 
       {/* 3 Top Summary KPI Cards (Dữ liệu thật từ Chi nhánh) */}

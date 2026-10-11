@@ -147,8 +147,8 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
         weekdayHours: `${weekdayOpen} - ${weekdayClose}`,
         sundayHours: `${sundayOpen} - ${sundayClose}`,
         floors,
-        status: status === 'active' ? 'Active' : status === 'maintenance' ? 'Maintenance' : 'Closed',
-        statusLabel: status === 'active' ? 'ĐANG HOẠT ĐỘNG' : status === 'maintenance' ? 'BẢO TRÌ TẠM THỜI' : 'TẠM ĐÓNG CỬA',
+        status: status === 'active' ? 'Active' : status === 'maintenance' ? 'Maintenance' : 'Inactive',
+        statusLabel: status === 'active' ? 'ĐANG HOẠT ĐỘNG' : status === 'maintenance' ? 'BẢO TRÌ TẠM THỜI' : 'TẠM NGƯNG',
         isActive: status === 'active',
       });
     }
@@ -469,11 +469,11 @@ export const EditBranchModal: React.FC<EditBranchModalProps> = ({
                     onClick={() => setStatus('closed')}
                     className={`py-2 px-2 rounded-xl font-extrabold text-[11px] transition-all border flex items-center justify-center gap-1 ${
                       status === 'closed'
-                        ? 'bg-slate-800 text-white border-slate-900 shadow-xs'
+                        ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    Đóng cửa
+                    Tạm ngưng
                   </button>
                 </div>
               </div>

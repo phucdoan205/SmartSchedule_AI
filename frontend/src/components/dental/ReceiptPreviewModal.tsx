@@ -105,7 +105,7 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
   const patientName = receiptData?.patientName || 'Đoàn Văn Phúc';
   const patientId = receiptData?.patientId || 'BN26-0001';
   const cleanPatientId = patientId.replace(/^#/, '');
-  const amount = receiptData?.amount ?? 13000000;
+  const amount = receiptData?.amount ?? 25000;
   const description = receiptData?.description || 'Thanh toán Đợt 2 - Niềng răng Invisalign';
   const paymentMethod = receiptData?.paymentMethod || 'VietQR';
   const collector = receiptData?.collector || 'Dr. Lê Văn Hùng';
@@ -302,37 +302,19 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
                 </div>
               </div>
 
-              {/* QR Code Section */}
+              {/* Real BIDV VietQR Code Section */}
               {includeQr && (
                 <div className="my-3 text-center flex flex-col items-center">
-                  <div className="w-24 h-24 bg-[#eaecf0] rounded-lg p-1.5 flex items-center justify-center shadow-2xs">
-                    {/* Stylized QR representation exactly matching reference mockup */}
-                    <div className="w-full h-full bg-slate-100 rounded flex flex-col justify-between p-1 relative border border-slate-300/80">
-                      <div className="flex justify-between items-start">
-                        <div className="w-4 h-4 border-2 border-slate-800 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-slate-800"></div>
-                        </div>
-                        <div className="w-4 h-4 border-2 border-slate-800 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-slate-800"></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-center items-center py-0.5">
-                        <div className="w-6 h-6 border border-slate-700 bg-white flex items-center justify-center rounded-xs shadow-2xs">
-                          <span className="text-[7px] font-black text-sky-800 tracking-tighter">QR</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <div className="w-4 h-4 border-2 border-slate-800 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 bg-slate-800"></div>
-                        </div>
-                        <div className="flex gap-0.5 items-end">
-                          <div className="w-1 h-2 bg-slate-800"></div>
-                          <div className="w-1.5 h-3 bg-slate-800"></div>
-                          <div className="w-1 h-1.5 bg-slate-800"></div>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="w-28 h-28 bg-white border border-slate-200 rounded-xl p-1 flex items-center justify-center shadow-2xs">
+                    <img
+                      src={`https://img.vietqr.io/image/BIDV-6701616583-qr_only.png?amount=${Math.round(amount)}&addInfo=${encodeURIComponent(description || cleanPatientId)}&accountName=DOAN%20VAN%20PHUC`}
+                      alt="VietQR BIDV 6701616583"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
+                  <p className="text-[8.5px] text-slate-500 font-mono mt-1 font-bold">
+                    VietQR BIDV: 6701616583 (DOAN VAN PHUC)
+                  </p>
                 </div>
               )}
 

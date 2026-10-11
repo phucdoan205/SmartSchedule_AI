@@ -53,6 +53,11 @@ export class EquipmentService {
           chair: {
             include: { room: true },
           },
+          maintenanceLogs: {
+            where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
+            orderBy: { scheduledAt: 'desc' },
+            take: 1,
+          },
         },
         orderBy: { code: 'asc' },
         skip,
@@ -60,9 +65,21 @@ export class EquipmentService {
       }),
     ]);
 
+    const mappedItems = items.map((eq: any) => {
+      const activeLog = eq.maintenanceLogs && eq.maintenanceLogs[0];
+      if (activeLog && eq.status === 'OPERATIONAL') {
+        return {
+          ...eq,
+          status: 'UNDER_MAINTENANCE',
+          urgencyAlert: eq.urgencyAlert || activeLog.findings || activeLog.actionType,
+        };
+      }
+      return eq;
+    });
+
     return {
       success: true,
-      data: items,
+      data: mappedItems,
       pagination: {
         total,
         page,
@@ -85,6 +102,10 @@ export class EquipmentService {
         category: true,
         status: true,
         urgencyAlert: true,
+        maintenanceLogs: {
+          where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
+          take: 1,
+        },
       },
     });
 
@@ -101,8 +122,13 @@ export class EquipmentService {
     };
 
     for (const eq of allEquipments) {
-      if (eq.status === 'OPERATIONAL') active++;
-      if (eq.status === 'UNDER_MAINTENANCE' || eq.status === 'WARNING' || eq.status === 'STERILIZING') maintenance++;
+      const hasActiveLog = eq.maintenanceLogs && eq.maintenanceLogs.length > 0;
+      const isMaint = eq.status === 'UNDER_MAINTENANCE' || eq.status === 'WARNING' || eq.status === 'STERILIZING' || hasActiveLog;
+      if (isMaint) {
+        maintenance++;
+      } else {
+        active++;
+      }
       if (eq.urgencyAlert || eq.status === 'WARNING') urgent++;
 
       const cat = eq.category as keyof typeof tabCounts;
@@ -193,16 +219,20 @@ export class EquipmentService {
     };
   }
 
-  async createSchedule(data: {
-    equipmentId: string;
-    branchId?: string;
-    technicianId?: string;
-    actionType: string;
-    scheduledAt: string | Date;
-    scheduledTime?: string;
-    findings?: string;
-    isUrgent?: boolean;
-  }) {
+  async createSchedule(
+    data: {
+      equipmentId: string;
+      branchId?: string;
+      technicianId?: string;
+      technicianName?: string;
+      actionType: string;
+      scheduledAt: string | Date;
+      scheduledTime?: string;
+      findings?: string;
+      isUrgent?: boolean;
+    },
+    operatorUserId?: string,
+  ) {
     const equipment = await this.prisma.equipment.findUnique({
       where: { id: data.equipmentId },
     });
@@ -227,7 +257,7 @@ export class EquipmentService {
         technicianId: techId,
         logCode,
         actionType: data.actionType,
-        findings: data.findings || 'Lịch bảo trì thiết bị định kỳ.',
+        findings: data.findings || `${data.actionType} theo kế hoạch`,
         status: 'PENDING',
         scheduledAt: new Date(data.scheduledAt),
         isCertified: false,
@@ -238,12 +268,43 @@ export class EquipmentService {
       },
     });
 
-    if (data.isUrgent) {
-      await this.prisma.equipment.update({
-        where: { id: data.equipmentId },
-        data: { status: 'WARNING', urgencyAlert: data.findings || 'Yêu cầu kiểm tra khẩn cấp' },
+    // Cập nhật trạng thái thiết bị sang UNDER_MAINTENANCE (hoặc WARNING nếu khẩn cấp)
+    const newStatus = data.isUrgent ? 'WARNING' : 'UNDER_MAINTENANCE';
+    // CHÚ Ý: Chỉ gán urgencyAlert nếu là bảo trì khẩn cấp hoặc có sự cố thực sự
+    const urgencyAlert = data.isUrgent ? (data.findings || 'Yêu cầu kiểm tra khẩn cấp') : null;
+    await this.prisma.equipment.update({
+      where: { id: data.equipmentId },
+      data: {
+        status: newStatus,
+        urgencyAlert,
+        technician: data.technicianName || equipment.technician,
+      },
+    });
+
+    const statusLabel = data.isUrgent ? 'Cảnh báo sự cố / Khẩn cấp' : 'Đang bảo trì';
+    const assignedPerson = data.technicianName || equipment.technician || 'KTV. Hoàng Minh';
+
+    let finalOperatorId = operatorUserId;
+    if (!finalOperatorId) {
+      const adminUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { employeeCode: 'NV-ADMIN' },
+            { email: 'admin@smartschedule.ai' },
+          ],
+        },
       });
+      finalOperatorId = adminUser?.id;
     }
+
+    await this.auditLogsService.log({
+      userId: finalOperatorId || null,
+      module: 'EQUIPMENT',
+      action: `Lên lịch bảo trì thiết bị [Đang hoạt động ➔ ${statusLabel}]: ${equipment.name} (${equipment.code})`,
+      details: `Khởi tạo thông báo bảo dưỡng mã ${logCode} (${data.actionType}). Vị trí: ${equipment.location || 'Tại phòng khám'}. Người phụ trách: ${assignedPerson}.`,
+      targetEntity: equipment.code,
+      status: 'SUCCESS',
+    });
 
     return {
       success: true,
@@ -481,7 +542,7 @@ export class EquipmentService {
 
     if (isStatusChanged) {
       actionText = `Chuyển trạng thái thiết bị [${fromLabel} ➔ ${toLabel}]: ${updated.name} (${updated.code})`;
-      detailsText = `Trạng thái thiết bị mã ${updated.code} đã được chuyển từ [${fromLabel}] sang [${toLabel}]. Vị trí: ${updated.location || 'Tại cơ sở'}. Kỹ thuật viên: ${updated.technician || 'KTV'}.`;
+      detailsText = `Trạng thái thiết bị mã ${updated.code} đã được chuyển từ [${fromLabel}] sang [${toLabel}]. Vị trí: ${updated.location || 'Tại cơ sở'}. Người phụ trách: ${updated.technician || 'KTV. Hoàng Minh'}.`;
     } else {
       actionText = `Cập nhật thông tin thiết bị: ${updated.name} (${updated.code})`;
       detailsText = `Cập nhật thông số thiết bị ${updated.code}. Vị trí: ${updated.location}. Người phụ trách: ${updated.technician}. Trạng thái hiện tại: [${toLabel}].`;
@@ -546,7 +607,18 @@ export class EquipmentService {
       include: { equipment: true, technician: true },
     });
 
-    const actionUserId = operatorUserId || log.technicianId || undefined;
+    let actionUserId = operatorUserId;
+    if (!actionUserId) {
+      const adminUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { employeeCode: 'NV-ADMIN' },
+            { email: 'admin@smartschedule.ai' },
+          ],
+        },
+      });
+      actionUserId = adminUser?.id;
+    }
 
     if (isCompleting) {
       // Tự động cập nhật Thiết bị: Đang hoạt động, cập nhật ngày bảo dưỡng lần cuối, xóa cảnh báo khẩn
@@ -564,8 +636,8 @@ export class EquipmentService {
       await this.auditLogsService.log({
         userId: actionUserId,
         module: 'EQUIPMENT',
-        action: `Hoàn tất bảo trì & kiểm định thiết bị ${log.equipment.name} (${log.equipment.code})`,
-        details: `Nghiệm thu bảo trì mã ${log.logCode}. Kết quả: Đạt chuẩn vận hành. Thiết bị ${log.equipment.code} đã được chuyển về trạng thái Đang hoạt động ổn định.`,
+        action: `Hoàn tất bảo trì & kiểm định thiết bị [Đang bảo trì ➔ Đang hoạt động]: ${log.equipment.name} (${log.equipment.code})`,
+        details: `Nghiệm thu bảo trì mã ${log.logCode}. Kết quả: Đạt chuẩn vận hành. Người phụ trách: ${data.technicianName || log.technician?.fullName || log.equipment.technician || 'KTV. Hoàng Minh'}.`,
         targetEntity: log.equipment.code,
         status: 'SUCCESS',
       });
@@ -580,8 +652,8 @@ export class EquipmentService {
       await this.auditLogsService.log({
         userId: actionUserId,
         module: 'EQUIPMENT',
-        action: `Bắt đầu tiến trình bảo trì thiết bị ${log.equipment.name} (${log.equipment.code})`,
-        details: `Tiến hành bảo dưỡng theo mã ${log.logCode} (${log.actionType}).`,
+        action: `Bắt đầu tiến trình bảo trì thiết bị [Đang hoạt động ➔ Đang bảo trì]: ${log.equipment.name} (${log.equipment.code})`,
+        details: `Tiến hành bảo dưỡng theo mã ${log.logCode} (${log.actionType}). Người phụ trách: ${data.technicianName || log.technician?.fullName || log.equipment.technician || 'KTV. Hoàng Minh'}.`,
         targetEntity: log.equipment.code,
         status: 'SUCCESS',
       });

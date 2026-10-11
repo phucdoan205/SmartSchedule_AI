@@ -406,7 +406,7 @@ export const MaintenanceNotificationsPage: React.FC = () => {
                             </span>
                             <span className="flex items-center gap-1">
                               <User className="w-3 h-3" />
-                              {dev.technician || notif.technician?.fullName || 'KTV. Hoàng Minh'}
+                              {notif.technician?.fullName || notif.technicianName || dev.technician || 'KTV. Hoàng Minh'}
                             </span>
                           </div>
                           {dev.urgencyAlert && (
@@ -735,8 +735,14 @@ export const MaintenanceNotificationsPage: React.FC = () => {
 
       {/* Modal Xem chi tiết thông báo */}
       {selectedDetailNotif && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-scaleUp">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setSelectedDetailNotif(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
@@ -771,12 +777,20 @@ export const MaintenanceNotificationsPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Người phụ trách:</span>
-                  <span className="font-bold text-slate-700">{selectedDetailNotif.technician?.fullName || selectedDetailNotif.equipment?.technician || 'KTV. Hoàng Minh'}</span>
+                  <span className="font-bold text-slate-700">{selectedDetailNotif.technician?.fullName || selectedDetailNotif.technicianName || selectedDetailNotif.equipment?.technician || 'KTV. Hoàng Minh'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Lịch thực hiện:</span>
-                  <span className="font-medium text-slate-600">
-                    {selectedDetailNotif.scheduledAt ? new Date(selectedDetailNotif.scheduledAt).toLocaleString('vi-VN') : 'Hôm nay'}
+                  <span className="font-semibold text-slate-800">
+                    {selectedDetailNotif.scheduledAt
+                      ? new Date(selectedDetailNotif.scheduledAt).toLocaleString('vi-VN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
+                      : 'Hôm nay'}
                   </span>
                 </div>
               </div>
@@ -788,11 +802,13 @@ export const MaintenanceNotificationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {selectedDetailNotif.equipment?.urgencyAlert && (
-                <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] font-semibold flex items-center gap-1.5">
-                  ⚠️ {selectedDetailNotif.equipment?.urgencyAlert}
-                </div>
-              )}
+              {selectedDetailNotif.equipment?.urgencyAlert &&
+                selectedDetailNotif.equipment.urgencyAlert.trim().toLowerCase() !==
+                  (selectedDetailNotif.findings || '').trim().toLowerCase() && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[11px] font-semibold flex items-center gap-1.5">
+                    ⚠️ {selectedDetailNotif.equipment?.urgencyAlert}
+                  </div>
+                )}
             </div>
 
             <div className="flex items-center justify-end pt-2">

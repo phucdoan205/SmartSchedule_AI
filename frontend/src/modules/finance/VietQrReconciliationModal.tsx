@@ -26,8 +26,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
       time: '16:15',
       patient: 'Đoàn Văn Phúc (#BN26-0001)',
       billCode: '#HD-2026-8956',
-      amount: '13.000.000đ',
-      bank: 'Vietcombank',
+      amount: '25.000đ',
+      bank: 'BIDV',
       status: 'Matched',
     },
     {
@@ -35,8 +35,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
       time: '11:00',
       patient: 'Trần Minh Tâm (#BN26-0002)',
       billCode: '#HD-2026-8954',
-      amount: '25.000.000đ',
-      bank: 'MB Bank',
+      amount: '35.000đ',
+      bank: 'BIDV',
       status: 'Matched',
     },
     {
@@ -44,8 +44,8 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
       time: '08:30',
       patient: 'Nguyễn Trung Cường (#BN26-0003)',
       billCode: '#HD-2026-8952',
-      amount: '1.800.000đ',
-      bank: 'Techcombank',
+      amount: '20.000đ',
+      bank: 'BIDV',
       status: 'Matched',
     },
   ];
@@ -64,7 +64,7 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
                 Đối Soát Giao Dịch VietQR Động Hôm Nay
               </h3>
               <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                Khớp tự động thông báo biến động số dư ngân hàng và phiếu thu tại {branchName}
+                Khớp tự động thông báo biến động số dư BIDV và phiếu thu tại {branchName}
               </p>
             </div>
           </div>
@@ -83,7 +83,7 @@ export const VietQrReconciliationModal: React.FC<VietQrReconciliationModalProps>
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
               TỔNG TIỀN QR
             </span>
-            <span className="text-base font-extrabold text-slate-900">39.800.000đ</span>
+            <span className="text-base font-extrabold text-slate-900">80.000đ</span>
           </div>
 
           <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">

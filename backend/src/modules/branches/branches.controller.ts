@@ -42,6 +42,7 @@ export class BranchesController {
       phone?: string;
       imageUrl?: string;
       isActive?: boolean;
+      status?: string;
     },
   ) {
     const userId = req.user?.sub || req.user?.id;

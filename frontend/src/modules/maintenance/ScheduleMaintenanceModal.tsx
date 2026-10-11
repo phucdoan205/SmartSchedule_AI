@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, ClipboardList, CalendarCheck, Wrench, Flame, Zap, Bot, ToggleRight, DollarSign, Loader2 } from 'lucide-react';
-import { equipmentApi } from '../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, ClipboardList, CalendarCheck, Wrench, Flame, Zap, Bot, ToggleRight, DollarSign, Loader2, User } from 'lucide-react';
+import { equipmentApi, staffApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
 
 interface ScheduleMaintenanceModalProps {
@@ -22,6 +22,7 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
 }) => {
   const { branches, selectedBranchId } = useBranch();
   const [deviceList, setDeviceList] = useState<any[]>([]);
+  const [staffList, setStaffList] = useState<any[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,7 +31,7 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
     deviceId: '',
     actionType: initialActionType,
     scheduledDate: new Date().toISOString().split('T')[0],
-    scheduledTime: '07:30',
+    scheduledTime: '08:30',
     repeatCycle: 'Lặp lại mỗi tháng 1 lần',
     technician: 'KTV. Hoàng Minh',
     findings: '',
@@ -48,19 +49,35 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
         branchId: selectedBranchId !== 'ALL' ? selectedBranchId : prev.branchId,
       }));
       setLoadingDevices(true);
-      equipmentApi
-        .getAll({ branchId: form.branchId || undefined, limit: 50 })
-        .then((res) => {
-          if (res?.data && res.data.length > 0) {
-            setDeviceList(res.data);
+      Promise.all([
+        equipmentApi.getAll({ branchId: form.branchId || undefined, limit: 50 }).catch(() => null),
+        staffApi.getAllStaff().catch(() => []),
+      ])
+        .then(([equipRes, staffRes]) => {
+          if (equipRes?.data && equipRes.data.length > 0) {
+            setDeviceList(equipRes.data);
             if (!form.deviceId) {
-              setForm((prev) => ({ ...prev, deviceId: res.data[0].id }));
+              setForm((prev) => ({ ...prev, deviceId: equipRes.data[0].id }));
             }
+          }
+          if (Array.isArray(staffRes) && staffRes.length > 0) {
+            setStaffList(staffRes);
           }
         })
         .finally(() => setLoadingDevices(false));
     }
   }, [isOpen, form.branchId]);
+
+  const sortedStaff = useMemo(() => {
+    if (!staffList || staffList.length === 0) return [];
+    return [...staffList].sort((a, b) => {
+      const isTechA = (a.role || '').toLowerCase().includes('kỹ thuật') || (a.role || '').toLowerCase().includes('thiết bị') || (a.fullName || '').startsWith('KTV');
+      const isTechB = (b.role || '').toLowerCase().includes('kỹ thuật') || (b.role || '').toLowerCase().includes('thiết bị') || (b.fullName || '').startsWith('KTV');
+      if (isTechA && !isTechB) return -1;
+      if (!isTechA && isTechB) return 1;
+      return (a.fullName || '').localeCompare(b.fullName || '');
+    });
+  }, [staffList]);
 
   if (!isOpen) return null;
 
@@ -73,12 +90,18 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
     try {
       setSubmitting(true);
       const isUrgent = priority === 'urgent';
+      const selectedStaff = staffList.find((s) => s.fullName === form.technician);
+      const timeVal = form.scheduledTime || '08:30';
+      const scheduledDateTime = new Date(`${form.scheduledDate}T${timeVal}:00`);
+
       await equipmentApi.createSchedule({
         equipmentId: form.deviceId,
         branchId: form.branchId || undefined,
+        technicianId: selectedStaff?.id || undefined,
+        technicianName: form.technician,
         actionType: form.actionType,
-        scheduledAt: `${form.scheduledDate}T${form.scheduledTime}:00Z`,
-        scheduledTime: form.scheduledTime,
+        scheduledAt: isNaN(scheduledDateTime.getTime()) ? new Date().toISOString() : scheduledDateTime.toISOString(),
+        scheduledTime: timeVal,
         findings: form.findings || `${form.actionType} theo kế hoạch`,
         isUrgent,
       });
@@ -124,26 +147,27 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
 
         {/* Body Form */}
         <div className="p-4 sm:p-6 space-y-4">
-          {/* Row 1: Chi nhánh + Ngày thực hiện */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Cơ sở phòng khám <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={form.branchId}
-                onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-sky-400"
-              >
-                <option value="">Tất cả cơ sở</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Cơ sở phòng khám */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Cơ sở phòng khám <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={form.branchId}
+              onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+              className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-sky-400 cursor-pointer"
+            >
+              <option value="">Tất cả cơ sở</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* Ngày thực hiện & Giờ thực hiện */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Ngày thực hiện <span className="text-red-500">*</span>
@@ -152,7 +176,19 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
                 type="date"
                 value={form.scheduledDate}
                 onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })}
-                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400"
+                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Giờ thực hiện <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={form.scheduledTime}
+                onChange={(e) => setForm({ ...form, scheduledTime: e.target.value })}
+                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 font-medium"
               />
             </div>
           </div>
@@ -263,15 +299,37 @@ export const ScheduleMaintenanceModal: React.FC<ScheduleMaintenanceModalProps> =
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Kỹ thuật viên phụ trách <span className="text-red-500">*</span>
+                Nhân sự phụ trách bảo dưỡng <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={form.technician}
-                onChange={(e) => setForm({ ...form, technician: e.target.value })}
-                placeholder="KTV. Hoàng Minh"
-                className="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400"
-              />
+              <div className="relative">
+                <select
+                  value={form.technician}
+                  onChange={(e) => setForm({ ...form, technician: e.target.value })}
+                  className="w-full pl-8 pr-3 py-2.5 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-sky-400 bg-white appearance-none cursor-pointer text-slate-800"
+                >
+                  {sortedStaff.length === 0 ? (
+                    <>
+                      <option value="KTV. Hoàng Minh">KTV. Hoàng Minh (Kỹ thuật viên trưởng)</option>
+                      <option value="LT. Đặng Thùy Linh">LT. Đặng Thùy Linh (Phụ trách cơ sở)</option>
+                      <option value="BS. Vũ Phương Thảo">BS. Vũ Phương Thảo (Chuyên môn phòng máy)</option>
+                    </>
+                  ) : (
+                    sortedStaff.map((s) => {
+                      const isTech =
+                        (s.role || '').toLowerCase().includes('kỹ thuật') ||
+                        (s.fullName || '').startsWith('KTV') ||
+                        (s.specialty || '').toLowerCase().includes('kỹ thuật');
+                      return (
+                        <option key={s.id} value={s.fullName}>
+                          {s.fullName} - {s.role || 'Kỹ thuật viên'}{isTech ? ' (KTV Chuyên trách)' : ''}
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
+                <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▾</div>
+              </div>
             </div>
 
             <div>

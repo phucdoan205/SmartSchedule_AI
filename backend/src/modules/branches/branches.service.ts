@@ -128,26 +128,41 @@ export class BranchesService {
       phone?: string;
       imageUrl?: string;
       isActive?: boolean;
+      status?: string;
     },
     operatorUserId?: string,
   ) {
+    const { status, ...prismaData } = data;
     const existing = await this.prisma.branch.findUnique({ where: { id } });
-    const isStatusChanged = Boolean(data.isActive !== undefined && existing && data.isActive !== existing.isActive);
+    const isStatusChanged = Boolean(prismaData.isActive !== undefined && existing && prismaData.isActive !== existing.isActive);
 
     const updated = await this.prisma.branch.update({
       where: { id },
-      data,
+      data: prismaData,
     });
 
-    let actionText = `Cập nhật thông tin chi nhánh: ${updated.name} (${updated.code})`;
-    let detailsText = `Điều chỉnh thông tin hoạt động hoặc liên hệ của cơ sở ${updated.name}. Trạng thái: ${updated.isActive ? 'Đang hoạt động' : 'Tạm dừng'}.`;
+    const statusLabels: Record<string, string> = {
+      Active: 'Đang hoạt động',
+      active: 'Đang hoạt động',
+      Maintenance: 'Bảo trì tạm thời',
+      maintenance: 'Bảo trì tạm thời',
+      Closed: 'Tạm ngưng',
+      closed: 'Tạm ngưng',
+      Inactive: 'Tạm ngưng',
+      inactive: 'Tạm ngưng',
+    };
 
-    if (isStatusChanged && existing) {
-      const fromStatus = existing.isActive ? 'Đang hoạt động' : 'Tạm dừng';
-      const toStatus = updated.isActive ? 'Đang hoạt động' : 'Tạm dừng';
-      actionText = `Chuyển trạng thái chi nhánh [${fromStatus} ➔ ${toStatus}]: ${updated.name} (${updated.code})`;
-      detailsText = `Chi nhánh ${updated.name} đã được chuyển trạng thái từ [${fromStatus}] sang [${toStatus}].`;
+    const prevLabel = existing?.isActive ? 'Đang hoạt động' : 'Tạm ngưng';
+    const newStatusLabel = status ? (statusLabels[status] || status) : (updated.isActive ? 'Đang hoạt động' : 'Tạm ngưng');
+
+    let actionText = '';
+    if (status || isStatusChanged) {
+      actionText = `Chuyển trạng thái chi nhánh: ${updated.name} (${updated.code}) [${prevLabel} ➔ ${newStatusLabel}]`;
+    } else {
+      actionText = `Cập nhật thông tin chi nhánh: ${updated.name} (${updated.code})`;
     }
+
+    const detailsText = `Chi nhánh ${updated.name} (${updated.code}) đã được cập nhật sang trạng thái [${newStatusLabel}].`;
 
     await this.auditLogsService.log({
       userId: operatorUserId || null,

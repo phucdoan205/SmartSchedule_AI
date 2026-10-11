@@ -134,7 +134,7 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
         {/* Action Buttons Right */}
         <div className="flex items-center gap-2.5 flex-wrap shrink-0 text-xs">
           <div className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 shadow-xs">
-            <span>Tháng 08/2026</span>
+            <span>{`Tháng ${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`}</span>
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
@@ -174,11 +174,11 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              {Math.round(bRevenue / 1000000)}M{' '}
-              <span className="text-xs font-bold text-slate-500">VND</span>
+              {bRevenue >= 1000000 ? `${(bRevenue / 1000000).toFixed(2)}M` : bRevenue.toLocaleString('vi-VN')}{' '}
+              <span className="text-xs font-bold text-slate-500">VNĐ</span>
             </div>
             <p className="text-[11px] text-emerald-600 font-extrabold flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Đạt {bKpi}% mục tiêu ({Math.round(bTarget / 1000000)}M)
+              <TrendingUp className="w-3.5 h-3.5" /> Đạt {bKpi}% mục tiêu ({bTarget >= 1000000 ? `${Math.round(bTarget / 1000000)}M` : `${Math.round(bTarget / 1000)}k`})
             </p>
           </div>
         </div>
@@ -196,8 +196,8 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              {Math.round(bCashless / 1000000)}M{' '}
-              <span className="text-xs font-bold text-slate-500">VND</span>
+              {bCashless >= 1000000 ? `${(bCashless / 1000000).toFixed(2)}M` : bCashless.toLocaleString('vi-VN')}{' '}
+              <span className="text-xs font-bold text-slate-500">VNĐ</span>
             </div>
             <p className="text-[11px] text-slate-600 font-semibold flex items-center gap-1 mt-1">
               🎯 Chiếm {bRevenue > 0 ? Math.round((bCashless / bRevenue) * 100) : 80}% tổng dòng tiền
@@ -218,8 +218,8 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              {Math.round(bDebt / 1000000)}M{' '}
-              <span className="text-xs font-bold text-slate-500">VND</span>
+              {bDebt >= 1000000 ? `${(bDebt / 1000000).toFixed(2)}M` : bDebt.toLocaleString('vi-VN')}{' '}
+              <span className="text-xs font-bold text-slate-500">VNĐ</span>
             </div>
             <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1">
               ⚠️ Các ca gắn mão sứ / cấy Implant
@@ -239,11 +239,11 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              {Math.round(bNetProfit / 1000000)}M{' '}
-              <span className="text-xs font-bold text-slate-500">VND</span>
+              {bNetProfit >= 1000000 ? `${(bNetProfit / 1000000).toFixed(2)}M` : bNetProfit.toLocaleString('vi-VN')}{' '}
+              <span className="text-xs font-bold text-slate-500">VNĐ</span>
             </div>
             <p className="text-[11px] text-emerald-700 font-extrabold flex items-center gap-1 mt-1">
-              📊 Chi phí vận hành: {Math.round(bCost / 1000000)}M
+              📊 Chi phí vận hành: {bCost >= 1000000 ? `${Math.round(bCost / 1000000)}M` : `${Math.round(bCost / 1000)}k`}
             </p>
           </div>
         </div>

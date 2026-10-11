@@ -164,7 +164,7 @@ export const OverviewPage: React.FC = () => {
             </div>
             <h4 className="font-extrabold text-slate-900 text-sm">2 Ca hẹn nguy cơ hủy &gt; 75%</h4>
             <p className="text-slate-500 text-[11px] leading-relaxed">
-              Đã tự động gửi yêu cầu cọc VietQR 2.000.000đ để bảo đảm lịch hẹn.
+              Đã tự động gửi yêu cầu cọc VietQR 10.000đ để bảo đảm lịch hẹn.
             </p>
           </div>
           <button

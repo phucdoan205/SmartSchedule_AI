@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from '../../context/ToastContext';
 import { MOCK_DOCTORS } from '../../services/mockData';
+import { staffApi } from '../../services/api';
 
 export interface LeaveRequestData {
   id?: string;
@@ -47,6 +48,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const [doctorList, setDoctorList] = useState<any[]>(MOCK_DOCTORS);
   const [leaveType, setLeaveType] = useState<'annual' | 'sick' | 'personal' | 'maternity'>('annual');
   const [startDate, setStartDate] = useState('2026-10-12');
   const [endDate, setEndDate] = useState('2026-10-13');
@@ -58,10 +60,21 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   const [notifyZalo, setNotifyZalo] = useState(true);
   const [fileName, setFileName] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      staffApi.getDoctors().then((docs) => {
+        if (Array.isArray(docs) && docs.length > 0) {
+          setDoctorList(docs);
+          setSubstituteDoctorId(docs[0].id);
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const selectedSubstituteDoctor =
-    MOCK_DOCTORS.find((d) => d.id === substituteDoctorId) || MOCK_DOCTORS[0];
+    doctorList.find((d) => d.id === substituteDoctorId) || doctorList[0] || MOCK_DOCTORS[0];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -331,9 +344,9 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                       onChange={(e) => setSubstituteDoctorId(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all cursor-pointer"
                     >
-                      {MOCK_DOCTORS.map((d) => (
+                      {doctorList.map((d) => (
                         <option key={d.id} value={d.id}>
-                          {d.name} ({d.specialty || 'Bác sĩ'}) - Tiếp nhận 3 ca khám của bạn
+                          {d.name || d.fullName} ({d.specialty || 'Bác sĩ'}) - Tiếp nhận ca khám
                         </option>
                       ))}
                     </select>

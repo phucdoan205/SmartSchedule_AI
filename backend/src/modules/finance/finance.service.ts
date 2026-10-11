@@ -84,21 +84,21 @@ export class FinanceService {
 
         const bDebt = Math.max(0, bTotal - bActual);
 
-        // Targets and costs per branch
-        let target = 600000000;
+        // Targets and costs per branch adapted to current service fee scale (< 50.000 VNĐ)
+        let target = 400000;
         let subtitle = 'Trụ sở chính';
-        let cost = 195000000;
+        let cost = 120000;
         let branchKey = 'b-bienhoa';
 
         if (b.code === 'CN02' || b.name.includes('Quận 1')) {
-          target = 500000000;
+          target = 350000;
           subtitle = 'Chi nhánh VIP';
-          cost = 160000000;
+          cost = 110000;
           branchKey = 'b-quan1';
         } else if (b.code === 'CN03' || b.name.includes('Thủ Đức') || b.name.includes('Long Thành')) {
-          target = 180000000;
+          target = 200000;
           subtitle = 'Khai trương T3/2026';
-          cost = 65000000;
+          cost = 60000;
           branchKey = 'b-longthanh';
         }
 

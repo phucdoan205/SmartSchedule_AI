@@ -110,7 +110,7 @@ export const SYSTEM_MODULES: SystemModuleItem[] = [
     path: '/admin/staff/leave',
     iconName: 'FileSpreadsheet',
     subPermissions: [
-      { id: 'p_lve_view', code: 'leave_view', name: 'Xem & Tạo đơn xin nghỉ cá nhân' },
+      { id: 'p_lve_view', code: 'leave_view', name: 'Xem & Tạo đơn xin nghỉ cá nhân (Cột biểu mẫu bên trái)' },
       { id: 'p_lve_all', code: 'leave_view_all', name: 'Xem lịch sử đơn nghỉ phép toàn phòng khám' },
       { id: 'p_lve_appr', code: 'leave_approve', name: 'Phê duyệt / Từ chối đơn nghỉ phép của nhân sự' },
     ],
