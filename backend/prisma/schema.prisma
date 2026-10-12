@@ -579,3 +579,35 @@ model Notification {
   @@index([userId, isRead, createdAt])
   @@map("notifications")
 }
+
+// ====================================================
+// 8. TƯ VẤN AI & NHẬT KÝ INSIGHTS (1 BẢNG)
+// ====================================================
+
+model AiConsultationLog {
+  id                  String   @id @default(uuid())
+  channel             String   @default("WEB_CONSULTATION") // WEB_CONSULTATION, ZALO_BOT, DIRECT_DOCTOR
+  patientName         String?
+  patientPhone        String?
+  symptoms            String?  @db.Text
+  imageUrl            String?
+  diagnosis           String   @db.Text
+  riskLevel           String   @default("Trung Bình") // Thấp, Trung Bình, Cao
+  confidence          Float    @default(95.0)
+  suggestedSpecialty  String
+  regimen             String[]
+  serviceCode         String?
+  serviceName         String?
+  suggestedDoctorId   String?
+  suggestedDoctorName String?
+  isAccepted          Boolean  @default(false)
+  appointmentId       String?
+  sentiment           String?  @default("POSITIVE") // POSITIVE, NEUTRAL, NEGATIVE
+  metadata            Json?
+  createdAt           DateTime @default(now())
+
+  @@index([channel, createdAt])
+  @@index([isAccepted])
+  @@map("ai_consultation_logs")
+}
+

@@ -209,6 +209,14 @@ export const appointmentsApi = {
     });
     return res.data;
   },
+  getAiSmartSlots: async (branchId: string, date?: string, durationMinutes?: number, doctorId?: string) => {
+    const params: any = { branchId };
+    if (date) params.date = date;
+    if (durationMinutes) params.durationMinutes = durationMinutes;
+    if (doctorId) params.doctorId = doctorId;
+    const res = await apiClient.get('/appointments/ai-smart-slots', { params });
+    return res.data;
+  },
   checkInQr: async (qrPassCode: string) => {
     const res = await apiClient.post('/appointments/check-in-qr', { qrPassCode });
     return res.data;
@@ -491,5 +499,57 @@ export const notificationsApi = {
   },
 };
 
+// AI Consultation & Insights API
+export const aiApi = {
+  consult: async (data: {
+    symptoms?: string;
+    file?: File;
+    patientName?: string;
+    patientPhone?: string;
+    channel?: string;
+  }) => {
+    const formData = new FormData();
+    if (data.symptoms) formData.append('symptoms', data.symptoms);
+    if (data.patientName) formData.append('patientName', data.patientName);
+    if (data.patientPhone) formData.append('patientPhone', data.patientPhone);
+    if (data.channel) formData.append('channel', data.channel);
+    if (data.file) formData.append('file', data.file);
 
+    const res = await apiClient.post('/ai/consultation', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
+  accept: async (id: string, appointmentId?: string) => {
+    const res = await apiClient.patch(`/ai/consultation/${id}/accept`, { appointmentId });
+    return res.data;
+  },
+  getInsights: async (branchId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/ai/insights', { params });
+    return res.data;
+  },
+  logZaloChat: async (data: {
+    senderPhone?: string;
+    senderName?: string;
+    messageText: string;
+    aiResponseText: string;
+    sentiment?: string;
+  }) => {
+    const res = await apiClient.post('/ai/zalo-webhook', data);
+    return res.data;
+  },
+};
 
+// Dashboard Overview API
+export const overviewApi = {
+  getDashboard: async (branchId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/overview', { params });
+    return res.data;
+  },
+};

@@ -13,6 +13,7 @@ import {
 import { Modal } from '../../../components/common/Modal';
 import { VietQrPaymentModal } from '../../../components/dental/VietQrPaymentModal';
 import { branchesApi, servicesApi, staffApi, appointmentsApi } from '../../../services/api';
+import { toast } from '../../../context/ToastContext';
 
 interface AiBookingWizardModalProps {
   isOpen: boolean;
@@ -39,12 +40,19 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedService, setSelectedService] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [bookingDate, setBookingDate] = useState(() => {
-    const today = new Date();
-    today.setDate(today.getDate() + 1);
-    return today.toISOString().split('T')[0];
-  });
-  const [bookingTime, setBookingTime] = useState('09:00');
+  
+  const tomorrowDateStr = (() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  })();
+  const [bookingDate, setBookingDate] = useState(tomorrowDateStr);
+  const [bookingTime, setBookingTime] = useState('09:30');
+
+  // Real-time Smart Slots State
+  const [smartSlots, setSmartSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [selectedSlotConflict, setSelectedSlotConflict] = useState<string | null>(null);
 
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
@@ -72,9 +80,13 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
           ? servicesData.filter((s: any) => s.isActive !== false)
           : [];
 
+        const realDoctors = Array.isArray(doctorsData)
+          ? doctorsData.filter((d: any) => !d.name?.startsWith('KTV') && !d.name?.startsWith('LT'))
+          : [];
+
         setBranches(branchesData);
         setServices(activeServices);
-        setDoctors(doctorsData);
+        setDoctors(realDoctors);
 
         if (branchesData.length > 0) {
           setSelectedBranch(branchesData[0].id);
@@ -86,8 +98,8 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         }
         if (initialDoctorId) {
           setSelectedDoctor(initialDoctorId);
-        } else if (doctorsData.length > 0) {
-          setSelectedDoctor(doctorsData[0].id);
+        } else if (realDoctors.length > 0) {
+          setSelectedDoctor(realDoctors[0].id);
         }
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu đặt lịch:', err);
@@ -98,6 +110,48 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
 
     loadInitialData();
   }, [isOpen, initialDoctorId, initialServiceId]);
+
+  // Fetch real-time available slots for selected doctor and date (with 15m sterilization buffer)
+  useEffect(() => {
+    if (!selectedBranch || !bookingDate || !selectedDoctor) return;
+
+    const fetchDoctorSlots = async () => {
+      try {
+        setLoadingSlots(true);
+        setSelectedSlotConflict(null);
+        const selectedServiceObj = services.find((s) => s.id === selectedService);
+        const duration = selectedServiceObj?.durationMinutes || 60;
+
+        const res = await appointmentsApi.getAiSmartSlots(
+          selectedBranch,
+          bookingDate,
+          duration,
+          selectedDoctor,
+        );
+
+        if (res && res.slots && Array.isArray(res.slots)) {
+          setSmartSlots(res.slots);
+
+          // If current bookingTime is not available or not set, pick first available slot
+          const currentValid = res.slots.find((s: any) => s.time === bookingTime && s.isAvailable);
+          if (!currentValid) {
+            const firstAvailable = res.slots.find((s: any) => s.isAvailable);
+            if (firstAvailable) {
+              setBookingTime(firstAvailable.time);
+            } else {
+              setBookingTime('');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi tải khung giờ trống của bác sĩ:', err);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchDoctorSlots();
+  }, [selectedBranch, selectedDoctor, bookingDate, selectedService]);
 
   const handleNext = async () => {
     setBookingError(null);
@@ -167,8 +221,6 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
     setBookingError(null);
     onClose();
   };
-
-  const timeSlots = ['08:00', '08:45', '09:30', '10:15', '14:00', '14:45', '15:30', '16:15'];
 
   const selectedDoctorObj = doctors.find((d) => d.id === selectedDoctor);
   const selectedServiceObj = services.find((s) => s.id === selectedService);
@@ -310,35 +362,107 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-800 mb-1.5">2. Ngày Khám:</label>
+              <label className="block font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                <span>2. Ngày Khám:</span>
+                <span className="text-[10px] text-sky-600 font-semibold">(Mặc định từ ngày mai)</span>
+              </label>
               <input
                 type="date"
+                min={tomorrowDateStr}
                 value={bookingDate}
                 onChange={(e) => setBookingDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-sky-400"
               />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Lịch hẹn đặt trước tối thiểu 1 ngày để hệ thống chuẩn bị đệm vô trùng 15 phút.
+              </p>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-800 mb-1.5">3. Khung Giờ Khám Trống:</label>
-              <div className="grid grid-cols-2 gap-1.5 max-h-28 overflow-y-auto">
-                {timeSlots.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setBookingTime(t)}
-                    className={`py-1 px-2 rounded-lg text-[11px] font-semibold border transition-all ${
-                      bookingTime === t
-                        ? 'bg-sky-600 text-white border-sky-600 shadow-2xs'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block font-bold text-slate-800">3. Khung Giờ Khám Trống:</label>
+                <span className="text-[10px] text-teal-600 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                  Đệm vô trùng 15p
+                </span>
               </div>
+
+              {loadingSlots ? (
+                <div className="py-6 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+                  <span>Đang quét lịch trống & đệm vô trùng...</span>
+                </div>
+              ) : smartSlots.length > 0 ? (
+                <div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {smartSlots.map((t: any) => {
+                    const isSelected = bookingTime === t.time && t.isAvailable;
+                    const isBlocked = !t.isAvailable;
+
+                    return (
+                      <button
+                        key={t.time}
+                        type="button"
+                        onClick={() => {
+                          if (isBlocked) {
+                            const msg = t.conflictReason || `Bác sĩ ${selectedDoctorObj?.name || ''} đã bận hoặc đang trong 15 phút đệm khử trùng vô trùng lúc ${t.time}. Vui lòng chọn khung giờ khác hoặc đổi bác sĩ!`;
+                            setSelectedSlotConflict(msg);
+                            toast(msg, 'error');
+                          } else {
+                            setBookingTime(t.time);
+                            setSelectedSlotConflict(null);
+                          }
+                        }}
+                        title={
+                          isBlocked
+                            ? t.conflictReason || 'Đã có lịch hoặc trong 15 phút đệm vô trùng'
+                            : t.isAiRecommended
+                            ? 'AI Đề xuất: Khung giờ tối ưu công suất và đệm vô trùng'
+                            : 'Khung giờ trống'
+                        }
+                        className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border transition-all flex items-center justify-between gap-1 cursor-pointer ${
+                          isBlocked
+                            ? 'bg-slate-100/90 border-dashed border-rose-200 text-slate-400 opacity-50 line-through hover:bg-rose-50 hover:border-rose-300'
+                            : isSelected
+                            ? 'bg-sky-600 text-white border-sky-600 shadow-xs font-bold'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-sky-300 hover:bg-sky-50/50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1">
+                          {isBlocked && <span className="no-underline text-rose-500 font-bold">🔒</span>}
+                          <span>{t.time}</span>
+                        </span>
+
+                        {t.isAiRecommended && !isBlocked && (
+                          <span className={`text-[9px] font-black px-1.5 py-0.2 rounded ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                          }`}>
+                            ✨ AI Đề xuất
+                          </span>
+                        )}
+
+                        {isBlocked && (
+                          <span className="text-[9px] font-bold text-rose-500 no-underline">
+                            Trùng/Đệm
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-400 text-xs">
+                  Không có khung giờ nào còn trống cho bác sĩ này. Vui lòng chọn ngày khác hoặc đổi bác sĩ!
+                </div>
+              )}
+
+              {/* Inline warning when clicking on a blocked slot */}
+              {selectedSlotConflict && (
+                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-900 font-semibold flex items-center gap-1.5 animate-fadeIn">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>{selectedSlotConflict}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

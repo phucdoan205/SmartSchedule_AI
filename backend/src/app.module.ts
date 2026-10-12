@@ -14,6 +14,8 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { StaffModule } from './modules/staff/staff.module.js';
 import { RolesModule } from './modules/roles/roles.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { AiConsultationModule } from './modules/ai-consultation/ai-consultation.module.js';
+import { OverviewModule } from './modules/overview/overview.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthMiddleware } from './common/middleware/auth.middleware.js';
@@ -35,6 +37,8 @@ import { AuthMiddleware } from './common/middleware/auth.middleware.js';
     StaffModule,
     RolesModule,
     NotificationsModule,
+    AiConsultationModule,
+    OverviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],

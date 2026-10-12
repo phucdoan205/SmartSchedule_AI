@@ -1116,6 +1116,22 @@ export const rolePermissionStore = {
     return this.hasSubPermission(roleNameOrCode, 'ai_configure', user);
   },
 
+  canViewAiModule(roleNameOrCode?: string, user?: any): boolean {
+    if (!roleNameOrCode) return false;
+    const lower = roleNameOrCode.toLowerCase();
+    if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
+    // Check if role has AI view/configure permissions, or is doctor/branch manager
+    return (
+      this.hasSubPermission(roleNameOrCode, 'ai_view', user) ||
+      this.hasSubPermission(roleNameOrCode, 'ai_configure', user) ||
+      this.hasSubPermission(roleNameOrCode, 'ai_export', user) ||
+      lower.includes('doctor') ||
+      lower.includes('bác sĩ') ||
+      lower.includes('branch_manager') ||
+      lower.includes('quản lý')
+    );
+  },
+
   canExportAi(roleNameOrCode?: string, user?: any): boolean {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();

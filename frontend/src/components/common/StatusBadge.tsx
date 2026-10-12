@@ -14,7 +14,15 @@ export type BadgeStatus =
   | 'Rejected'
   | 'Success'
   | 'Warning'
-  | 'Error';
+  | 'Error'
+  | 'AVAILABLE'
+  | 'IN_USE'
+  | 'CONFIRMED'
+  | 'CHECKED_IN'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'PENDING';
 
 interface StatusBadgeProps {
   status: BadgeStatus | string;
@@ -22,28 +30,35 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customLabel }) => {
-  const getBadgeStyle = (st: string) => {
-    switch (st) {
-      case 'Active':
-      case 'Confirmed':
-      case 'Completed':
-      case 'Approved':
-      case 'Success':
+  const norm = (status || '').toUpperCase();
+
+  const getBadgeStyle = () => {
+    switch (norm) {
+      case 'ACTIVE':
+      case 'CONFIRMED':
+      case 'COMPLETED':
+      case 'APPROVED':
+      case 'SUCCESS':
+      case 'AVAILABLE':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200';
 
-      case 'InProgress':
-      case 'Pending':
-      case 'Busy':
+      case 'INPROGRESS':
+      case 'IN_PROGRESS':
+      case 'CHECKED_IN':
+      case 'BUSY':
+        return 'bg-sky-50 text-sky-700 border-sky-200';
+
+      case 'PENDING':
+      case 'WARNING':
         return 'bg-amber-50 text-amber-700 border-amber-200';
 
-      case 'OnLeave':
-      case 'Warning':
+      case 'ONLEAVE':
+      case 'OFFDUTY':
         return 'bg-blue-50 text-blue-700 border-blue-200';
 
-      case 'OffDuty':
-      case 'Cancelled':
-      case 'Rejected':
-      case 'Error':
+      case 'CANCELLED':
+      case 'REJECTED':
+      case 'ERROR':
         return 'bg-rose-50 text-rose-700 border-rose-200';
 
       default:
@@ -51,28 +66,33 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customLabel })
     }
   };
 
-  const getDotStyle = (st: string) => {
-    switch (st) {
-      case 'Active':
-      case 'Confirmed':
-      case 'Completed':
-      case 'Approved':
-      case 'Success':
+  const getDotStyle = () => {
+    switch (norm) {
+      case 'ACTIVE':
+      case 'CONFIRMED':
+      case 'COMPLETED':
+      case 'APPROVED':
+      case 'SUCCESS':
+      case 'AVAILABLE':
         return 'bg-emerald-500';
 
-      case 'InProgress':
-      case 'Pending':
-      case 'Busy':
+      case 'INPROGRESS':
+      case 'IN_PROGRESS':
+      case 'CHECKED_IN':
+      case 'BUSY':
+        return 'bg-sky-500';
+
+      case 'PENDING':
+      case 'WARNING':
         return 'bg-amber-500';
 
-      case 'OnLeave':
-      case 'Warning':
+      case 'ONLEAVE':
+      case 'OFFDUTY':
         return 'bg-blue-500';
 
-      case 'OffDuty':
-      case 'Cancelled':
-      case 'Rejected':
-      case 'Error':
+      case 'CANCELLED':
+      case 'REJECTED':
+      case 'ERROR':
         return 'bg-rose-500';
 
       default:
@@ -80,35 +100,36 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customLabel })
     }
   };
 
-  const formatText = (st: string) => {
+  const formatText = () => {
     if (customLabel) return customLabel;
-    switch (st) {
-      case 'Active': return 'Đang hoạt động';
-      case 'OnLeave': return 'Nghỉ phép';
-      case 'OffDuty': return 'Nghỉ ca';
-      case 'Busy': return 'Đang khám';
-      case 'Confirmed': return 'Đã xác nhận';
-      case 'Completed': return 'Hoàn thành';
-      case 'Pending': return 'Chờ phê duyệt';
-      case 'Cancelled': return 'Đã hủy';
-      case 'InProgress': return 'Đang tiến hành';
-      case 'Approved': return 'Đã duyệt';
-      case 'Rejected': return 'Từ chối';
-      case 'Success': return 'Thành công';
-      case 'Warning': return 'Cảnh báo';
-      case 'Error': return 'Lỗi';
-      default: return st;
+    switch (norm) {
+      case 'ACTIVE': return 'Đang hoạt động';
+      case 'AVAILABLE': return 'Đang hoạt động';
+      case 'ONLEAVE': return 'Nghỉ phép';
+      case 'OFFDUTY': return 'Nghỉ ca';
+      case 'BUSY': return 'Đang khám';
+      case 'CONFIRMED': return 'Đã xác nhận';
+      case 'CHECKED_IN': return 'Đã check-in';
+      case 'COMPLETED': return 'Đã hoàn thành';
+      case 'PENDING': return 'Chờ xác nhận';
+      case 'CANCELLED': return 'Đã hủy';
+      case 'INPROGRESS':
+      case 'IN_PROGRESS': return 'Đang khám';
+      case 'APPROVED': return 'Đã duyệt';
+      case 'REJECTED': return 'Từ chối';
+      case 'SUCCESS': return 'Thành công';
+      case 'WARNING': return 'Cảnh báo';
+      case 'ERROR': return 'Lỗi';
+      default: return status;
     }
   };
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getBadgeStyle(
-        status
-      )}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${getBadgeStyle()}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${getDotStyle(status)}`} />
-      {formatText(status)}
+      <span className={`w-1.5 h-1.5 rounded-full ${getDotStyle()}`} />
+      {formatText()}
     </span>
   );
 };

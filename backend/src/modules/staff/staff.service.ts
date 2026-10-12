@@ -46,6 +46,13 @@ export class StaffService {
     const where: any = {
       doctorProfile: { isNot: null },
       isActive: true,
+      userRoles: {
+        some: {
+          role: {
+            name: { in: ['DOCTOR', 'Doctor'] },
+          },
+        },
+      },
     };
 
     if (branchId) where.branchId = branchId;

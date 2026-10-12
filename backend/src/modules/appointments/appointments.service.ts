@@ -457,6 +457,287 @@ export class AppointmentsService {
     };
   }
 
+  async getSmartAiAvailableSlots(
+    branchId: string,
+    dateStr?: string,
+    durationMinutes: number = 60,
+    doctorId?: string,
+  ) {
+    const targetDateStr = dateStr || new Date().toISOString().split('T')[0];
+
+    // 1. Get all chairs at branch
+    const chairs = await this.prisma.operatoryChair.findMany({
+      where: {
+        room: { branchId },
+        status: 'AVAILABLE',
+      },
+      include: {
+        room: true,
+        assignedDoctor: { include: { user: true } },
+      },
+    });
+
+    // 2. Query existing appointments on this date
+    const startOfDay = new Date(`${targetDateStr}T00:00:00+07:00`);
+    const endOfDay = new Date(`${targetDateStr}T23:59:59+07:00`);
+
+    const existingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        branchId,
+        status: { notIn: ['CANCELLED'] },
+        startTime: { gte: startOfDay, lte: endOfDay },
+      },
+      include: {
+        chair: true,
+        doctor: true,
+      },
+    });
+
+    // Standard Clinic Slot Candidates
+    const slotTimes: string[] = [
+      '08:00', '08:45', '09:30', '10:15', '11:00',
+      '14:00', '14:45', '15:30', '16:15',
+    ];
+
+    // IF DOCTOR ID IS PROVIDED: Check availability for this specific doctor
+    if (doctorId) {
+      const selectedDoctor = await this.prisma.user.findFirst({
+        where: {
+          id: doctorId,
+          isActive: true,
+          userRoles: {
+            some: {
+              role: {
+                name: { in: ['DOCTOR', 'Doctor'] },
+              },
+            },
+          },
+        },
+        include: { doctorProfile: true },
+      });
+
+      const slots: any[] = [];
+
+      for (const timeStr of slotTimes) {
+        const [h] = timeStr.split(':').map(Number);
+        const slotStart = new Date(`${targetDateStr}T${timeStr}:00+07:00`);
+        const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
+        const slotBufferEnd = new Date(slotEnd.getTime() + 15 * 60 * 1000); // 15m sterilization buffer
+
+        let isAvailable = true;
+        let conflictReason: string | null = null;
+        let matchedChair: any = null;
+
+        // A. Check if the doctor has an overlapping appointment
+        const doctorDirectConflict = existingAppointments.find((a) => {
+          if (a.doctorId !== doctorId) return false;
+          return a.startTime < slotEnd && a.endTime > slotStart;
+        });
+
+        // B. Check if doctor or chair is in 15-minute sterilization buffer from previous appointment
+        const doctorBufferConflict = existingAppointments.find((a) => {
+          if (a.doctorId !== doctorId) return false;
+          // Sterilization buffer before or after ca khám
+          return a.startTime < slotBufferEnd && a.bufferEndTime > slotStart;
+        });
+
+        if (doctorDirectConflict) {
+          isAvailable = false;
+          conflictReason = `Bác sĩ ${selectedDoctor?.fullName || ''} đã có lịch hẹn ở khung giờ này`;
+        } else if (doctorBufferConflict) {
+          isAvailable = false;
+          conflictReason = `Bác sĩ ${selectedDoctor?.fullName || ''} đang trong 15 phút đệm khử trùng vô trùng`;
+        } else {
+          // C. Find an available chair
+          const freeChair = chairs.find((c) => {
+            const chairConflict = existingAppointments.find((a) => {
+              if (a.chairId !== c.id) return false;
+              return a.startTime < slotBufferEnd && a.bufferEndTime > slotStart;
+            });
+            return !chairConflict;
+          });
+
+          if (!freeChair) {
+            isAvailable = false;
+            conflictReason = 'Tất cả ghế điều trị tại cơ sở đều đang bận';
+          } else {
+            matchedChair = freeChair;
+          }
+        }
+
+        // Calculate AI Recommendation Score
+        let aiScore = 50;
+        let reason = 'Khung giờ trống tiêu chuẩn phòng khám';
+
+        if (isAvailable) {
+          // Bonus 1: Buffer Adjacency (+30)
+          const adjacentApp = existingAppointments.find((a) => {
+            if (matchedChair && a.chairId !== matchedChair.id) return false;
+            const diffMin = Math.abs((slotStart.getTime() - a.bufferEndTime.getTime()) / (60 * 1000));
+            return diffMin <= 15;
+          });
+
+          if (adjacentApp) {
+            aiScore += 30;
+            reason = 'Tối ưu liền sau đệm vô trùng 15p của ca trước - Giảm thời gian chờ';
+          }
+
+          // Bonus 2: Off-Peak load balancing (+20)
+          if ((h >= 9 && h <= 10) || (h >= 14 && h <= 15)) {
+            aiScore += 20;
+            if (!adjacentApp) {
+              reason = 'Khung giờ vàng lưu lượng chuẩn AI - Giảm tải áp lực phòng khám';
+            }
+          }
+        } else {
+          aiScore = 0;
+          reason = conflictReason || 'Khung giờ không khả dụng';
+        }
+
+        const isAiRecommended = isAvailable && aiScore >= 70;
+
+        slots.push({
+          time: timeStr,
+          startTime: slotStart.toISOString(),
+          endTime: slotEnd.toISOString(),
+          bufferEndTime: slotBufferEnd.toISOString(),
+          durationMinutes,
+          isAvailable,
+          conflictReason,
+          chairId: matchedChair?.id || null,
+          chairName: matchedChair?.name || null,
+          doctorId: doctorId,
+          doctorName: selectedDoctor?.fullName || 'Bác sĩ chuyên khoa',
+          doctorSpecialty: selectedDoctor?.doctorProfile?.specialty || 'Răng Hàm Mặt',
+          aiScore,
+          isAiRecommended,
+          reason,
+        });
+      }
+
+      return {
+        success: true,
+        branchId,
+        date: targetDateStr,
+        durationMinutes,
+        doctorId,
+        doctorName: selectedDoctor?.fullName,
+        totalSlots: slots.length,
+        availableCount: slots.filter((s) => s.isAvailable).length,
+        aiRecommendedCount: slots.filter((s) => s.isAiRecommended).length,
+        slots,
+      };
+    }
+
+    // IF DOCTOR ID IS NOT PROVIDED: Recommend best slots across all real doctors at branch
+    const doctors = await this.prisma.user.findMany({
+      where: {
+        branchId,
+        doctorProfile: { isNot: null },
+        isActive: true,
+        userRoles: {
+          some: {
+            role: {
+              name: { in: ['DOCTOR', 'Doctor'] },
+            },
+          },
+        },
+      },
+      include: { doctorProfile: true },
+    });
+
+    const recommendedSlots: any[] = [];
+
+    for (const timeStr of slotTimes) {
+      const [h] = timeStr.split(':').map(Number);
+      const slotStart = new Date(`${targetDateStr}T${timeStr}:00+07:00`);
+      const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60 * 1000);
+      const slotBufferEnd = new Date(slotEnd.getTime() + 15 * 60 * 1000); // 15m sterilization buffer
+
+      for (const chair of chairs) {
+        // Check if chair is occupied or in 15m sterilization buffer
+        const chairConflict = existingAppointments.find((a) => {
+          if (a.chairId !== chair.id) return false;
+          return a.startTime < slotBufferEnd && a.bufferEndTime > slotStart;
+        });
+
+        if (chairConflict) continue;
+
+        // Prioritize chair's assigned doctor if free
+        const assignedDocId = chair.assignedDoctor?.userId;
+        const candidateDocs = assignedDocId
+          ? doctors.filter((d) => d.id === assignedDocId).concat(doctors.filter((d) => d.id !== assignedDocId))
+          : doctors;
+
+        for (const doc of candidateDocs) {
+          const docConflict = existingAppointments.find((a) => {
+            if (a.doctorId !== doc.id) return false;
+            return a.startTime < slotBufferEnd && a.bufferEndTime > slotStart;
+          });
+
+          if (docConflict) continue;
+
+          // Calculate AI Score
+          let aiScore = 50;
+          let reason = 'Khung giờ trống tiêu chuẩn phòng khám';
+
+          const adjacentApp = existingAppointments.find((a) => {
+            if (a.chairId !== chair.id) return false;
+            const diffMin = Math.abs((slotStart.getTime() - a.bufferEndTime.getTime()) / (60 * 1000));
+            return diffMin <= 15;
+          });
+
+          if (adjacentApp) {
+            aiScore += 30;
+            reason = 'Tối ưu liền sau đệm vô trùng 15p của ca trước - Giảm thời gian chờ';
+          }
+
+          if ((h >= 9 && h <= 10) || (h >= 14 && h <= 15)) {
+            aiScore += 20;
+            if (!adjacentApp) {
+              reason = 'Khung giờ vàng lưu lượng chuẩn AI - Giảm tải áp lực phòng khám';
+            }
+          }
+
+          const isAiRecommended = aiScore >= 70;
+
+          recommendedSlots.push({
+            time: timeStr,
+            startTime: slotStart.toISOString(),
+            endTime: slotEnd.toISOString(),
+            bufferEndTime: slotBufferEnd.toISOString(),
+            durationMinutes,
+            isAvailable: true,
+            conflictReason: null,
+            chairId: chair.id,
+            chairName: chair.name,
+            doctorId: doc.id,
+            doctorName: doc.fullName,
+            doctorSpecialty: doc.doctorProfile?.specialty || 'Chuyên khoa Răng Hàm Mặt',
+            aiScore,
+            isAiRecommended,
+            reason,
+          });
+
+          break; // Match 1 doctor per chair & time
+        }
+      }
+    }
+
+    // Sort by AI Score descending
+    recommendedSlots.sort((a, b) => b.aiScore - a.aiScore);
+
+    return {
+      success: true,
+      branchId,
+      date: targetDateStr,
+      durationMinutes,
+      totalAvailableSlots: recommendedSlots.length,
+      aiRecommendedCount: recommendedSlots.filter((s) => s.isAiRecommended).length,
+      slots: recommendedSlots.slice(0, 12),
+    };
+  }
+
   async updateAppointment(
     id: string,
     data: {

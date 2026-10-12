@@ -62,6 +62,21 @@ export class AppointmentsController {
     );
   }
 
+  @Get('ai-smart-slots')
+  async getSmartAiSlots(
+    @Query('branchId') branchId: string,
+    @Query('date') date?: string,
+    @Query('durationMinutes') durationMinutes?: string,
+    @Query('doctorId') doctorId?: string,
+  ) {
+    return this.appointmentsService.getSmartAiAvailableSlots(
+      branchId,
+      date,
+      durationMinutes ? parseInt(durationMinutes, 10) : 60,
+      doctorId,
+    );
+  }
+
   @Post('check-in-qr')
   async checkInByQr(@Req() req: any, @Body() body: { qrPassCode: string }) {
     const userId = req.user?.sub || req.user?.id;
