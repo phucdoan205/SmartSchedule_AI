@@ -7,6 +7,8 @@
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:backend": "npm run start:dev --prefix backend",
     "dev:ai": "cd ai-service && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "tunnel:ai": "cd ai-service && .\\cloudflared.exe tunnel --url http://localhost:8000",
+    "dev:ai-tunnel": "concurrently -n \"AI-SERVICE,CLOUDFLARE\" -c \"magenta.bold,yellow.bold\" \"npm run dev:ai\" \"npm run tunnel:ai\"",
     "dev:core": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend"
   },
