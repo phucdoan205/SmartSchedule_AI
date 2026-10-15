@@ -9,6 +9,10 @@ import {
   ArrowRight,
   AlertCircle,
   QrCode,
+  MessageSquare,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { Modal } from '../../../components/common/Modal';
 import { VietQrPaymentModal } from '../../../components/dental/VietQrPaymentModal';
@@ -63,6 +67,27 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);
+  const [copiedZaloMsg, setCopiedZaloMsg] = useState(false);
+
+  const zaloBotUrl =
+    (import.meta as any).env?.VITE_ZALO_BOT_URL ||
+    'https://bot.zaloplatforms.com/bots/invite/bot.iSTtYWvM';
+
+  const handleCopyZaloMsg = (msg: string) => {
+    navigator.clipboard.writeText(msg);
+    setCopiedZaloMsg(true);
+    toast('Đã sao chép tin nhắn mẫu! Bạn hãy dán vào chat Zalo nhé.', 'success');
+    setTimeout(() => setCopiedZaloMsg(false), 2500);
+  };
+
+  const handleOpenZalo = () => {
+    const msg = `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`;
+    navigator.clipboard.writeText(msg).catch(() => {});
+    setCopiedZaloMsg(true);
+    toast('Đã sao chép tin nhắn! Khi cửa sổ Zalo mở lên, bạn chỉ cần nhấn Dán (Paste) và Gửi nhé.', 'success');
+    window.open(zaloBotUrl, '_blank');
+  };
+
 
   useEffect(() => {
     if (!isOpen) return;
@@ -579,6 +604,88 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Zalo Bot Automated Reminders & Interaction Section */}
+          <div className="p-4 bg-gradient-to-br from-blue-50/90 via-indigo-50/60 to-sky-50/90 rounded-2xl border border-blue-200/90 text-left space-y-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#0068FF] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 font-black text-xs tracking-tighter">
+                Zalo
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="text-xs font-black text-slate-900">
+                    Kích Hoạt Nhận Thông Báo Lịch &amp; Trợ Lý AI Zalo
+                  </h4>
+                  <span className="bg-blue-100 text-[#0068FF] text-[9px] px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wider">
+                    Quan Trọng
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                  Để Bot có thể tự động gửi tin nhắc lịch hẹn trước <strong>24 tiếng</strong> và trước <strong>1 tiếng</strong>, bạn hãy <strong>quét mã QR bằng App Zalo</strong> và gửi tin nhắn để hệ thống lưu ID của bạn.
+                </p>
+              </div>
+            </div>
+
+            {/* Suggested Message with 1-Click Copy */}
+            <div className="bg-white p-2.5 rounded-xl border border-blue-100 space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                <span className="text-slate-600">Nội dung tin nhắn mẫu:</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopyZaloMsg(
+                      `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`,
+                    )
+                  }
+                  className="inline-flex items-center gap-1 text-[#0068FF] hover:text-blue-800 font-bold cursor-pointer transition-colors"
+                >
+                  {copiedZaloMsg ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-600 font-bold">Đã sao chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Sao chép tin nhắn</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="font-mono text-[11px] font-bold text-slate-800 bg-slate-50/80 p-2 rounded-lg border border-slate-200 select-all">
+                Xác nhận lịch hẹn #{createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: {patientPhone}
+              </div>
+            </div>
+
+            {/* Two Action Options: QR Code or Direct Button */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-0.5">
+              {/* QR Code Container for Mobile Scanners */}
+              <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-blue-100 w-full sm:w-auto shadow-2xs">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&margin=3&data=${encodeURIComponent(
+                    zaloBotUrl,
+                  )}`}
+                  alt="Zalo Bot QR Code"
+                  className="w-14 h-14 rounded-lg border border-slate-200 shrink-0"
+                />
+                <div className="text-[10px] text-slate-500 leading-tight">
+                  <p className="font-bold text-slate-800 text-[11px]">Quét mã QR</p>
+                  <p className="mt-0.5 text-slate-500">Mở app Zalo quét mã để chat ngay với Bot</p>
+                </div>
+              </div>
+
+              {/* Direct Open Button */}
+              <button
+                type="button"
+                onClick={handleOpenZalo}
+                className="w-full sm:flex-1 py-3 px-3 bg-[#0068FF] hover:bg-[#0052cc] text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer text-center"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Mở Zalo &amp; Gửi Tin Kích Hoạt</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+              </button>
+            </div>
           </div>
 
           <button

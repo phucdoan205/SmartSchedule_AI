@@ -143,6 +143,24 @@ export const UserLookupPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Zalo Reminder Action */}
+                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Kích hoạt đệm vô trùng 15 phút</span>
+                    </div>
+                    <a
+                      href={(import.meta as any).env?.VITE_ZALO_BOT_URL || 'https://bot.zaloplatforms.com/groups/invite/bot.iSTtYWvM'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0068FF]/10 hover:bg-[#0068FF]/20 text-[#0068FF] font-bold text-[11px] transition-colors"
+                      title="Nhắn tin với Zalo Bot để nhận thông báo và nhắc lịch"
+                    >
+                      <span>Nhận nhắc lịch qua Zalo</span>
+                      <span className="text-[9px] bg-[#0068FF] text-white px-1.5 py-0.2 rounded-full font-bold">24/7</span>
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
