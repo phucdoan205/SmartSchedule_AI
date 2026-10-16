@@ -6,7 +6,21 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getHello(): any {
+    return {
+      status: 'active',
+      service: 'SmartSchedule AI Backend',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get('health')
+  getHealth(): any {
+    return {
+      status: 'ok',
+      service: 'SmartSchedule AI Health Check',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    };
   }
 }
