@@ -44,6 +44,78 @@ export class AiConsultationService implements OnModuleInit, OnModuleDestroy {
   }
 
 
+  /**
+   * Tư vấn y khoa qua Gemini 2.5 Flash khi ai-service (FastAPI local) không chạy
+   * Đảm bảo tính năng AI Tư Vấn trên Web hoạt động 24/7 trên Cloud ngay cả khi tắt máy tính
+   */
+  async consultWithGemini(symptoms?: string, file?: MulterFile): Promise<any> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+      const prompt = `
+Bạn là "Hệ thống AI Phân Tích & Chẩn Đoán Nha Khoa Thông Minh - SmartSchedule AI".
+Bệnh nhân đang yêu cầu tư vấn chuyên môn:
+- Triệu chứng bệnh nhân mô tả: "${symptoms || 'Bệnh nhân gửi ảnh chụp tình trạng răng miệng'}"
+${file ? '- Bệnh nhân có đính kèm hình ảnh răng miệng.' : ''}
+
+HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json) với cấu trúc:
+{
+  "diagnosis": "Câu chẩn đoán sơ bộ y khoa súc tích, chuyên nghiệp (2-3 câu)",
+  "riskLevel": "Thấp" | "Trung Bình" | "Cao",
+  "confidence": 95.5,
+  "suggestedSpecialty": "Nha Khoa Tổng Quát" | "Phục hình Răng Sứ" | "Cấy ghép Implant" | "Chỉnh Nha Niềng Răng" | "Tiểu phẫu Răng Khôn",
+  "regimen": [
+    "Bước 1: Khám lâm sàng và kiểm tra khoang miệng...",
+    "Bước 2: Chụp phim X-Quang / can thiệp điều trị...",
+    "Bước 3: Chăm sóc phục hồi và hướng dẫn tái khám..."
+  ],
+  "serviceCode": "DV-POR-01" | "DV-IMP-01" | "DV-ORT-01" | "DV-WHT-01" | "DV-EXT-01",
+  "serviceName": "Khám & Điều Trị Nha Khoa Tổng Quát" | "Bọc Răng Sứ Thẩm Mỹ" | "Cấy Ghép Implant" | "Niềng Răng Chỉnh Nha" | "Nhổ Răng Khôn Không Đau"
+}
+`;
+
+      const parts: any[] = [{ text: prompt }];
+      if (file && file.buffer) {
+        parts.push({
+          inline_data: {
+            mime_type: file.mimetype || 'image/jpeg',
+            data: file.buffer.toString('base64'),
+          },
+        });
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1024,
+            thinkingConfig: { thinkingBudget: 0 },
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!res.ok) return null;
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return null;
+
+      const parsed = JSON.parse(text);
+      return {
+        success: true,
+        ...parsed,
+      };
+    } catch (e: any) {
+      this.logger.warn(`consultWithGemini fallback error: ${e.message}`);
+      return null;
+    }
+  }
+
   async consult(dto: ConsultationDto, file?: MulterFile) {
     let uploadedImageUrl: string | undefined = undefined;
 
@@ -57,7 +129,7 @@ export class AiConsultationService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // 2. Call local AI Service (FastAPI)
+    // 2. Call local AI Service (FastAPI) nếu có
     let aiResponse: any = null;
     try {
       const formData = new FormData();
@@ -77,13 +149,25 @@ export class AiConsultationService implements OnModuleInit, OnModuleDestroy {
       if (res.ok) {
         aiResponse = await res.json();
       } else {
-        this.logger.error(`AI Service returned status ${res.status}: ${await res.text()}`);
+        this.logger.debug(`AI Service returned status ${res.status}: ${await res.text()}`);
       }
     } catch (err: any) {
-      this.logger.error(`Failed to connect to AI Service at ${this.aiServiceUrl}: ${err.message}`);
+      this.logger.debug(`AI Service at ${this.aiServiceUrl} not reachable. Switching to Gemini Cloud AI.`);
     }
 
-    // Fallback if AI Service is temporarily unavailable
+    // 3. Tự động chuyển sang Gemini 2.5 Flash Cloud nếu AI Service cục bộ không chạy
+    if (!aiResponse || !aiResponse.success) {
+      try {
+        const geminiRes = await this.consultWithGemini(dto.symptoms, file);
+        if (geminiRes && geminiRes.success) {
+          aiResponse = geminiRes;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Gemini consult fallback error: ${err.message}`);
+      }
+    }
+
+    // Fallback dự phòng cuối cùng nếu cả Gemini cũng gặp sự cố mạng
     if (!aiResponse || !aiResponse.success) {
       aiResponse = {
         diagnosis: dto.symptoms
