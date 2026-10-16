@@ -48,5 +48,27 @@ export class BranchesController {
     const userId = req.user?.sub || req.user?.id;
     return this.branchesService.update(id, body, userId);
   }
+
+  @Post(':id/rooms')
+  async createRoom(
+    @Param('id') branchId: string,
+    @Req() req: any,
+    @Body()
+    body: {
+      name: string;
+      roomNumber?: string;
+      floor?: number;
+      category?: string;
+      chairName?: string;
+      chairCode?: string;
+      status?: string;
+      assignedDoctorId?: string;
+      doctorName?: string;
+      equipments?: string[];
+    },
+  ) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.branchesService.createRoom(branchId, body, userId);
+  }
 }
 

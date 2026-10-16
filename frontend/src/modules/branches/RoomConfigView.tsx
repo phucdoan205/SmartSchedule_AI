@@ -237,21 +237,8 @@ export const RoomConfigView: React.FC<RoomConfigViewProps> = ({
                 )}
               </div>
 
-              {/* Card Footer: Toggle Web Booking & Action Buttons */}
-              <div className="pt-3 border-t border-slate-100 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700 text-[11px]">Cho phép đặt lịch Web</span>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={room.webBookingEnabled}
-                      onChange={() => onToggleWebBooking(room.id)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600" />
-                  </label>
-                </div>
-
+              {/* Card Footer: Action Buttons */}
+              <div className="pt-3 border-t border-slate-100">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"

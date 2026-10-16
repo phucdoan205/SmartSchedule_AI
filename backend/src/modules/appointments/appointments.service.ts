@@ -60,37 +60,70 @@ export class AppointmentsService {
 
     const created = await this.prisma.$transaction(async (tx) => {
       // 1. Kiểm tra trạng thái của ghế khám (Operatory Chair)
-      const chair = await tx.operatoryChair.findUnique({
-        where: { id: data.chairId },
-        include: { room: true },
-      });
-
-      if (!chair) {
-        throw new NotFoundException(`Ghế điều trị ID ${data.chairId} không tồn tại`);
+      let allocatedChair: any = null;
+      if (data.chairId) {
+        allocatedChair = await tx.operatoryChair.findUnique({
+          where: { id: data.chairId },
+          include: { room: true },
+        });
       }
 
-      if (chair.status === 'MAINTENANCE') {
-        throw new BadRequestException(
-          `Ghế ${chair.name} đang bảo trì, không thể xếp lịch`,
-        );
+      // Kiểm tra xem ghế chỉ định có khả dụng (không bảo trì và không trùng lịch đệm 15p) hay không
+      let isAllocatedChairBusy = false;
+      if (!allocatedChair || allocatedChair.status === 'MAINTENANCE') {
+        isAllocatedChairBusy = true;
+      } else {
+        const chairConflict = await tx.appointment.findFirst({
+          where: {
+            chairId: allocatedChair.id,
+            status: { notIn: ['CANCELLED'] },
+            AND: [
+              { startTime: { lt: bufferEnd } },
+              { bufferEndTime: { gt: start } },
+            ],
+          },
+        });
+        if (chairConflict) {
+          isAllocatedChairBusy = true;
+        }
       }
 
-      // 2. Kiểm tra xung đột lịch của Ghế điều trị (bao gồm cả đệm vô trùng 15p)
-      const chairConflict = await tx.appointment.findFirst({
-        where: {
-          chairId: data.chairId,
-          status: { notIn: ['CANCELLED'] },
-          AND: [
-            { startTime: { lt: bufferEnd } },
-            { bufferEndTime: { gt: start } },
-          ],
-        },
-      });
+      // Nếu ghế ban đầu bị bận hoặc bảo trì hoặc chưa có:
+      // Tự động tìm ghế khả dụng khác trong cùng chi nhánh
+      if (isAllocatedChairBusy) {
+        const branchChairs = await tx.operatoryChair.findMany({
+          where: {
+            room: { branchId: data.branchId },
+            status: 'AVAILABLE',
+          },
+          include: { room: true },
+        });
 
-      if (chairConflict) {
-        throw new BadRequestException(
-          `Ghế ${chair.name} đã bận hoặc đang trong thời gian đệm vô trùng 15 phút. Vui lòng chọn khung giờ khác.`,
-        );
+        let foundFreeChair: any = null;
+        for (const candidateChair of branchChairs) {
+          const conflict = await tx.appointment.findFirst({
+            where: {
+              chairId: candidateChair.id,
+              status: { notIn: ['CANCELLED'] },
+              AND: [
+                { startTime: { lt: bufferEnd } },
+                { bufferEndTime: { gt: start } },
+              ],
+            },
+          });
+          if (!conflict) {
+            foundFreeChair = candidateChair;
+            break;
+          }
+        }
+
+        if (foundFreeChair) {
+          allocatedChair = foundFreeChair;
+        } else {
+          throw new BadRequestException(
+            `Tất cả ghế điều trị tại cơ sở đều đang bận hoặc trong thời gian đệm vô trùng 15 phút tại khung giờ này. Vui lòng chọn khung giờ khác.`,
+          );
+        }
       }
 
       // 3. Kiểm tra xung đột lịch của Bác sĩ
@@ -176,7 +209,7 @@ export class AppointmentsService {
           patientId: patient.id,
           branchId: data.branchId,
           doctorId: data.doctorId,
-          chairId: data.chairId,
+          chairId: allocatedChair.id,
           startTime: start,
           endTime: end,
           bufferEndTime: bufferEnd,
@@ -367,19 +400,53 @@ export class AppointmentsService {
     const fromLabel = this.getStatusLabelVi(appointment.status);
     const toLabel = this.getStatusLabelVi(status);
 
-    const updated = await this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        status,
-        statusHistory: {
-          create: {
-            fromStatus: appointment.status,
-            toStatus: status,
-            reason: reason || `Cập nhật trạng thái sang ${toLabel}`,
-            changedBy,
-          },
+    const now = new Date();
+    const updatePayload: any = {
+      status,
+      statusHistory: {
+        create: {
+          fromStatus: appointment.status,
+          toStatus: status,
+          reason: reason || `Cập nhật trạng thái sang ${toLabel}`,
+          changedBy,
         },
       },
+    };
+
+    if (status === 'COMPLETED') {
+      updatePayload.endTime = now;
+      updatePayload.bufferEndTime = new Date(now.getTime() + 15 * 60 * 1000);
+      if (appointment.chairId) {
+        await this.prisma.operatoryChair
+          .update({
+            where: { id: appointment.chairId },
+            data: { status: 'AVAILABLE' },
+          })
+          .catch(() => {});
+      }
+    } else if (status === 'CANCELLED') {
+      if (appointment.chairId) {
+        await this.prisma.operatoryChair
+          .update({
+            where: { id: appointment.chairId },
+            data: { status: 'AVAILABLE' },
+          })
+          .catch(() => {});
+      }
+    } else if (status === 'IN_PROGRESS') {
+      if (appointment.chairId) {
+        await this.prisma.operatoryChair
+          .update({
+            where: { id: appointment.chairId },
+            data: { status: 'IN_USE' },
+          })
+          .catch(() => {});
+      }
+    }
+
+    const updated = await this.prisma.appointment.update({
+      where: { id: appointment.id },
+      data: updatePayload,
       include: {
         patient: true,
         doctor: true,

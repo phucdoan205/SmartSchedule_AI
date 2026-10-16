@@ -169,7 +169,7 @@ export const BranchDetailView: React.FC<BranchDetailViewProps> = ({
             <div className="flex items-center gap-2">
               <Armchair className="w-4 h-4 text-slate-400" />
               <span className="text-[11px] font-bold text-slate-800">
-                {branch?.chairCount || branch?.roomCount || 2} Ghế nha khoa
+                {branch?.chairCount || branch?.roomCount || 4} Ghế nha khoa
               </span>
             </div>
 

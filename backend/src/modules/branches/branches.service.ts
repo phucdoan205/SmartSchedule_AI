@@ -175,5 +175,122 @@ export class BranchesService {
 
     return updated;
   }
+
+  async createRoom(
+    branchId: string,
+    data: {
+      name: string;
+      roomNumber?: string;
+      floor?: number;
+      category?: string;
+      chairName?: string;
+      chairCode?: string;
+      status?: string;
+      assignedDoctorId?: string;
+      doctorName?: string;
+      equipments?: string[];
+    },
+    operatorUserId?: string,
+  ) {
+    const branch = await this.prisma.branch.findFirst({
+      where: {
+        OR: [{ id: branchId }, { code: branchId }, { name: { contains: branchId, mode: 'insensitive' } }],
+      },
+    });
+
+    if (!branch) {
+      throw new NotFoundException(`Chi nhánh ${branchId} không tồn tại`);
+    }
+
+    const currentRoomCount = await this.prisma.room.count({
+      where: { branchId: branch.id },
+    });
+
+    const nextIndex = currentRoomCount + 1;
+    const floor = Number(data.floor) || 1;
+    const roomNumber = data.roomNumber || `P.${floor}0${nextIndex}`;
+    const isMaintenance = data.status === 'MAINTENANCE' || data.status === 'maintenance';
+
+    // Find DoctorProfile if assignedDoctorId or doctorName is passed
+    let assignedDoctorId: string | null = null;
+    const doctorSearch = data.assignedDoctorId || data.doctorName;
+    if (doctorSearch) {
+      const doc = await this.prisma.doctorProfile.findFirst({
+        where: {
+          OR: [
+            { id: doctorSearch },
+            { userId: doctorSearch },
+            { user: { fullName: { contains: doctorSearch, mode: 'insensitive' } } },
+          ],
+        },
+      });
+      if (doc) {
+        assignedDoctorId = doc.id;
+      }
+    }
+
+    // Create Room
+    const room = await this.prisma.room.create({
+      data: {
+        branchId: branch.id,
+        name: data.name,
+        roomNumber,
+        floor,
+        isSterilized: !isMaintenance,
+      },
+    });
+
+    // Create Operatory Chair for this Room
+    const chairCode = data.chairCode || `GHE-${branch.code}-${String(nextIndex).padStart(2, '0')}`;
+    const chairName = data.chairName || `Ghế ${data.name}`;
+
+    const chair = await this.prisma.operatoryChair.create({
+      data: {
+        roomId: room.id,
+        code: chairCode,
+        name: chairName,
+        status: isMaintenance ? 'MAINTENANCE' : 'AVAILABLE',
+        assignedDoctorId,
+      },
+      include: {
+        assignedDoctor: {
+          include: { user: true },
+        },
+      },
+    });
+
+    // If equipments provided, link them to the chair
+    if (Array.isArray(data.equipments) && data.equipments.length > 0) {
+      for (let i = 0; i < data.equipments.length; i++) {
+        const eqName = data.equipments[i];
+        const eqCode = `TB-${branch.code}-${nextIndex}-${i + 1}`;
+        await this.prisma.equipment.create({
+          data: {
+            branchId: branch.id,
+            chairId: chair.id,
+            code: eqCode,
+            name: eqName,
+            serialNumber: `SN-${branch.code}-${Date.now()}-${i + 1}`,
+            status: 'OPERATIONAL',
+            category: 'dental_chair',
+          },
+        }).catch((err) => console.warn('Could not auto-create equipment:', err.message));
+      }
+    }
+
+    await this.auditLogsService.log({
+      userId: operatorUserId || null,
+      module: 'BRANCHES',
+      action: `Thêm phòng khám mới: ${room.name} (${room.roomNumber}) tại ${branch.name}`,
+      details: `Đã kích hoạt phòng khám ${room.name} kèm ghế nha khoa ${chair.name} (${chair.code}).`,
+      targetEntity: room.roomNumber,
+      status: 'SUCCESS',
+    });
+
+    return {
+      ...room,
+      chair,
+    };
+  }
 }
 

@@ -118,70 +118,136 @@ async function main() {
     },
   });
 
-  // 4. Rooms & Chairs
-  console.log('\n--- 4. Seeding Rooms & Operatory Chairs ---');
-  // Rooms for Branch 1
+  // 4. Rooms & Chairs (4 rooms and 4 chairs per branch = 12 rooms, 12 chairs total)
+  console.log('\n--- 4. Seeding Rooms & Operatory Chairs (12 rooms, 12 chairs) ---');
+  
+  // Branch 1 (Biên Hòa)
   const room101 = await prisma.room.upsert({
     where: { id: 'room-bh-101' },
-    update: {},
-    create: {
-      id: 'room-bh-101',
-      branchId: branch1.id,
-      roomNumber: 'P.101',
-      name: 'Phòng Phẫu Thuật Implant Vô Trùng',
-      floor: 1,
-      isSterilized: true,
-    },
+    update: { name: 'Phòng 01', roomNumber: 'P.101', floor: 1, branchId: branch1.id, isSterilized: true },
+    create: { id: 'room-bh-101', branchId: branch1.id, roomNumber: 'P.101', name: 'Phòng 01', floor: 1, isSterilized: true },
   });
-
   const room102 = await prisma.room.upsert({
     where: { id: 'room-bh-102' },
-    update: {},
-    create: {
-      id: 'room-bh-102',
-      branchId: branch1.id,
-      roomNumber: 'P.102',
-      name: 'Phòng Khám Răng Tổng Quát & Thẩm Mỹ',
-      floor: 1,
-      isSterilized: true,
-    },
+    update: { name: 'Phòng 02', roomNumber: 'P.102', floor: 2, branchId: branch1.id, isSterilized: true },
+    create: { id: 'room-bh-102', branchId: branch1.id, roomNumber: 'P.102', name: 'Phòng 02', floor: 2, isSterilized: true },
+  });
+  const room103 = await prisma.room.upsert({
+    where: { id: 'room-bh-103' },
+    update: { name: 'Phòng mổ 01', roomNumber: 'P.103', floor: 3, branchId: branch1.id, isSterilized: true },
+    create: { id: 'room-bh-103', branchId: branch1.id, roomNumber: 'P.103', name: 'Phòng mổ 01', floor: 3, isSterilized: true },
+  });
+  const room104 = await prisma.room.upsert({
+    where: { id: 'room-bh-104' },
+    update: { name: 'Phòng 04', roomNumber: 'P.104', floor: 1, branchId: branch1.id, isSterilized: true },
+    create: { id: 'room-bh-104', branchId: branch1.id, roomNumber: 'P.104', name: 'Phòng 04', floor: 1, isSterilized: true },
   });
 
-  // Chairs for Room 101 & 102
   const chair1 = await prisma.operatoryChair.upsert({
     where: { id: 'chair-bh-01' },
-    update: {},
-    create: {
-      id: 'chair-bh-01',
-      roomId: room101.id,
-      code: 'GHE-01',
-      name: 'Ghế Phẫu Thuật Vô Trùng Ghế 01',
-      status: 'AVAILABLE',
-    },
+    update: { roomId: room101.id, code: 'GHE-BH-01', name: 'Ghế Phẫu Thuật Vô Trùng Ghế 01' },
+    create: { id: 'chair-bh-01', roomId: room101.id, code: 'GHE-BH-01', name: 'Ghế Phẫu Thuật Vô Trùng Ghế 01', status: 'AVAILABLE' },
   });
-
   const chair2 = await prisma.operatoryChair.upsert({
     where: { id: 'chair-bh-02' },
-    update: {},
-    create: {
-      id: 'chair-bh-02',
-      roomId: room101.id,
-      code: 'GHE-02',
-      name: 'Ghế Phẫu Thuật Vô Trùng Ghế 02',
-      status: 'AVAILABLE',
-    },
+    update: { roomId: room102.id, code: 'GHE-BH-02', name: 'Ghế Phẫu Thuật Vô Trùng Ghế 02' },
+    create: { id: 'chair-bh-02', roomId: room102.id, code: 'GHE-BH-02', name: 'Ghế Phẫu Thuật Vô Trùng Ghế 02', status: 'AVAILABLE' },
   });
-
   const chair3 = await prisma.operatoryChair.upsert({
     where: { id: 'chair-bh-03' },
-    update: {},
-    create: {
-      id: 'chair-bh-03',
-      roomId: room102.id,
-      code: 'GHE-03',
-      name: 'Ghế Thẩm Mỹ Cao Cấp Ghế 03',
-      status: 'AVAILABLE',
-    },
+    update: { roomId: room103.id, code: 'GHE-BH-03', name: 'Ghế Thẩm Mỹ Cao Cấp Ghế 03' },
+    create: { id: 'chair-bh-03', roomId: room103.id, code: 'GHE-BH-03', name: 'Ghế Thẩm Mỹ Cao Cấp Ghế 03', status: 'AVAILABLE' },
+  });
+  const chair4 = await prisma.operatoryChair.upsert({
+    where: { id: 'chair-bh-04' },
+    update: { roomId: room104.id, code: 'GHE-BH-04', name: 'Ghế Khám Tổng Quát Ghế 04' },
+    create: { id: 'chair-bh-04', roomId: room104.id, code: 'GHE-BH-04', name: 'Ghế Khám Tổng Quát Ghế 04', status: 'AVAILABLE' },
+  });
+
+  // Branch 2 (Quận 1)
+  const roomQ1_101 = await prisma.room.upsert({
+    where: { id: 'room-q1-101' },
+    update: { name: 'Phòng 01', roomNumber: 'P.101', floor: 1, branchId: branch2.id, isSterilized: true },
+    create: { id: 'room-q1-101', branchId: branch2.id, roomNumber: 'P.101', name: 'Phòng 01', floor: 1, isSterilized: true },
+  });
+  const roomQ1_102 = await prisma.room.upsert({
+    where: { id: 'room-q1-102' },
+    update: { name: 'Phòng 02', roomNumber: 'P.102', floor: 2, branchId: branch2.id, isSterilized: true },
+    create: { id: 'room-q1-102', branchId: branch2.id, roomNumber: 'P.102', name: 'Phòng 02', floor: 2, isSterilized: true },
+  });
+  const roomQ1_103 = await prisma.room.upsert({
+    where: { id: 'room-q1-103' },
+    update: { name: 'Phòng mổ 01', roomNumber: 'P.103', floor: 3, branchId: branch2.id, isSterilized: true },
+    create: { id: 'room-q1-103', branchId: branch2.id, roomNumber: 'P.103', name: 'Phòng mổ 01', floor: 3, isSterilized: true },
+  });
+  const roomQ1_104 = await prisma.room.upsert({
+    where: { id: 'room-q1-104' },
+    update: { name: 'Phòng 04', roomNumber: 'P.104', floor: 1, branchId: branch2.id, isSterilized: true },
+    create: { id: 'room-q1-104', branchId: branch2.id, roomNumber: 'P.104', name: 'Phòng 04', floor: 1, isSterilized: true },
+  });
+
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-q1-01' },
+    update: { roomId: roomQ1_101.id, code: 'GHE-Q1-01', name: 'Ghế Nha Khoa Đa Năng 01 (Q.1)' },
+    create: { id: 'chair-q1-01', roomId: roomQ1_101.id, code: 'GHE-Q1-01', name: 'Ghế Nha Khoa Đa Năng 01 (Q.1)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-q1-02' },
+    update: { roomId: roomQ1_102.id, code: 'GHE-Q1-02', name: 'Ghế Nha Khoa Thẩm Mỹ 02 (Q.1)' },
+    create: { id: 'chair-q1-02', roomId: roomQ1_102.id, code: 'GHE-Q1-02', name: 'Ghế Nha Khoa Thẩm Mỹ 02 (Q.1)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-q1-03' },
+    update: { roomId: roomQ1_103.id, code: 'GHE-Q1-03', name: 'Ghế Phẫu Thuật Vô Trùng 03 (Q.1)' },
+    create: { id: 'chair-q1-03', roomId: roomQ1_103.id, code: 'GHE-Q1-03', name: 'Ghế Phẫu Thuật Vô Trùng 03 (Q.1)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-q1-04' },
+    update: { roomId: roomQ1_104.id, code: 'GHE-Q1-04', name: 'Ghế Khám Tổng Quát 04 (Q.1)' },
+    create: { id: 'chair-q1-04', roomId: roomQ1_104.id, code: 'GHE-Q1-04', name: 'Ghế Khám Tổng Quát 04 (Q.1)', status: 'AVAILABLE' },
+  });
+
+  // Branch 3 (Thủ Đức)
+  const roomTD_101 = await prisma.room.upsert({
+    where: { id: 'room-td-101' },
+    update: { name: 'Phòng 01', roomNumber: 'P.101', floor: 1, branchId: branch3.id, isSterilized: true },
+    create: { id: 'room-td-101', branchId: branch3.id, roomNumber: 'P.101', name: 'Phòng 01', floor: 1, isSterilized: true },
+  });
+  const roomTD_102 = await prisma.room.upsert({
+    where: { id: 'room-td-102' },
+    update: { name: 'Phòng 02', roomNumber: 'P.102', floor: 2, branchId: branch3.id, isSterilized: true },
+    create: { id: 'room-td-102', branchId: branch3.id, roomNumber: 'P.102', name: 'Phòng 02', floor: 2, isSterilized: true },
+  });
+  const roomTD_103 = await prisma.room.upsert({
+    where: { id: 'room-td-103' },
+    update: { name: 'Phòng mổ 01', roomNumber: 'P.103', floor: 3, branchId: branch3.id, isSterilized: true },
+    create: { id: 'room-td-103', branchId: branch3.id, roomNumber: 'P.103', name: 'Phòng mổ 01', floor: 3, isSterilized: true },
+  });
+  const roomTD_104 = await prisma.room.upsert({
+    where: { id: 'room-td-104' },
+    update: { name: 'Phòng 04', roomNumber: 'P.104', floor: 1, branchId: branch3.id, isSterilized: true },
+    create: { id: 'room-td-104', branchId: branch3.id, roomNumber: 'P.104', name: 'Phòng 04', floor: 1, isSterilized: true },
+  });
+
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-td-01' },
+    update: { roomId: roomTD_101.id, code: 'GHE-TD-01', name: 'Ghế Nha Khoa Đa Năng 01 (Thủ Đức)' },
+    create: { id: 'chair-td-01', roomId: roomTD_101.id, code: 'GHE-TD-01', name: 'Ghế Nha Khoa Đa Năng 01 (Thủ Đức)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-td-02' },
+    update: { roomId: roomTD_102.id, code: 'GHE-TD-02', name: 'Ghế Phẫu Thuật Vô Trùng 02 (Thủ Đức)' },
+    create: { id: 'chair-td-02', roomId: roomTD_102.id, code: 'GHE-TD-02', name: 'Ghế Phẫu Thuật Vô Trùng 02 (Thủ Đức)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-td-03' },
+    update: { roomId: roomTD_103.id, code: 'GHE-TD-03', name: 'Ghế Cấy Ghép Implant 03 (Thủ Đức)' },
+    create: { id: 'chair-td-03', roomId: roomTD_103.id, code: 'GHE-TD-03', name: 'Ghế Cấy Ghép Implant 03 (Thủ Đức)', status: 'AVAILABLE' },
+  });
+  await prisma.operatoryChair.upsert({
+    where: { id: 'chair-td-04' },
+    update: { roomId: roomTD_104.id, code: 'GHE-TD-04', name: 'Ghế Khám Tổng Quát 04 (Thủ Đức)' },
+    create: { id: 'chair-td-04', roomId: roomTD_104.id, code: 'GHE-TD-04', name: 'Ghế Khám Tổng Quát 04 (Thủ Đức)', status: 'AVAILABLE' },
   });
 
   // 5. Service Categories & Real Services

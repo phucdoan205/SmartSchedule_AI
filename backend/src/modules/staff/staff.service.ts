@@ -55,9 +55,15 @@ export class StaffService {
       },
     };
 
-    if (branchId) where.branchId = branchId;
+    if (branchId && branchId !== 'ALL') {
+      where.OR = [
+        { branchId: branchId },
+        { branch: { code: branchId } },
+        { branch: { name: { contains: branchId, mode: 'insensitive' } } },
+      ];
+    }
     if (specialty) {
-      where.doctorProfile.specialty = { contains: specialty, mode: 'insensitive' };
+      where.doctorProfile = { specialty: { contains: specialty, mode: 'insensitive' } };
     }
 
     const doctors = await this.prisma.user.findMany({

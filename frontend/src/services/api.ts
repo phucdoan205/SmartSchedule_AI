@@ -108,6 +108,10 @@ export const branchesApi = {
     const res = await apiClient.patch(`/branches/${id}`, data);
     return res.data;
   },
+  createRoom: async (branchId: string, data: any) => {
+    const res = await apiClient.post(`/branches/${branchId}/rooms`, data);
+    return res.data;
+  },
 };
 
 // Staff & Doctors API

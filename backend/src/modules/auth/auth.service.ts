@@ -247,16 +247,25 @@ export class AuthService {
 
   async login(identity: string, passwordPlain: string) {
     const trimmed = (identity || '').trim();
-    const user = await this.prisma.user.findFirst({
+
+    const whereOr: any[] = [
+      { email: { equals: trimmed, mode: 'insensitive' } },
+      { employeeCode: { equals: trimmed, mode: 'insensitive' } },
+      { phone: trimmed },
+    ];
+    if (trimmed.toLowerCase() === 'admin') {
+      whereOr.push({ email: 'admin@smartschedule.ai' }, { employeeCode: 'NV-ADMIN' });
+    }
+    if (trimmed.toLowerCase().endsWith('@gmail.com')) {
+      whereOr.push({ email: { equals: trimmed.replace(/@gmail\.com$/i, '@smartschedule.ai'), mode: 'insensitive' } });
+    }
+    if (trimmed.toLowerCase().endsWith('@smartschedule.ai')) {
+      whereOr.push({ email: { equals: trimmed.replace(/@smartschedule\.ai$/i, '@gmail.com'), mode: 'insensitive' } });
+    }
+
+    const user: any = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email: { equals: trimmed, mode: 'insensitive' } },
-          { employeeCode: { equals: trimmed, mode: 'insensitive' } },
-          { phone: trimmed },
-          ...(trimmed.toLowerCase() === 'admin'
-            ? [{ email: 'admin@smartschedule.ai' }, { employeeCode: 'NV-ADMIN' }]
-            : []),
-        ],
+        OR: whereOr,
       },
       include: {
         branch: true,
@@ -294,9 +303,9 @@ export class AuthService {
 
     const isDefaultPassword = passwordPlain === '123456' || (await bcrypt.compare('123456', user.passwordHash));
 
-    const roles = user.userRoles.map((ur) => ur.role.name);
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
+    const roles = user.userRoles.map((ur: any) => ur.role.name);
+    const permissions = user.userRoles.flatMap((ur: any) =>
+      ur.role.rolePermissions.map((rp: any) => rp.permission.code),
     );
 
     const payload = {

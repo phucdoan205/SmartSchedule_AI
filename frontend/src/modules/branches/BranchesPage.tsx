@@ -25,7 +25,7 @@ import { RoomHistoryModal } from './modals/RoomHistoryModal';
 import branch1Img from '../../assets/cơ sở 1.jpg';
 import branch2Img from '../../assets/cơ sở 2.jpg';
 import branch3Img from '../../assets/cơ sở 3.jpg';
-import { branchesApi, staffApi, appointmentApi } from '../../services/api';
+import { branchesApi, staffApi, appointmentApi, operatoriesApi } from '../../services/api';
 import { useBranch } from '../../context/BranchContext';
 import { useAuth } from '../../context/AuthContext';
 import { rolePermissionStore } from '../../services/rolePermissionStore';
@@ -60,40 +60,18 @@ export const BranchesPage: React.FC = () => {
   const [doctorsCount, setDoctorsCount] = useState<number>(0);
   const [appointments, setAppointments] = useState<any[]>([]);
 
-  // Helper to load or initialize rooms from localStorage & real appointments
-  const getBranchRooms = (branchId: string, appointmentsList: any[] = []): RoomItem[] => {
-    const key = `smartschedule_branch_rooms_${branchId || 'default'}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-
-    const branchAppts = appointmentsList.filter(
-      (a: any) => (!a.branchId || a.branchId === branchId) && a.status !== 'CANCELLED'
-    );
-    const firstAppt = branchAppts[0] || appointmentsList[0];
-    const secondAppt = branchAppts[1] || appointmentsList[1];
-
-    const p1Name = firstAppt?.patient?.fullName || 'Đoàn Văn Phúc';
-    const d1Name = firstAppt?.doctor?.fullName || 'BS. Nguyễn Thị An';
-    const s1Name = firstAppt?.services?.[0]?.service?.name || 'Khám & Điều trị tủy răng';
-
-    const p2Name = secondAppt?.patient?.fullName || 'Lê Trần Tiến Luật';
-    const d2Name = secondAppt?.doctor?.fullName || 'TS.BS. Nguyễn Minh Anh';
-    const s2Name = secondAppt?.services?.[0]?.service?.name || 'Cấy ghép Implant Straumann';
-
-    const initialRooms: RoomItem[] = [
+  // Helper to load and dynamically evaluate rooms from real appointments & sterilization buffer
+  const getBranchRooms = (
+    branchId: string,
+    appointmentsList: any[] = [],
+    dbRoomsList?: any[],
+  ): RoomItem[] => {
+    const baseRooms = [
       {
         id: 'r1',
         name: 'Phòng 01',
         floor: 'Tầng 1 (Khám & Cạo vôi)',
-        status: 'InUse',
-        statusLabel: 'Đang có bệnh nhân',
-        doctorName: d1Name,
-        currentPatient: { name: p1Name, time: '09:00 - 10:00' },
+        doctorName: 'BS. Nguyễn Thị An',
         equipment: 'Máy lấy cao răng siêu âm Satelec',
         webBookingEnabled: true,
       },
@@ -101,39 +79,168 @@ export const BranchesPage: React.FC = () => {
         id: 'r2',
         name: 'Phòng 02',
         floor: 'Tầng 2 (Phục hình Sứ)',
-        status: 'Ready',
-        statusLabel: 'Sẵn sàng',
-        doctorName: d2Name,
-        nextAppointment: { time: '10:30', service: s2Name },
+        doctorName: 'BS. Lê Thị Lan',
+        equipment: 'Máy lấy dấu kỹ thuật số 3Shape Trios',
         webBookingEnabled: true,
       },
       {
         id: 'r3',
         name: 'Phòng mổ 01',
         floor: 'Tầng 3 (Phẫu thuật Implant)',
-        status: 'Sterilized',
-        statusLabel: 'Vô trùng hoàn tất',
         doctorName: 'BS.CKI Nguyễn Văn Tuấn',
         equipment: 'Máy phẫu thuật Implant Surgic Pro',
-        webBookingEnabled: false,
+        webBookingEnabled: true,
       },
       {
         id: 'r4',
         name: 'Phòng 04',
-        floor: 'Tầng 1',
-        status: 'Maintenance',
-        statusLabel: 'Bảo trì / Thay lọc',
+        floor: 'Tầng 1 (Chỉnh nha & Khám tổng quát)',
         doctorName: 'BS. Vũ Phương Thảo',
         equipment: 'Hệ thống khử khuẩn tia cực tím UV-C',
-        webBookingEnabled: false,
+        webBookingEnabled: true,
       },
     ];
 
-    try {
-      localStorage.setItem(key, JSON.stringify(initialRooms));
-    } catch (e) {}
+    const defaultEquipmentMap: Record<number, string> = {
+      1: 'Máy lấy cao răng siêu âm Satelec',
+      2: 'Máy lấy dấu kỹ thuật số 3Shape Trios',
+      3: 'Máy phẫu thuật Implant Surgic Pro',
+      4: 'Hệ thống khử khuẩn tia cực tím UV-C',
+    };
 
-    return initialRooms;
+    let roomsToMap = baseRooms;
+    if (Array.isArray(dbRoomsList) && dbRoomsList.length > 0) {
+      roomsToMap = dbRoomsList.map((r: any, idx: number) => {
+        const chair = r.chairs?.[0];
+        const docName =
+          chair?.assignedDoctor?.user?.fullName ||
+          r.assignedDoctorName ||
+          baseRooms[idx]?.doctorName ||
+          'Chưa gán bác sĩ';
+        const eqName =
+          chair?.equipments?.[0]?.name ||
+          defaultEquipmentMap[idx + 1] ||
+          'Máy lấy cao răng siêu âm Satelec';
+        const floorStr = r.floor
+          ? `Tầng ${r.floor} (${
+              r.name.includes('mổ') || r.floor === 3
+                ? 'Phẫu thuật Implant'
+                : r.floor === 2
+                ? 'Phục hình Sứ'
+                : 'Khám & Cạo vôi'
+            })`
+          : baseRooms[idx]?.floor || 'Tầng 1';
+
+        return {
+          id: r.id,
+          name: r.name,
+          floor: floorStr,
+          doctorName: docName,
+          equipment: eqName,
+          webBookingEnabled: true,
+          initialMaintenance: chair?.status === 'MAINTENANCE' || r.isSterilized === false,
+        };
+      });
+    }
+
+    const branchAppts = appointmentsList.filter((a: any) => {
+      return !a.branchId || a.branchId === branchId || a.branch?.id === branchId;
+    });
+
+    const now = new Date();
+
+    return roomsToMap.map((baseRoom, index) => {
+      const roomAppts = branchAppts.filter((a: any) => {
+        const docName = a.doctor?.fullName || a.doctorName;
+        return docName === baseRoom.doctorName || (!docName && index === 0);
+      });
+
+      // 1. Kiểm tra xem có ca khám nào ĐANG THỰC HIỆN (IN_PROGRESS) không
+      const inProgressAppt = roomAppts.find((a: any) => {
+        const st = (a.status || '').toUpperCase();
+        return st === 'IN_PROGRESS' || st === 'INPROGRESS';
+      });
+
+      // 2. Kiểm tra xem có ca khám nào VỪA HOÀN THÀNH trong đệm vô trùng 15 phút không
+      const recentCompletedAppt = roomAppts.find((a: any) => {
+        const st = (a.status || '').toUpperCase();
+        if (st !== 'COMPLETED') return false;
+        const endTime = a.endTime ? new Date(a.endTime) : new Date(a.updatedAt || a.startTime);
+        const bufferEnd = a.bufferEndTime
+          ? new Date(a.bufferEndTime)
+          : new Date(endTime.getTime() + 15 * 60 * 1000);
+        return now >= endTime && now < bufferEnd;
+      });
+
+      // 3. Tìm ca khám tiếp theo sắp tới (CONFIRMED hoặc PENDING)
+      const upcomingAppt = roomAppts.find((a: any) => {
+        const st = (a.status || '').toUpperCase();
+        if (st === 'CANCELLED' || st === 'COMPLETED' || st === 'IN_PROGRESS' || st === 'INPROGRESS') {
+          return false;
+        }
+        const start = new Date(a.startTime);
+        return start > now;
+      });
+
+      let status: 'InUse' | 'Ready' | 'Sterilized' | 'Maintenance' = 'Ready';
+      let statusLabel = 'Sẵn sàng';
+      let currentPatient: { name: string; time: string } | undefined = undefined;
+
+      if (inProgressAppt) {
+        status = 'InUse';
+        statusLabel = 'Đang có bệnh nhân';
+        const pName = inProgressAppt.patient?.fullName || inProgressAppt.patientName || 'Bệnh nhân';
+        const startStr = inProgressAppt.startTime
+          ? new Date(inProgressAppt.startTime).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '09:00';
+        const endStr = inProgressAppt.endTime
+          ? new Date(inProgressAppt.endTime).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '10:00';
+        currentPatient = { name: pName, time: `${startStr} - ${endStr}` };
+      } else if (recentCompletedAppt) {
+        status = 'Sterilized';
+        statusLabel = 'Đang vô trùng';
+        currentPatient = undefined;
+      } else if ((baseRoom as any).initialMaintenance) {
+        status = 'Maintenance';
+        statusLabel = 'Bảo trì / Thay lọc';
+        currentPatient = undefined;
+      } else {
+        status = 'Ready';
+        statusLabel = 'Sẵn sàng';
+        currentPatient = undefined;
+      }
+
+      let nextAppointment: { time: string; service: string } | undefined = undefined;
+      if (upcomingAppt) {
+        const upStartStr = new Date(upcomingAppt.startTime).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const serviceName =
+          upcomingAppt.services?.[0]?.service?.name || upcomingAppt.service || 'Khám tổng quát';
+        nextAppointment = { time: upStartStr, service: serviceName };
+      }
+
+      return {
+        id: baseRoom.id,
+        name: baseRoom.name,
+        floor: baseRoom.floor,
+        doctorName: baseRoom.doctorName,
+        equipment: baseRoom.equipment,
+        webBookingEnabled: baseRoom.webBookingEnabled,
+        status,
+        statusLabel,
+        currentPatient,
+        nextAppointment,
+      };
+    });
   };
 
   const [rooms, setRooms] = useState<RoomItem[]>(() => getBranchRooms('b-bienhoa'));
@@ -155,7 +262,13 @@ export const BranchesPage: React.FC = () => {
               const savedStatus = localStorage.getItem(`smartschedule_branch_status_${b.id}`);
               const savedLabel = localStorage.getItem(`smartschedule_branch_statusLabel_${b.id}`);
               const status = savedStatus || (b.isActive ? 'Active' : 'Inactive');
-              const statusLabel = savedLabel || (status === 'Active' ? 'ĐANG HOẠT ĐỘNG' : status === 'Maintenance' ? 'BẢO TRÌ TẠM THỜI' : 'TẠM NGƯNG');
+              const statusLabel =
+                savedLabel ||
+                (status === 'Active'
+                  ? 'ĐANG HOẠT ĐỘNG'
+                  : status === 'Maintenance'
+                  ? 'BẢO TRÌ TẠM THỜI'
+                  : 'TẠM NGƯNG');
               return {
                 id: b.id,
                 name: b.name,
@@ -175,7 +288,8 @@ export const BranchesPage: React.FC = () => {
             }),
           );
           setSelectedBranchId(data[0].id);
-          setRooms(getBranchRooms(data[0].id, apptsArray));
+          const initialDbRooms = await operatoriesApi.getByBranch(data[0].id).catch(() => []);
+          setRooms(getBranchRooms(data[0].id, apptsArray, initialDbRooms));
         }
         if (Array.isArray(staffList)) {
           setStaffCount(staffList.length);
@@ -192,13 +306,27 @@ export const BranchesPage: React.FC = () => {
   React.useEffect(() => {
     if (globalBranchId && globalBranchId !== 'ALL' && branches.some((b) => b.id === globalBranchId)) {
       setSelectedBranchId(globalBranchId);
-      setRooms(getBranchRooms(globalBranchId, appointments));
+      operatoriesApi
+        .getByBranch(globalBranchId)
+        .then((dbRooms) => {
+          setRooms(getBranchRooms(globalBranchId, appointments, dbRooms));
+        })
+        .catch(() => {
+          setRooms(getBranchRooms(globalBranchId, appointments));
+        });
     }
   }, [globalBranchId, branches]);
 
   React.useEffect(() => {
     if (selectedBranchId) {
-      setRooms(getBranchRooms(selectedBranchId, appointments));
+      operatoriesApi
+        .getByBranch(selectedBranchId)
+        .then((dbRooms) => {
+          setRooms(getBranchRooms(selectedBranchId, appointments, dbRooms));
+        })
+        .catch(() => {
+          setRooms(getBranchRooms(selectedBranchId, appointments));
+        });
     }
   }, [selectedBranchId]);
 
@@ -219,7 +347,57 @@ export const BranchesPage: React.FC = () => {
 
   const currentBranch = branches.find((b) => b.id === selectedBranchId) || branches[0] || defaultBranch;
 
-  // Actions for Navigation
+  // Sync with Kanban drag-and-drop status changes in real-time
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+    const ch = new BroadcastChannel('smartschedule_sync');
+    ch.onmessage = async (e) => {
+      if (e.data?.type === 'APPOINTMENT_STATUS_UPDATED' || e.data?.type === 'BRANCH_ROOMS_UPDATED') {
+        const [freshAppts, freshBranches, freshDbRooms] = await Promise.all([
+          appointmentApi.getAppointments().catch(() => []),
+          branchesApi.getAll().catch(() => []),
+          operatoriesApi.getByBranch(selectedBranchId).catch(() => []),
+        ]);
+        const apptsArray = Array.isArray(freshAppts) ? freshAppts : freshAppts?.data || [];
+        setAppointments(apptsArray);
+        if (Array.isArray(freshBranches) && freshBranches.length > 0) {
+          setBranches(
+            freshBranches.map((b: any, idx: number) => {
+              const savedStatus = localStorage.getItem(`smartschedule_branch_status_${b.id}`);
+              const savedLabel = localStorage.getItem(`smartschedule_branch_statusLabel_${b.id}`);
+              const status = savedStatus || (b.isActive ? 'Active' : 'Inactive');
+              const statusLabel =
+                savedLabel ||
+                (status === 'Active'
+                  ? 'ĐANG HOẠT ĐỘNG'
+                  : status === 'Maintenance'
+                  ? 'BẢO TRÌ TẠM THỜI'
+                  : 'TẠM NGƯNG');
+              return {
+                id: b.id,
+                name: b.name,
+                subtitle: idx === 0 ? '(Trụ sở chính)' : '',
+                address: b.address,
+                phone: b.phone,
+                email: `${b.code.toLowerCase()}@vietanhduc.vn`,
+                status,
+                statusLabel,
+                isActive: status === 'Active',
+                roomCount: b.roomCount || 0,
+                chairCount: b.chairCount || b.roomCount || 0,
+                doctorCount: b.doctorCount || 0,
+                performance: 92,
+                image: b.imageUrl || (idx === 0 ? branch1Img : idx === 1 ? branch2Img : branch3Img),
+              };
+            }),
+          );
+        }
+        setRooms(getBranchRooms(selectedBranchId, apptsArray, freshDbRooms));
+      }
+    };
+    return () => ch.close();
+  }, [selectedBranchId]);
+
   const handleOpenDetail = (branchId: string) => {
     setSelectedBranchId(branchId);
     setActiveView('detail');
@@ -230,37 +408,35 @@ export const BranchesPage: React.FC = () => {
     setActiveView('staff_allocation');
   };
 
-  const handleOpenRoomConfig = (branchId: string) => {
+  const handleOpenRoomConfig = async (branchId: string) => {
     setSelectedBranchId(branchId);
     setActiveView('room_config');
+    try {
+      const [freshAppts, dbRooms] = await Promise.all([
+        appointmentApi.getAppointments().catch(() => []),
+        operatoriesApi.getByBranch(branchId).catch(() => []),
+      ]);
+      const apptsArray = Array.isArray(freshAppts) ? freshAppts : freshAppts?.data || [];
+      setAppointments(apptsArray);
+      setRooms(getBranchRooms(branchId, apptsArray, dbRooms));
+    } catch (e) {}
   };
 
-  // Actions for Rooms with LocalStorage Persistence
   const handleToggleWebBooking = (roomId: string) => {
-    setRooms((prev) => {
-      const next = prev.map((r) => (r.id === roomId ? { ...r, webBookingEnabled: !r.webBookingEnabled } : r));
-      const key = `smartschedule_branch_rooms_${selectedBranchId || 'default'}`;
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
+    setRooms((prev) =>
+      prev.map((r) => (r.id === roomId ? { ...r, webBookingEnabled: !r.webBookingEnabled } : r))
+    );
   };
 
   const handleReopenRoom = (roomId: string) => {
-    setRooms((prev) => {
-      const next = prev.map((r) =>
+    setRooms((prev) =>
+      prev.map((r) =>
         r.id === roomId
-          ? { ...r, status: 'Ready' as const, statusLabel: 'Sẵn sàng', doctorName: 'BS. Vũ Phương Thảo' }
+          ? { ...r, status: 'Ready' as const, statusLabel: 'Sẵn sàng' }
           : r
-      );
-      const key = `smartschedule_branch_rooms_${selectedBranchId || 'default'}`;
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch (e) {}
-      toast('✓ Đã mở lại hoạt động cho phòng khám và lưu trạng thái thành công!');
-      return next;
-    });
+      )
+    );
+    toast('✓ Đã mở lại hoạt động cho phòng khám thành công!');
   };
 
   const handleOpenChangeDoctor = (room: RoomItem) => {
@@ -273,28 +449,9 @@ export const BranchesPage: React.FC = () => {
     setIsRoomHistoryOpen(true);
   };
 
-  const handleSaveUpdatedBranch = async (updated: any) => {
-    try {
-      if (updated.id && !updated.id.startsWith('b-default')) {
-        await branchesApi.update(updated.id, {
-          name: updated.name,
-          address: updated.address,
-          phone: updated.phone,
-          isActive: updated.status === 'Active' || updated.isActive === true,
-          status: updated.status,
-        });
-      }
-      localStorage.setItem(`smartschedule_branch_status_${updated.id}`, updated.status);
-      localStorage.setItem(`smartschedule_branch_statusLabel_${updated.id}`, updated.statusLabel);
-      setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
-      refreshGlobalBranches();
-      toast(`Đã lưu và đồng bộ thông tin chi nhánh "${updated.name}" thành công!`);
-    } catch (err: any) {
-      console.warn('Lưu chi nhánh vào server gặp sự cố, cập nhật giao diện trực tiếp:', err);
-      localStorage.setItem(`smartschedule_branch_status_${updated.id}`, updated.status);
-      localStorage.setItem(`smartschedule_branch_statusLabel_${updated.id}`, updated.statusLabel);
-      setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
-      refreshGlobalBranches();
+  const handleSaveEditBranch = (updated: any) => {
+    setBranches((prev) => prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b)));
+    if (updated.id === selectedBranchId) {
       toast(`Đã cập nhật thông tin chi nhánh "${updated.name}"!`);
     }
   };
@@ -313,16 +470,74 @@ export const BranchesPage: React.FC = () => {
     refreshGlobalBranches();
   };
 
-  const handleAddNewRoom = (newRoom: any) => {
-    setRooms((prev) => {
-      const next = [...prev, newRoom];
-      const key = `smartschedule_branch_rooms_${selectedBranchId || 'default'}`;
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
-    toast('✓ Đã thêm phòng khám mới thành công!');
+  const handleAddNewRoom = async (roomData: any) => {
+    try {
+      const targetBranchId = selectedBranchId || branches[0]?.id;
+      if (!targetBranchId) throw new Error('Chưa chọn chi nhánh');
+
+      // 1. Lưu vào Database thật qua Backend API
+      await branchesApi.createRoom(targetBranchId, roomData);
+
+      // 2. Tải lại danh sách chi nhánh để cập nhật Stat Cards & Branch Cards từ Database thật!
+      const [freshBranches, freshAppts, freshDbRooms] = await Promise.all([
+        branchesApi.getAll(),
+        appointmentApi.getAppointments().catch(() => []),
+        operatoriesApi.getByBranch(targetBranchId).catch(() => []),
+      ]);
+
+      const apptsArray = Array.isArray(freshAppts) ? freshAppts : freshAppts?.data || [];
+      setAppointments(apptsArray);
+
+      if (freshBranches && freshBranches.length > 0) {
+        setBranches(
+          freshBranches.map((b: any, idx: number) => {
+            const savedStatus = localStorage.getItem(`smartschedule_branch_status_${b.id}`);
+            const savedLabel = localStorage.getItem(`smartschedule_branch_statusLabel_${b.id}`);
+            const status = savedStatus || (b.isActive ? 'Active' : 'Inactive');
+            const statusLabel =
+              savedLabel ||
+              (status === 'Active'
+                ? 'ĐANG HOẠT ĐỘNG'
+                : status === 'Maintenance'
+                ? 'BẢO TRÌ TẠM THỜI'
+                : 'TẠM NGƯNG');
+            return {
+              id: b.id,
+              name: b.name,
+              subtitle: idx === 0 ? '(Trụ sở chính)' : '',
+              address: b.address,
+              phone: b.phone,
+              email: `${b.code.toLowerCase()}@vietanhduc.vn`,
+              status,
+              statusLabel,
+              isActive: status === 'Active',
+              roomCount: b.roomCount || 0,
+              chairCount: b.chairCount || b.roomCount || 0,
+              doctorCount: b.doctorCount || 0,
+              performance: 92,
+              image: b.imageUrl || (idx === 0 ? branch1Img : idx === 1 ? branch2Img : branch3Img),
+            };
+          }),
+        );
+      }
+
+      // 3. Cập nhật danh sách phòng của chi nhánh hiện tại
+      setRooms(getBranchRooms(targetBranchId, apptsArray, freshDbRooms));
+
+      // 4. Phát tín hiệu đồng bộ realtime
+      refreshGlobalBranches();
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const ch = new BroadcastChannel('smartschedule_sync');
+        ch.postMessage({ type: 'BRANCH_ROOMS_UPDATED', branchId: targetBranchId });
+        ch.close();
+      }
+
+      toast(`✓ Đã thêm phòng khám "${roomData.name}" và lưu vào cơ sở dữ liệu thành công!`);
+    } catch (err: any) {
+      console.error('Lỗi khi thêm phòng khám:', err);
+      toast(err?.response?.data?.message || err?.message || 'Không thể tạo phòng khám. Vui lòng thử lại!');
+      throw err;
+    }
   };
 
   // Tính toán dữ liệu thời gian thực cho Stat Cards
@@ -481,7 +696,7 @@ export const BranchesPage: React.FC = () => {
                       {!isUpcoming ? (
                         <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                           <div className="flex items-center justify-between font-extrabold text-slate-900">
-                            <span className="flex items-center gap-1.5">🪑 {b.roomCount} Ghế nha khoa</span>
+                            <span className="flex items-center gap-1.5">🪑 {b.chairCount || b.roomCount || 4} Ghế nha khoa</span>
                             <span className="flex items-center gap-1.5">🩺 {b.doctorCount} Bác sĩ</span>
                           </div>
 
@@ -608,7 +823,7 @@ export const BranchesPage: React.FC = () => {
         isOpen={isEditBranchOpen}
         onClose={() => setIsEditBranchOpen(false)}
         branch={currentBranch}
-        onSave={handleSaveUpdatedBranch}
+        onSave={handleSaveEditBranch}
       />
 
       {/* 2. Modal: Thiết Lập & Thêm Chi Nhánh Mới */}
@@ -641,6 +856,7 @@ export const BranchesPage: React.FC = () => {
       <AddRoomModal
         isOpen={isAddRoomOpen}
         onClose={() => setIsAddRoomOpen(false)}
+        branchId={currentBranch?.id}
         branchName={currentBranch?.name || ''}
         onAddRoom={handleAddNewRoom}
       />
