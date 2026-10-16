@@ -622,6 +622,7 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
       if (context?.appointmentInfo) {
         const app = context.appointmentInfo;
         const startTimeStr = new Date(app.startTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
           dateStyle: 'full',
           timeStyle: 'short',
         });
@@ -1028,6 +1029,7 @@ Hoặc bạn có thể gửi **Số điện thoại** để em hỗ trợ đặt
       if (!replyMsg) {
         if (matchedAppointment) {
           const startTimeStr = new Date(matchedAppointment.startTime).toLocaleString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
             dateStyle: 'full',
             timeStyle: 'short',
           });
@@ -1119,6 +1121,7 @@ Em có thể hỗ trợ bạn:
       }
 
       const startTimeStr = new Date(app.startTime).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
         dateStyle: 'full',
         timeStyle: 'short',
       });
@@ -1228,6 +1231,7 @@ Nha Khoa Fruit xin phép nhắc bạn về lịch hẹn khám sắp tới:
         }
 
         const startTimeStr = new Date(app.startTime).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
           dateStyle: 'full',
           timeStyle: 'short',
         });
