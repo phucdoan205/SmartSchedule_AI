@@ -58,52 +58,34 @@ export class AppointmentsService {
     // Buffer vô trùng: thêm đúng 15 phút sau khi kết thúc
     const bufferEnd = new Date(end.getTime() + 15 * 60 * 1000);
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      // 1. Kiểm tra trạng thái của ghế khám (Operatory Chair)
-      let allocatedChair: any = null;
-      if (data.chairId) {
-        allocatedChair = await tx.operatoryChair.findUnique({
-          where: { id: data.chairId },
-          include: { room: true },
-        });
-      }
+    // 0. Lấy thông tin các dịch vụ trước khi mở transaction để tối ưu thời gian giao dịch
+    const services = await this.prisma.service.findMany({
+      where: { id: { in: data.serviceIds } },
+    });
 
-      // Kiểm tra xem ghế chỉ định có khả dụng (không bảo trì và không trùng lịch đệm 15p) hay không
-      let isAllocatedChairBusy = false;
-      if (!allocatedChair || allocatedChair.status === 'MAINTENANCE') {
-        isAllocatedChairBusy = true;
-      } else {
-        const chairConflict = await tx.appointment.findFirst({
-          where: {
-            chairId: allocatedChair.id,
-            status: { notIn: ['CANCELLED'] },
-            AND: [
-              { startTime: { lt: bufferEnd } },
-              { bufferEndTime: { gt: start } },
-            ],
-          },
-        });
-        if (chairConflict) {
-          isAllocatedChairBusy = true;
+    if (services.length === 0) {
+      throw new BadRequestException('Vui lòng chọn ít nhất một dịch vụ hợp lệ');
+    }
+
+    const created = await this.prisma.$transaction(
+      async (tx) => {
+        // 1. Kiểm tra trạng thái của ghế khám (Operatory Chair)
+        let allocatedChair: any = null;
+        if (data.chairId) {
+          allocatedChair = await tx.operatoryChair.findUnique({
+            where: { id: data.chairId },
+            include: { room: true },
+          });
         }
-      }
 
-      // Nếu ghế ban đầu bị bận hoặc bảo trì hoặc chưa có:
-      // Tự động tìm ghế khả dụng khác trong cùng chi nhánh
-      if (isAllocatedChairBusy) {
-        const branchChairs = await tx.operatoryChair.findMany({
-          where: {
-            room: { branchId: data.branchId },
-            status: 'AVAILABLE',
-          },
-          include: { room: true },
-        });
-
-        let foundFreeChair: any = null;
-        for (const candidateChair of branchChairs) {
-          const conflict = await tx.appointment.findFirst({
+        // Kiểm tra xem ghế chỉ định có khả dụng (không bảo trì và không trùng lịch đệm 15p) hay không
+        let isAllocatedChairBusy = false;
+        if (!allocatedChair || allocatedChair.status === 'MAINTENANCE') {
+          isAllocatedChairBusy = true;
+        } else {
+          const chairConflict = await tx.appointment.findFirst({
             where: {
-              chairId: candidateChair.id,
+              chairId: allocatedChair.id,
               status: { notIn: ['CANCELLED'] },
               AND: [
                 { startTime: { lt: bufferEnd } },
@@ -111,141 +93,162 @@ export class AppointmentsService {
               ],
             },
           });
-          if (!conflict) {
-            foundFreeChair = candidateChair;
-            break;
+          if (chairConflict) {
+            isAllocatedChairBusy = true;
           }
         }
 
-        if (foundFreeChair) {
-          allocatedChair = foundFreeChair;
-        } else {
+        // Nếu ghế ban đầu bị bận hoặc bảo trì hoặc chưa có:
+        // Tự động tìm ghế khả dụng khác trong cùng chi nhánh
+        if (isAllocatedChairBusy) {
+          const branchChairs = await tx.operatoryChair.findMany({
+            where: {
+              room: { branchId: data.branchId },
+              status: 'AVAILABLE',
+            },
+            include: { room: true },
+          });
+
+          const candidateChairIds = branchChairs.map((c) => c.id);
+          const busyAppointments = await tx.appointment.findMany({
+            where: {
+              chairId: { in: candidateChairIds },
+              status: { notIn: ['CANCELLED'] },
+              AND: [
+                { startTime: { lt: bufferEnd } },
+                { bufferEndTime: { gt: start } },
+              ],
+            },
+            select: { chairId: true },
+          });
+          const busyChairIdSet = new Set(busyAppointments.map((a) => a.chairId));
+          const foundFreeChair = branchChairs.find((c) => !busyChairIdSet.has(c.id));
+
+          if (foundFreeChair) {
+            allocatedChair = foundFreeChair;
+          } else {
+            throw new BadRequestException(
+              `Tất cả ghế điều trị tại cơ sở đều đang bận hoặc trong thời gian đệm vô trùng 15 phút tại khung giờ này. Vui lòng chọn khung giờ khác.`,
+            );
+          }
+        }
+
+        // 3. Kiểm tra xung đột lịch của Bác sĩ
+        const doctorConflict = await tx.appointment.findFirst({
+          where: {
+            doctorId: data.doctorId,
+            status: { notIn: ['CANCELLED'] },
+            AND: [
+              { startTime: { lt: end } },
+              { endTime: { gt: start } },
+            ],
+          },
+        });
+
+        if (doctorConflict) {
           throw new BadRequestException(
-            `Tất cả ghế điều trị tại cơ sở đều đang bận hoặc trong thời gian đệm vô trùng 15 phút tại khung giờ này. Vui lòng chọn khung giờ khác.`,
+            'Bác sĩ đã có lịch hẹn trùng giờ khám này. Vui lòng chọn thời gian khác.',
           );
         }
-      }
 
-      // 3. Kiểm tra xung đột lịch của Bác sĩ
-      const doctorConflict = await tx.appointment.findFirst({
-        where: {
-          doctorId: data.doctorId,
-          status: { notIn: ['CANCELLED'] },
-          AND: [
-            { startTime: { lt: end } },
-            { endTime: { gt: start } },
-          ],
-        },
-      });
-
-      if (doctorConflict) {
-        throw new BadRequestException(
-          'Bác sĩ đã có lịch hẹn trùng giờ khám này. Vui lòng chọn thời gian khác.',
-        );
-      }
-
-      // 4. Tìm hoặc tạo hồ sơ bệnh nhân
-      let patient = await tx.patient.findUnique({
-        where: { phone: data.patientPhone },
-      });
-
-      const calculatedBirthYear = data.birthYear
-        ? Number(data.birthYear)
-        : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
-      const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
-
-      if (!patient) {
-        const patientCode = await generatePatientCode(tx);
-        patient = await tx.patient.create({
-          data: {
-            patientCode,
-            fullName: data.patientName,
-            phone: data.patientPhone,
-            email: data.patientEmail,
-            birthYear: calculatedBirthYear,
-            gender: data.gender || 'Nam',
-            medicalAlerts: dobAlert || undefined,
-          },
+        // 4. Tìm hoặc tạo hồ sơ bệnh nhân
+        let patient = await tx.patient.findUnique({
+          where: { phone: data.patientPhone },
         });
-      } else {
-        // Cập nhật thông tin ngày sinh và họ tên cho hồ sơ bệnh nhân hiện có
-        const existingAlerts = patient.medicalAlerts || '';
-        let updatedAlerts = existingAlerts;
-        if (data.dateOfBirth) {
-          if (updatedAlerts.includes('DOB:')) {
-            updatedAlerts = updatedAlerts.replace(/DOB:\d{4}-\d{2}-\d{2}/, `DOB:${data.dateOfBirth}`);
-          } else {
-            updatedAlerts = updatedAlerts ? `${updatedAlerts} | DOB:${data.dateOfBirth}` : `DOB:${data.dateOfBirth}`;
+
+        const calculatedBirthYear = data.birthYear
+          ? Number(data.birthYear)
+          : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
+        const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
+
+        if (!patient) {
+          const patientCode = await generatePatientCode(tx);
+          patient = await tx.patient.create({
+            data: {
+              patientCode,
+              fullName: data.patientName,
+              phone: data.patientPhone,
+              email: data.patientEmail,
+              birthYear: calculatedBirthYear,
+              gender: data.gender || 'Nam',
+              medicalAlerts: dobAlert || undefined,
+            },
+          });
+        } else {
+          // Cập nhật thông tin ngày sinh và họ tên cho hồ sơ bệnh nhân hiện có
+          const existingAlerts = patient.medicalAlerts || '';
+          let updatedAlerts = existingAlerts;
+          if (data.dateOfBirth) {
+            if (updatedAlerts.includes('DOB:')) {
+              updatedAlerts = updatedAlerts.replace(/DOB:\d{4}-\d{2}-\d{2}/, `DOB:${data.dateOfBirth}`);
+            } else {
+              updatedAlerts = updatedAlerts ? `${updatedAlerts} | DOB:${data.dateOfBirth}` : `DOB:${data.dateOfBirth}`;
+            }
           }
+
+          patient = await tx.patient.update({
+            where: { id: patient.id },
+            data: {
+              fullName: data.patientName || patient.fullName,
+              birthYear: calculatedBirthYear,
+              medicalAlerts: updatedAlerts || undefined,
+            },
+          });
         }
 
-        patient = await tx.patient.update({
-          where: { id: patient.id },
+        // 5. Sinh mã lịch hẹn theo ngày giờ hiện tại & mã QR Pass Code
+        const appointmentCode = await generateAppointmentCode(tx);
+        const qrPassCode = `QR-PASS-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+
+        // 6. Tạo bản ghi Appointment
+        const appointment = await tx.appointment.create({
           data: {
-            fullName: data.patientName || patient.fullName,
-            birthYear: calculatedBirthYear,
-            medicalAlerts: updatedAlerts || undefined,
-          },
-        });
-      }
-
-      // 5. Lấy thông tin các dịch vụ
-      const services = await tx.service.findMany({
-        where: { id: { in: data.serviceIds } },
-      });
-
-      if (services.length === 0) {
-        throw new BadRequestException('Vui lòng chọn ít nhất một dịch vụ hợp lệ');
-      }
-
-      // 6. Sinh mã lịch hẹn theo ngày giờ hiện tại & mã QR Pass Code
-      const appointmentCode = await generateAppointmentCode(tx);
-      const qrPassCode = `QR-PASS-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
-
-      // 7. Tạo bản ghi Appointment
-      const appointment = await tx.appointment.create({
-        data: {
-          appointmentCode,
-          patientId: patient.id,
-          branchId: data.branchId,
-          doctorId: data.doctorId,
-          chairId: allocatedChair.id,
-          startTime: start,
-          endTime: end,
-          bufferEndTime: bufferEnd,
-          status: 'CONFIRMED',
-          qrPassCode,
-          notes: data.notes,
-          isAiRecommended: data.isAiRecommended ?? false,
-          services: {
-            create: services.map((s) => ({
-              serviceId: s.id,
-              price: s.standardPrice,
-            })),
-          },
-          statusHistory: {
-            create: {
-              fromStatus: 'INITIAL',
-              toStatus: 'CONFIRMED',
-              reason: 'Bệnh nhân đặt lịch thành công qua hệ thống',
+            appointmentCode,
+            patientId: patient.id,
+            branchId: data.branchId,
+            doctorId: data.doctorId,
+            chairId: allocatedChair.id,
+            startTime: start,
+            endTime: end,
+            bufferEndTime: bufferEnd,
+            status: 'CONFIRMED',
+            qrPassCode,
+            notes: data.notes,
+            isAiRecommended: data.isAiRecommended ?? false,
+            services: {
+              create: services.map((s) => ({
+                serviceId: s.id,
+                price: s.standardPrice,
+              })),
+            },
+            statusHistory: {
+              create: {
+                fromStatus: 'INITIAL',
+                toStatus: 'CONFIRMED',
+                reason: 'Bệnh nhân đặt lịch thành công qua hệ thống',
+              },
             },
           },
-        },
-        include: {
-          patient: true,
-          branch: true,
-          doctor: true,
-          chair: {
-            include: { room: true },
+          include: {
+            patient: true,
+            branch: true,
+            doctor: true,
+            chair: {
+              include: { room: true },
+            },
+            services: {
+              include: { service: true },
+            },
           },
-          services: {
-            include: { service: true },
-          },
-        },
-      });
+        });
 
-      return appointment;
-    });
+        return appointment;
+      },
+      {
+        maxWait: 10000,
+        timeout: 30000,
+      },
+    );
 
     await this.auditLogsService.log({
       userId: operatorUserId || null,
@@ -1053,6 +1056,9 @@ export class AppointmentsService {
       });
 
       return updated;
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
     });
 
     const patientName = updated.patient?.fullName || 'Bệnh nhân';
