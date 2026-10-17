@@ -53,11 +53,29 @@ export class AiConsultationService implements OnModuleInit, OnModuleDestroy {
     if (!apiKey) return null;
 
     try {
+      let serviceListPrompt = '';
+      try {
+        const activeServices = await this.prisma.service.findMany({
+          where: { isActive: true },
+          select: { code: true, name: true },
+          take: 30,
+        });
+        if (activeServices.length > 0) {
+          serviceListPrompt = `
+HÃY CHỌN 1 DỊCH VỤ PHÙ HỢP NHẤT TỪ DANH MỤC DỊCH VỤ THỰC TẾ ĐANG CUNG CẤP CỦA NHA KHOA DƯỚI ĐÂY:
+${activeServices.map((s) => `- serviceCode: "${s.code}", serviceName: "${s.name}"`).join('\n')}
+BẮT BUỘC bạn phải trả về đúng serviceCode và serviceName từ danh sách trên!`;
+        }
+      } catch (err) {
+        this.logger.debug('Could not load service list for Gemini prompt');
+      }
+
       const prompt = `
 Bạn là "Hệ thống AI Phân Tích & Chẩn Đoán Nha Khoa Thông Minh - SmartSchedule AI".
 Bệnh nhân đang yêu cầu tư vấn chuyên môn:
 - Triệu chứng bệnh nhân mô tả: "${symptoms || 'Bệnh nhân gửi ảnh chụp tình trạng răng miệng'}"
 ${file ? '- Bệnh nhân có đính kèm hình ảnh răng miệng.' : ''}
+${serviceListPrompt}
 
 HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json) với cấu trúc:
 {
@@ -70,8 +88,8 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
     "Bước 2: Chụp phim X-Quang / can thiệp điều trị...",
     "Bước 3: Chăm sóc phục hồi và hướng dẫn tái khám..."
   ],
-  "serviceCode": "DV-POR-01" | "DV-IMP-01" | "DV-ORT-01" | "DV-WHT-01" | "DV-EXT-01",
-  "serviceName": "Khám & Điều Trị Nha Khoa Tổng Quát" | "Bọc Răng Sứ Thẩm Mỹ" | "Cấy Ghép Implant" | "Niềng Răng Chỉnh Nha" | "Nhổ Răng Khôn Không Đau"
+  "serviceCode": "Mã_dịch_vụ_từ_danh_mục",
+  "serviceName": "Tên_dịch_vụ_từ_danh_mục"
 }
 `;
 
@@ -212,6 +230,59 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
     const doctorName = suggestedDoctor?.user?.fullName || 'TS.BS. Nguyễn Minh Anh';
     const doctorId = suggestedDoctor?.user?.id || suggestedDoctor?.userId;
 
+    // 3.5. Đối soát thông minh với bảng Service trong Database
+    let matchedService: any = null;
+    try {
+      if (aiResponse.serviceCode) {
+        matchedService = await this.prisma.service.findFirst({
+          where: { code: aiResponse.serviceCode, isActive: true },
+        });
+      }
+      if (!matchedService && aiResponse.serviceName) {
+        matchedService = await this.prisma.service.findFirst({
+          where: {
+            name: { contains: aiResponse.serviceName.split(' ')[0], mode: 'insensitive' },
+            isActive: true,
+          },
+        });
+      }
+      if (!matchedService) {
+        const combinedText = `${aiResponse.diagnosis || ''} ${aiResponse.suggestedSpecialty || ''} ${dto.symptoms || ''}`.toLowerCase();
+        let keyword = '';
+        if (combinedText.includes('niềng') || combinedText.includes('chỉnh nha') || combinedText.includes('ortho')) keyword = 'niềng';
+        else if (combinedText.includes('implant') || combinedText.includes('cấy ghép')) keyword = 'implant';
+        else if (combinedText.includes('sứ') || combinedText.includes('bọc')) keyword = 'sứ';
+        else if (combinedText.includes('trắng') || combinedText.includes('tẩy')) keyword = 'trắng';
+        else if (combinedText.includes('tủy') || combinedText.includes('nội nha')) keyword = 'tủy';
+        else if (combinedText.includes('nhổ') || combinedText.includes('răng khôn')) keyword = 'nhổ';
+        else if (combinedText.includes('vôi') || combinedText.includes('cao răng')) keyword = 'vôi';
+
+        if (keyword) {
+          matchedService = await this.prisma.service.findFirst({
+            where: {
+              name: { contains: keyword, mode: 'insensitive' },
+              isActive: true,
+            },
+          });
+        }
+      }
+      // Fallback dịch vụ khám tổng quát nếu không có dịch vụ chuyên biệt
+      if (!matchedService) {
+        matchedService = await this.prisma.service.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { code: 'DV-POR-01' },
+              { name: { contains: 'Khám', mode: 'insensitive' } },
+              { name: { contains: 'Tổng quát', mode: 'insensitive' } },
+            ],
+          },
+        });
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not match service from DB: ${e.message}`);
+    }
+
     // 4. Save consultation log into database
     let logRecord: any = null;
     try {
@@ -227,8 +298,8 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
           confidence: Number(aiResponse.confidence) || 95.0,
           suggestedSpecialty: aiResponse.suggestedSpecialty || 'Răng Hàm Mặt',
           regimen: aiResponse.regimen || [],
-          serviceCode: aiResponse.serviceCode || null,
-          serviceName: aiResponse.serviceName || null,
+          serviceCode: matchedService?.code || aiResponse.serviceCode || null,
+          serviceName: matchedService?.name || aiResponse.serviceName || null,
           suggestedDoctorId: doctorId || null,
           suggestedDoctorName: doctorName,
           isAccepted: false,
@@ -248,8 +319,10 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
       regimen: aiResponse.regimen,
       suggestedDoctor: doctorName,
       suggestedDoctorId: doctorId,
-      serviceCode: aiResponse.serviceCode,
-      serviceName: aiResponse.serviceName,
+      serviceId: matchedService?.id || null,
+      serviceCode: matchedService?.code || aiResponse.serviceCode,
+      serviceName: matchedService?.name || aiResponse.serviceName,
+      isServiceAvailable: !!matchedService,
       imageUrl: uploadedImageUrl,
       visionDetails: aiResponse.visionDetails,
       nlpDetails: aiResponse.nlpDetails,

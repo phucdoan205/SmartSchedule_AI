@@ -407,13 +407,6 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
                   <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {d.rating} ({d.totalAppointments || 0} ca)
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onOpenBookingWizard?.()}
-                  className="w-full py-2 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs rounded-xl border border-sky-200 transition-colors cursor-pointer"
-                >
-                  Đặt Lịch Với Bác Sĩ
-                </button>
               </div>
             ))}
           </div>

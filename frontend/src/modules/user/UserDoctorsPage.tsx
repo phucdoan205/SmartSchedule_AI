@@ -164,18 +164,30 @@ export const UserDoctorsPage: React.FC<UserDoctorsPageProps> = ({ onOpenBookingW
                   )}
                 </div>
               </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenBookingWizard?.(d.id)}
-                  className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Calendar className="w-3.5 h-3.5" /> Đặt Lịch Với Bác Sĩ
-                </button>
-              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Unified Bottom Call-to-action */}
+      {!isLoading && filteredDoctors.length > 0 && (
+        <div className="mt-8 p-6 bg-gradient-to-r from-sky-50 via-teal-50 to-emerald-50 rounded-2xl border border-sky-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1 text-center sm:text-left">
+            <h4 className="text-sm sm:text-base font-bold text-slate-900">
+              Bạn cần tư vấn hoặc muốn đặt lịch khám cùng đội ngũ bác sĩ?
+            </h4>
+            <p className="text-xs text-slate-500">
+              Hệ thống SmartSchedule AI sẽ tự động phân bổ bác sĩ phù hợp nhất theo gói dịch vụ và khung giờ của bạn.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenBookingWizard?.()}
+            className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Đặt Lịch Khám Ngay</span>
+          </button>
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ import { aiApi } from '../../services/api';
 import { toast } from '../../context/ToastContext';
 
 interface UserAiConsultationPageProps {
-  onOpenBookingWizard?: (doctorId?: string) => void;
+  onOpenBookingWizard?: (doctorId?: string, serviceId?: string) => void;
 }
 
 interface AiReportState {
@@ -32,8 +32,10 @@ interface AiReportState {
   regimen: string[];
   suggestedDoctor: string;
   suggestedDoctorId?: string;
+  serviceId?: string;
   serviceCode?: string;
   serviceName?: string;
+  isServiceAvailable?: boolean;
   imageUrl?: string;
   visionDetails?: any;
   nlpDetails?: any;
@@ -115,8 +117,10 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           regimen: res.regimen || [],
           suggestedDoctor: res.suggestedDoctor || 'Bác sĩ chuyên khoa',
           suggestedDoctorId: res.suggestedDoctorId,
+          serviceId: res.serviceId,
           serviceCode: res.serviceCode,
           serviceName: res.serviceName,
+          isServiceAvailable: res.isServiceAvailable !== false,
           imageUrl: res.imageUrl,
           visionDetails: res.visionDetails,
           nlpDetails: res.nlpDetails,
@@ -141,6 +145,8 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           'Lập phác đồ điều trị vô trùng chuẩn quốc tế',
         ],
         suggestedDoctor: 'TS.BS. Nguyễn Minh Anh',
+        serviceName: 'Khám & Điều Trị Nha Khoa Tổng Quát',
+        isServiceAvailable: true,
       });
     } finally {
       setAnalyzing(false);
@@ -157,7 +163,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
     }
 
     if (onOpenBookingWizard) {
-      onOpenBookingWizard(aiReport?.suggestedDoctorId);
+      onOpenBookingWizard(aiReport?.suggestedDoctorId, aiReport?.serviceId);
     } else {
       toast('Đang chuyển hướng đến cổng đặt lịch hẹn...', 'success');
     }
@@ -432,9 +438,24 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
               </div>
 
               {aiReport.serviceName && (
-                <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-800 font-medium flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Dịch vụ liên kết: <strong>{aiReport.serviceName}</strong></span>
+                <div
+                  className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
+                    aiReport.isServiceAvailable !== false
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-800'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <CheckCircle2
+                    className={`w-4 h-4 shrink-0 ${
+                      aiReport.isServiceAvailable !== false ? 'text-amber-600' : 'text-slate-400'
+                    }`}
+                  />
+                  <span>
+                    Dịch vụ liên kết: <strong>{aiReport.serviceName}</strong>
+                  </span>
+                  {aiReport.isServiceAvailable === false && (
+                    <span className="text-[10px] text-slate-400 ml-auto">(Khám lâm sàng)</span>
+                  )}
                 </div>
               )}
             </div>
@@ -462,15 +483,31 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
 
               {/* Action Button */}
               <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleBookingClick}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-600 via-teal-500 to-emerald-500 hover:from-sky-700 hover:to-emerald-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer group"
-                >
-                  <Calendar className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span>Đặt Lịch Khám Theo Phác Đồ AI Này</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {aiReport.isServiceAvailable !== false ? (
+                  <button
+                    type="button"
+                    onClick={handleBookingClick}
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-600 via-teal-500 to-emerald-500 hover:from-sky-700 hover:to-emerald-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                  >
+                    <Calendar className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span>Đặt Lịch Khám Theo Phác Đồ AI Này</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
+                    <p className="text-xs text-slate-600 font-medium">
+                      Phác đồ này cần thăm khám lâm sàng trực tiếp với bác sĩ để chỉ định can thiệp chi tiết.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleBookingClick}
+                      className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      <span>Đặt Lịch Khám &amp; Tư Vấn Cùng Bác Sĩ</span>
+                    </button>
+                  </div>
+                )}
                 <p className="text-[10px] text-center text-slate-400">
                   Hệ thống tự động đồng bộ phác đồ và lưu hồ sơ bệnh nhân khi bạn xác nhận đặt lịch.
                 </p>

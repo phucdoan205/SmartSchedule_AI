@@ -130,18 +130,34 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         setServices(activeServices);
         setDoctors(realDoctors);
 
-        if (branchesData.length > 0 && !selectedBranch) {
-          setSelectedBranch(branchesData[0].id);
+        // Always reset step to 1 and clear errors on opening
+        setStep(1);
+        setBookingError(null);
+        setCreatedAppointment(null);
+        setSelectedCategory('Tất cả');
+        setServiceSearch('');
+
+        if (initialDoctorId) {
+          setSelectedDoctor(initialDoctorId);
+          const doc = realDoctors.find((d: any) => d.id === initialDoctorId);
+          if (doc?.branchId) {
+            setSelectedBranch(doc.branchId);
+          } else if (branchesData.length > 0 && !selectedBranch) {
+            setSelectedBranch(branchesData[0].id);
+          }
+        } else {
+          if (branchesData.length > 0 && !selectedBranch) {
+            setSelectedBranch(branchesData[0].id);
+          }
+          if (realDoctors.length > 0 && !selectedDoctor) {
+            setSelectedDoctor(realDoctors[0].id);
+          }
         }
+
         if (initialServiceId && activeServices.some((s: any) => s.id === initialServiceId)) {
           setSelectedService(initialServiceId);
         } else if (activeServices.length > 0 && !selectedService) {
           setSelectedService(activeServices[0].id);
-        }
-        if (initialDoctorId) {
-          setSelectedDoctor(initialDoctorId);
-        } else if (realDoctors.length > 0 && !selectedDoctor) {
-          setSelectedDoctor(realDoctors[0].id);
         }
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu đặt lịch:', err);
@@ -152,6 +168,28 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
 
     loadInitialData();
   }, [isOpen, initialDoctorId, initialServiceId]);
+
+  // Synchronize when initial props change while open
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setBookingError(null);
+      setCreatedAppointment(null);
+      setSelectedCategory('Tất cả');
+      setServiceSearch('');
+
+      if (initialServiceId) {
+        setSelectedService(initialServiceId);
+      }
+      if (initialDoctorId) {
+        setSelectedDoctor(initialDoctorId);
+        const doc = doctors.find((d: any) => d.id === initialDoctorId);
+        if (doc?.branchId) {
+          setSelectedBranch(doc.branchId);
+        }
+      }
+    }
+  }, [isOpen, initialServiceId, initialDoctorId]);
 
   // Extract unique categories for filter tabs
   const categories = useMemo(() => {

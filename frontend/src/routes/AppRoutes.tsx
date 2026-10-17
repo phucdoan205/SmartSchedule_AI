@@ -49,7 +49,7 @@ import { rolePermissionStore } from '../services/rolePermissionStore';
  * - Admin, Bác sĩ, Nhân viên đã đăng nhập: Tự động chuyển hướng vào Trang Quản Trị theo quyền hạn,
  *   trừ khi có tham số ?preview=true (chế độ xem trước giao diện khách hàng).
  */
-const RootIndexRoute: React.FC<{ onOpenBookingWizard: () => void }> = ({ onOpenBookingWizard }) => {
+const RootIndexRoute: React.FC<{ onOpenBookingWizard: (serviceId?: string) => void }> = ({ onOpenBookingWizard }) => {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === 'true' || searchParams.get('view') === 'client';
@@ -84,10 +84,10 @@ export const AppRoutes: React.FC = () => {
       <Routes>
         {/* User Portal Section */}
         <Route path="/" element={<UserLayout onOpenBookingWizard={() => handleOpenBookingWizard()} />}>
-          <Route index element={<RootIndexRoute onOpenBookingWizard={() => handleOpenBookingWizard()} />} />
+          <Route index element={<RootIndexRoute onOpenBookingWizard={(srvId) => handleOpenBookingWizard(undefined, srvId)} />} />
           <Route path="doctors" element={<UserDoctorsPage onOpenBookingWizard={(docId) => handleOpenBookingWizard(docId)} />} />
           <Route path="pricing" element={<UserPricingPage onOpenBookingWizard={(srvId) => handleOpenBookingWizard(undefined, srvId)} />} />
-          <Route path="ai-consultation" element={<UserAiConsultationPage onOpenBookingWizard={(docId) => handleOpenBookingWizard(docId)} />} />
+          <Route path="ai-consultation" element={<UserAiConsultationPage onOpenBookingWizard={(docId, srvId) => handleOpenBookingWizard(docId, srvId)} />} />
           <Route path="lookup" element={<UserLookupPage />} />
           <Route
             path="profile"
