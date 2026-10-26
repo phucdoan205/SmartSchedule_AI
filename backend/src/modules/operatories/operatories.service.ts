@@ -37,11 +37,23 @@ export class OperatoriesService {
       throw new NotFoundException(`Ghế khám ID ${chairId} không tồn tại`);
     }
 
+    let docProfileId = assignedDoctorId;
+    if (assignedDoctorId) {
+      const profile = await this.prisma.doctorProfile.findFirst({
+        where: {
+          OR: [{ id: assignedDoctorId }, { userId: assignedDoctorId }],
+        },
+      });
+      if (profile) {
+        docProfileId = profile.id;
+      }
+    }
+
     return this.prisma.operatoryChair.update({
       where: { id: chairId },
       data: {
         status,
-        assignedDoctorId: assignedDoctorId !== undefined ? assignedDoctorId : chair.assignedDoctorId,
+        assignedDoctorId: assignedDoctorId !== undefined ? docProfileId : chair.assignedDoctorId,
       },
       include: {
         room: true,

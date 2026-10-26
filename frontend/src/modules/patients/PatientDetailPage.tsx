@@ -108,7 +108,10 @@ export const PatientDetailPage: React.FC = () => {
       const match = patient.medicalAlerts.match(/DOB:(\d{4}-\d{2}-\d{2})/);
       if (match) return match[1];
     }
-    return patient.birthYear ? `${patient.birthYear}-01-01` : 'Chưa cập nhật';
+    if (patient.birthYear && patient.birthYear > 1900 && patient.birthYear !== 1990) {
+      return `${patient.birthYear}-01-01`;
+    }
+    return '';
   }, [patient]);
 
   const age = useMemo(() => {
@@ -117,8 +120,10 @@ export const PatientDetailPage: React.FC = () => {
       const y = parseInt(dob.split('-')[0], 10);
       if (!isNaN(y)) return new Date().getFullYear() - y;
     }
-    if (patient.birthYear) return new Date().getFullYear() - patient.birthYear;
-    return 30;
+    if (patient.birthYear && patient.birthYear > 1900 && patient.birthYear !== 1990) {
+      return new Date().getFullYear() - patient.birthYear;
+    }
+    return 0;
   }, [patient, dob]);
 
   const address = useMemo(() => {
@@ -390,7 +395,7 @@ export const PatientDetailPage: React.FC = () => {
                   {patient.patientCode || patient.id}
                 </span>
                 <span className="text-xs font-bold text-slate-500">
-                  {age} tuổi • {patient.gender || 'Nam'}
+                  {age > 0 ? `${age} tuổi • ` : ''}{patient.gender || 'Nam'}
                 </span>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
@@ -421,7 +426,7 @@ export const PatientDetailPage: React.FC = () => {
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="font-bold text-slate-400">Ngày sinh</p>
-              <p className="mt-1 font-extrabold text-slate-900">{dob}</p>
+              <p className="mt-1 font-extrabold text-slate-900">{dob || 'Chưa cập nhật'}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="font-bold text-slate-400">Số lần khám</p>

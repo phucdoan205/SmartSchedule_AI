@@ -18,6 +18,11 @@ import {
   Search,
   Filter,
   Lock,
+  Maximize2,
+  ZoomIn,
+  Download,
+  Smartphone,
+  X,
 } from 'lucide-react';
 import { Modal } from '../../../components/common/Modal';
 import { VietQrPaymentModal } from '../../../components/dental/VietQrPaymentModal';
@@ -77,11 +82,13 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);
+  const [isZaloQrZoomOpen, setIsZaloQrZoomOpen] = useState(false);
   const [copiedZaloMsg, setCopiedZaloMsg] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const zaloBotUrl =
     (import.meta as any).env?.VITE_ZALO_BOT_URL ||
-    'https://bot.zaloplatforms.com/bots/invite/bot.iSTtYWvM';
+    'https://bot.zaloplatforms.com/groups/invite/bot.iSTtYWvM';
 
   const handleCopyZaloMsg = (msg: string) => {
     navigator.clipboard.writeText(msg);
@@ -90,11 +97,39 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
     setTimeout(() => setCopiedZaloMsg(false), 2500);
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(zaloBotUrl);
+    setCopiedLink(true);
+    toast('Đã sao chép liên kết mời Zalo Bot!', 'success');
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleDownloadQr = async () => {
+    try {
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=3&data=${encodeURIComponent(
+        zaloBotUrl,
+      )}`;
+      const response = await fetch(qrApiUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `QR-Zalo-Bot-Nha-Khoa-Fruit.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Đã tải mã QR về máy! Bạn có thể vào Zalo -> Quét mã -> Chọn ảnh từ thư viện để kết nối.', 'success');
+    } catch {
+      toast('Không thể tải tự động. Bạn có thể nhấn giữ vào mã QR để lưu ảnh nhé!', 'info');
+    }
+  };
+
   const handleOpenZalo = () => {
     const msg = `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`;
     navigator.clipboard.writeText(msg).catch(() => {});
     setCopiedZaloMsg(true);
-    toast('Đã sao chép tin nhắn! Khi cửa sổ Zalo mở lên, bạn chỉ cần nhấn Dán (Paste) và Gửi nhé.', 'success');
+    toast('Đã sao chép tin nhắn mẫu! Đang mở Zalo để kết nối...', 'success');
     window.open(zaloBotUrl, '_blank');
   };
 
@@ -981,16 +1016,36 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center gap-2 pt-0.5">
                 <div className="flex items-center gap-2.5 bg-white p-1.5 rounded-xl border border-blue-100 w-full sm:w-auto shadow-2xs">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&margin=3&data=${encodeURIComponent(
-                      zaloBotUrl,
-                    )}`}
-                    alt="Zalo Bot QR Code"
-                    className="w-12 h-12 rounded-lg border border-slate-200 shrink-0"
-                  />
+                  <div
+                    onClick={() => setIsZaloQrZoomOpen(true)}
+                    className="relative cursor-pointer shrink-0 group/qr"
+                    title="Bấm để phóng to mã QR"
+                  >
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=2&data=${encodeURIComponent(
+                        zaloBotUrl,
+                      )}`}
+                      alt="Zalo Bot QR Code"
+                      className="w-12 h-12 rounded-lg border border-slate-200 shrink-0 transition-transform hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/35 opacity-0 group-hover/qr:opacity-100 rounded-lg flex items-center justify-center transition-opacity text-white">
+                      <ZoomIn className="w-4 h-4" />
+                    </div>
+                  </div>
                   <div className="text-[10px] text-slate-500 leading-tight">
-                    <p className="font-bold text-slate-800">Quét mã QR</p>
-                    <p className="text-[10px] text-slate-500">Mở app Zalo quét mã</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-slate-800">Quét mã QR</p>
+                      <button
+                        type="button"
+                        onClick={() => setIsZaloQrZoomOpen(true)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-[#0068FF] rounded text-[9px] font-bold cursor-pointer transition-colors"
+                        title="Phóng to để quét cho dễ"
+                      >
+                        <Maximize2 className="w-2.5 h-2.5" />
+                        Phóng to
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Mở app Zalo quét mã</p>
                   </div>
                 </div>
 
@@ -1059,6 +1114,160 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         patientName={createdAppointment?.patient?.fullName || patientName}
         patientCode={createdAppointment?.appointmentCode}
       />
+
+      {/* Modal Phóng To Mã QR Zalo Bot */}
+      {isZaloQrZoomOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-scaleUp my-auto border border-slate-100 text-xs">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#0068FF] text-white flex items-center justify-center shrink-0 font-black text-xs shadow-sm">
+                  Zalo
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      Mã QR Zalo Bot Nha Khoa Fruit
+                    </h3>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#0068FF] border border-blue-200">
+                      24/7
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Quét để kết nối nhận thông báo và nhắc lịch tự động
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsZaloQrZoomOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50/60 via-slate-50 to-indigo-50/40 rounded-2xl border border-blue-100 shadow-2xs">
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-md">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=3&data=${encodeURIComponent(
+                    zaloBotUrl,
+                  )}`}
+                  alt="Mã QR Zalo Bot Nha Khoa Fruit"
+                  className="w-56 h-56 sm:w-64 sm:h-64 object-contain rounded-xl select-none"
+                />
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-slate-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-bold text-[11px]">
+                  Bot Nha Khoa Fruit • Kênh kích hoạt chính thức
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadQr}
+                className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center text-[11px]"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Lưu ảnh QR về máy</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-[#0068FF] font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-center text-[11px]"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-600">Đã chép link</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Sao chép link bot</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Suggested Message with 1-Click Copy in Modal */}
+            <div className="bg-white p-2.5 rounded-xl border border-blue-100 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                <span className="text-slate-600">Tin nhắn mẫu để gửi cho Bot:</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopyZaloMsg(
+                      `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`,
+                    )
+                  }
+                  className="inline-flex items-center gap-1 text-[#0068FF] hover:text-blue-800 font-bold cursor-pointer"
+                >
+                  {copiedZaloMsg ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span className="text-emerald-600 font-bold">Đã sao chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Sao chép</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="font-mono text-[10.5px] font-bold text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-200 select-all">
+                Xác nhận lịch hẹn #{createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: {patientPhone}
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-[11px] text-slate-600">
+              <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-[#0068FF]" /> 3 cách kết nối nhanh trên Zalo:
+              </p>
+              <div className="space-y-1 pl-1 text-[10.5px] leading-relaxed">
+                <p>
+                  <strong>1. Quét trực tiếp:</strong> Mở app Zalo; Bấm icon quét QR ở góc trên; Hướng camera vào mã trên.
+                </p>
+                <p>
+                  <strong>2. Khi đang dùng điện thoại:</strong> Bấm nút <strong>"Lưu ảnh QR về máy"</strong>; Mở Zalo quét mã; Chọn ảnh vừa lưu từ thư viện.
+                </p>
+                <p>
+                  <strong>3. Tìm kiếm trong Zalo:</strong> Vào Zalo tìm: <strong>Bot Nha Khoa Fruit</strong> (hoặc <span className="font-mono">bot.iSTtYWvM</span>).
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenZalo}
+                className="flex-1 py-2.5 px-3 bg-[#0068FF] hover:bg-[#0052cc] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Mở Zalo Ngay</span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsZaloQrZoomOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer text-xs"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

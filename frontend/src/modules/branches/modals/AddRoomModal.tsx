@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Armchair,
@@ -8,8 +8,9 @@ import {
   Stethoscope,
   Wrench,
   Building,
+  Filter,
 } from 'lucide-react';
-import { staffApi } from '../../../services/api';
+import { staffApi, equipmentApi } from '../../../services/api';
 
 interface AddRoomModalProps {
   isOpen: boolean;
@@ -38,17 +39,16 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
   const [initialStatus, setInitialStatus] = useState<'ready' | 'maintenance'>('ready');
   const [selectedDoctor, setSelectedDoctor] = useState('');
 
-  // Equipment checklist
-  const [equipments, setEquipments] = useState({
-    ultrasonicScaler: true,
-    curingLight: true,
-    xrayPeriapical: true,
-    implantSurgicPro: false,
-  });
+  // Equipment states from equipmentApi
+  const [deviceList, setDeviceList] = useState<any[]>([]);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+  const [equipmentCategory, setEquipmentCategory] = useState<string>('all');
+  const [selectedEquipmentNames, setSelectedEquipmentNames] = useState<string[]>([]);
 
   // Fetch doctors strictly filtered by selected branch
   useEffect(() => {
     if (!isOpen) return;
+    setSelectedEquipmentNames([]);
 
     setIsLoadingDoctors(true);
     staffApi
@@ -76,6 +76,61 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
       .finally(() => setIsLoadingDoctors(false));
   }, [isOpen, branchId]);
 
+  // Fetch equipment list from Equipment API
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setIsLoadingDevices(true);
+    equipmentApi
+      .getAll({
+        branchId: branchId && branchId !== 'ALL' ? branchId : undefined,
+        limit: 100,
+      })
+      .then((res: any) => {
+        const items = res?.data || (Array.isArray(res) ? res : []);
+        if (items.length > 0) {
+          setDeviceList(items);
+        } else {
+          setDeviceList([
+            { id: 'eq-1', name: 'Ghế nha khoa cao cấp Sirona Intego', code: 'TB-01', category: 'dental_chair', status: 'OPERATIONAL' },
+            { id: 'eq-2', name: 'Máy chụp CT Cone Beam 3D Vatech PaX-3D', code: 'TB-04', category: 'xray', status: 'OPERATIONAL' },
+            { id: 'eq-3', name: 'Máy phẫu thuật cấy ghép Implant Surgic Pro NSK', code: 'TB-15', category: 'implant', status: 'OPERATIONAL' },
+            { id: 'eq-4', name: 'Nồi hấp tiệt trùng Class B Melag', code: 'TB-12', category: 'hvac', status: 'OPERATIONAL' },
+            { id: 'eq-5', name: 'Máy tẩy trắng răng Laser Whitening Beyond II', code: 'TB-20', category: 'dental_chair', status: 'OPERATIONAL' },
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi khi tải thiết bị từ equipmentApi:', err);
+        setDeviceList([
+          { id: 'eq-1', name: 'Ghế nha khoa cao cấp Sirona Intego', code: 'TB-01', category: 'dental_chair', status: 'OPERATIONAL' },
+          { id: 'eq-2', name: 'Máy chụp CT Cone Beam 3D Vatech PaX-3D', code: 'TB-04', category: 'xray', status: 'OPERATIONAL' },
+          { id: 'eq-3', name: 'Máy phẫu thuật cấy ghép Implant Surgic Pro NSK', code: 'TB-15', category: 'implant', status: 'OPERATIONAL' },
+        ]);
+      })
+      .finally(() => setIsLoadingDevices(false));
+  }, [isOpen, branchId]);
+
+  // Equipment category tabs
+  const equipmentCategories = [
+    { id: 'all', label: 'Tất cả' },
+    { id: 'dental_chair', label: 'Ghế khám' },
+    { id: 'xray', label: 'X-Quang / CT' },
+    { id: 'implant', label: 'Implant' },
+    { id: 'hvac', label: 'Tiệt trùng' },
+  ];
+
+  const filteredDevices = useMemo(() => {
+    if (equipmentCategory === 'all') return deviceList;
+    return deviceList.filter((d) => d.category === equipmentCategory);
+  }, [deviceList, equipmentCategory]);
+
+  const toggleEquipment = (name: string) => {
+    setSelectedEquipmentNames((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
   // Auto-update roomNumber when floor changes
   const handleFloorChange = (newFloor: number) => {
     setFloor(newFloor);
@@ -91,24 +146,8 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const activeEquipments = Object.entries(equipments)
-        .filter(([_, checked]) => checked)
-        .map(([key]) => {
-          switch (key) {
-            case 'ultrasonicScaler':
-              return 'Máy lấy cao răng siêu âm Satelec';
-            case 'curingLight':
-              return 'Đèn quang trùng hợp trám răng';
-            case 'xrayPeriapical':
-              return 'Máy chụp X-quang cận chóp tại ghế';
-            case 'implantSurgicPro':
-              return 'Máy phẫu thuật cấy ghép Implant Surgic Pro';
-            default:
-              return key;
-          }
-        });
-
       const selectedDocObj = doctorList.find((d) => d.name === selectedDoctor);
+      const selectedDevices = deviceList.filter((d) => selectedEquipmentNames.includes(d.name));
 
       const payload = {
         name: roomName.trim(),
@@ -119,7 +158,8 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
         status: initialStatus === 'ready' ? 'AVAILABLE' : 'MAINTENANCE',
         assignedDoctorId: selectedDocObj?.doctorProfileId || selectedDocObj?.id || undefined,
         doctorName: selectedDoctor || undefined,
-        equipments: activeEquipments,
+        equipments: selectedEquipmentNames,
+        equipmentIds: selectedDevices.map((d) => d.id),
       };
 
       if (onAddRoom) {
@@ -364,49 +404,82 @@ export const AddRoomModal: React.FC<AddRoomModalProps> = ({
                   <label className="font-bold text-slate-700 flex items-center gap-1.5">
                     <Wrench className="w-3.5 h-3.5 text-slate-500" /> Trang thiết bị đi kèm tại ghế
                   </label>
-                  <span className="text-slate-400 font-medium text-[11px]">Tiêu chuẩn y khoa</span>
+                  <span className="text-sky-700 font-bold text-[11px] bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
+                    Đã chọn ({selectedEquipmentNames.length})
+                  </span>
                 </div>
 
-                <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={equipments.ultrasonicScaler}
-                      onChange={(e) => setEquipments({ ...equipments, ultrasonicScaler: e.target.checked })}
-                      className="rounded text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-800">Máy lấy cao răng siêu âm Satelec</span>
-                  </label>
+                {/* Danh mục chọn lọc thiết bị */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 mr-0.5">
+                    <Filter className="w-2.5 h-2.5" /> Danh mục:
+                  </span>
+                  {equipmentCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setEquipmentCategory(cat.id)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        equipmentCategory === cat.id
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
 
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={equipments.curingLight}
-                      onChange={(e) => setEquipments({ ...equipments, curingLight: e.target.checked })}
-                      className="rounded text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-800">Đèn quang trùng hợp trám răng</span>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={equipments.xrayPeriapical}
-                      onChange={(e) => setEquipments({ ...equipments, xrayPeriapical: e.target.checked })}
-                      className="rounded text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-800">Máy chụp X-quang cận chóp tại ghế</span>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={equipments.implantSurgicPro}
-                      onChange={(e) => setEquipments({ ...equipments, implantSurgicPro: e.target.checked })}
-                      className="rounded text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="font-bold text-slate-800">Máy phẫu thuật cấy ghép Implant Surgic Pro</span>
-                  </label>
+                {/* Danh sách thiết bị lấy trực tiếp từ trang thiết bị */}
+                <div className="space-y-1.5 p-2.5 bg-slate-50 rounded-2xl border border-slate-200 max-h-48 overflow-y-auto no-scrollbar">
+                  {isLoadingDevices ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-slate-400 font-medium text-xs">
+                      <Loader2 className="w-4 h-4 animate-spin text-sky-600" />
+                      <span>Đang tải danh sách thiết bị y tế...</span>
+                    </div>
+                  ) : filteredDevices.length > 0 ? (
+                    filteredDevices.map((dev: any) => {
+                      const isChecked = selectedEquipmentNames.includes(dev.name);
+                      return (
+                        <label
+                          key={dev.id || dev.code}
+                          className={`flex items-center justify-between gap-2.5 p-2 rounded-xl border transition-all cursor-pointer ${
+                            isChecked
+                              ? 'bg-white border-sky-300 shadow-2xs'
+                              : 'bg-white/60 border-slate-200 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEquipment(dev.name)}
+                              className="rounded text-sky-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-800 block truncate text-xs">
+                                {dev.name}
+                              </span>
+                              {dev.location && (
+                                <span className="text-[10px] text-slate-400 block truncate">
+                                  {dev.location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {dev.code && (
+                            <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold shrink-0">
+                              {dev.code}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-3 text-slate-400 text-xs">
+                      Không có thiết bị nào thuộc danh mục này
+                    </div>
+                  )}
                 </div>
               </div>
 

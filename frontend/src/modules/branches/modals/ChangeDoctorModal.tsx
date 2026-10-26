@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
-  Calendar,
-  ShieldCheck,
-  RotateCcw,
+  Stethoscope,
+  Check,
+  Loader2,
+  Building,
 } from 'lucide-react';
-import { MOCK_DOCTORS } from '../../../services/mockData';
 import { staffApi } from '../../../services/api';
 import { toast } from '../../../context/ToastContext';
 
@@ -13,225 +13,227 @@ interface ChangeDoctorModalProps {
   isOpen: boolean;
   onClose: () => void;
   room: any;
+  branchId?: string;
   branchName?: string;
-  onConfirmChange?: (newDoctorName: string) => void;
+  onConfirmChange?: (newDoctorName: string, doctorId?: string) => void;
 }
 
 export const ChangeDoctorModal: React.FC<ChangeDoctorModalProps> = ({
   isOpen,
   onClose,
   room,
-  branchName = 'Chi nhánh Biên Hòa',
+  branchId,
+  branchName = 'Chi nhánh hiện tại',
   onConfirmChange,
 }) => {
-  const [doctorsList, setDoctorsList] = useState<any[]>(MOCK_DOCTORS);
-  const [selectedDoctorId, setSelectedDoctorId] = useState(MOCK_DOCTORS[0]?.id || 'nv-001');
-  const [scope, setScope] = useState<'temporary' | 'permanent'>('temporary');
-  const [autoTransferAppointments, setAutoTransferAppointments] = useState(true);
-  const [sendZaloNotice, setSendZaloNotice] = useState(true);
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const [handoverNote, setHandoverNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  React.useEffect(() => {
-    if (isOpen) {
-      staffApi.getDoctors().then((docs) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setIsLoading(true);
+    staffApi
+      .getDoctors(branchId && branchId !== 'ALL' ? { branchId } : undefined)
+      .then((docs) => {
         if (Array.isArray(docs) && docs.length > 0) {
-          setDoctorsList(docs);
-          setSelectedDoctorId(docs[0].id);
+          const formatted = docs.map((d: any) => ({
+            id: d.id,
+            name: d.fullName || d.user?.name || d.name || 'Bác sĩ',
+            specialty: d.specialty || d.doctorProfile?.specialty || 'Chuyên khoa Răng Hàm Mặt',
+            avatar: d.avatar || d.avatarUrl || d.user?.avatarUrl,
+            code: d.code || d.employeeCode || '',
+          }));
+          setDoctorsList(formatted);
+
+          // Find first doctor that is NOT the current room doctor
+          const otherDoc = formatted.find((d) => d.name !== room?.doctorName);
+          if (otherDoc) {
+            setSelectedDoctorId(otherDoc.id);
+          } else if (formatted.length > 0) {
+            setSelectedDoctorId(formatted[0].id);
+          }
+        } else {
+          setDoctorsList([]);
+          setSelectedDoctorId('');
         }
-      }).catch(() => {});
-    }
-  }, [isOpen]);
+      })
+      .catch((err) => {
+        console.warn('Lỗi khi tải bác sĩ chi nhánh:', err);
+        setDoctorsList([]);
+      })
+      .finally(() => setIsLoading(false));
+  }, [isOpen, branchId, room?.doctorName]);
 
   if (!isOpen || !room) return null;
 
-  const currentDoctorName = room.doctorName || 'BS. Trần Đức Cường';
-  const newDoctor = doctorsList.find((d) => d.id === selectedDoctorId) || doctorsList[0] || MOCK_DOCTORS[0];
+  const currentDoctorName = room.doctorName || 'Chưa phân công bác sĩ';
+  const currentDoctorObj = doctorsList.find((d) => d.name === room.doctorName);
+  const newDoctor = doctorsList.find((d) => d.id === selectedDoctorId);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const docName = newDoctor.name || newDoctor.fullName;
+    if (!newDoctor) return;
+
+    setIsSubmitting(true);
+    const docName = newDoctor.name;
     if (onConfirmChange) {
-      onConfirmChange(docName);
+      onConfirmChange(docName, newDoctor.id);
     }
-    toast(`Đã thay đổi bác sĩ phụ trách ${room.name} thành ${docName}!`);
+    toast(`Đã thay đổi bác sĩ phụ trách ${room.name} thành ${docName}!`, 'success');
+    setIsSubmitting(false);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 animate-scaleUp my-auto border border-slate-100 max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-lg font-extrabold text-slate-900">Thay Đổi Bác Sĩ Phụ Trách Phòng Khám</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Cập nhật phân công bác sĩ điều trị chính và tự động xử lý điều chuyển lịch hẹn đang có trên {room.name} - {room.floor} ({branchName})
+          <div className="space-y-1">
+            <h3 className="text-lg font-extrabold text-slate-900">
+              Thay Đổi Bác Sĩ Phụ Trách Phòng Khám
+            </h3>
+            <p className="text-xs text-slate-500">
+              Cập nhật phân công bác sĩ điều trị chính cho{' '}
+              <strong className="text-slate-700">{room.name}</strong> - {room.floor} ({branchName})
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {/* Bác sĩ hiện tại Box */}
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Thông tin Bác sĩ hiện tại */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm">
-                👨‍⚕️
+              <div className="w-11 h-11 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-sm shrink-0">
+                <Stethoscope className="w-5 h-5 text-sky-700" />
               </div>
               <div>
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                  BÁC SĨ HIỆN TẠI
+                  BÁC SĨ HIỆN TẠI PHỤ TRÁCH
                 </span>
-                <h4 className="font-extrabold text-slate-900 text-xs mt-0.5">{currentDoctorName}</h4>
-                <p className="text-[11px] text-slate-500">Chuyên khoa Chỉnh nha &amp; Phục hình</p>
-              </div>
-            </div>
-
-            <span className="px-2.5 py-1 bg-sky-50 text-sky-700 font-bold rounded-full border border-sky-200 text-[10px] flex items-center gap-1 self-start sm:self-auto">
-              <Calendar className="w-3 h-3 text-sky-600" /> Đang có 3 lịch hẹn hôm nay
-            </span>
-          </div>
-
-          {/* Chọn Bác sĩ phụ trách mới */}
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Chọn Bác sĩ phụ trách mới</label>
-            <div className="p-2.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-3">
-              {newDoctor.avatar || newDoctor.avatarUrl ? (
-                <img src={newDoctor.avatar || newDoctor.avatarUrl} alt={newDoctor.name || newDoctor.fullName} className="w-10 h-10 rounded-xl object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs">
-                  {(newDoctor.name || newDoctor.fullName || 'BS').charAt(0)}
-                </div>
-              )}
-              <div className="flex-1">
-                <select
-                  value={selectedDoctorId}
-                  onChange={(e) => setSelectedDoctorId(e.target.value)}
-                  className="w-full font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
-                >
-                  {doctorsList.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.name || doc.fullName} - {doc.specialty || 'Bác sĩ điều trị'}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Trống lịch ca chiều
+                <h4 className="font-extrabold text-slate-900 text-xs mt-0.5">
+                  {currentDoctorName}
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  {currentDoctorObj?.specialty || (room.doctorName ? 'Bác sĩ chuyên khoa tại cơ sở' : 'Phòng khám chưa có bác sĩ thường trực')}
                 </p>
               </div>
             </div>
+
+            <span className="text-[10px] font-bold text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200 shrink-0">
+              {branchName}
+            </span>
           </div>
 
-          {/* Check Hợp Lệ */}
-          <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl flex items-start gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-emerald-800 font-semibold leading-relaxed">
-              ✓ <strong>Hợp lệ:</strong> {newDoctor.name} không trùng lịch mổ tại phòng khác trong khung giờ này và đủ điều kiện tiếp nhận ghế.
-            </p>
-          </div>
-
-          {/* Phạm vi áp dụng */}
-          <div>
-            <label className="block font-bold text-slate-700 mb-1.5">Phạm vi áp dụng</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setScope('temporary')}
-                className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all border ${
-                  scope === 'temporary'
-                    ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Tạm thời (Chỉ hôm nay - 22/08/2026)
-              </button>
-              <button
-                type="button"
-                onClick={() => setScope('permanent')}
-                className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all border ${
-                  scope === 'permanent'
-                    ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                Cố định lâu dài
-              </button>
+          {/* Chọn Bác sĩ phụ trách mới (Lọc đúng danh sách bác sĩ thuộc chi nhánh) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                <Building className="w-3.5 h-3.5 text-sky-600" /> Chọn bác sĩ phụ trách mới
+              </label>
+              <span className="text-[10px] text-sky-700 font-bold bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">
+                Bác sĩ thuộc chi nhánh ({doctorsList.length})
+              </span>
             </div>
+
+            {isLoading ? (
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-2 text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin text-sky-600" />
+                <span>Đang tải danh sách bác sĩ tại cơ sở...</span>
+              </div>
+            ) : doctorsList.length > 0 ? (
+              <div className="p-2.5 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-2xs">
+                {newDoctor?.avatar ? (
+                  <img
+                    src={newDoctor.avatar}
+                    alt={newDoctor.name}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    {(newDoctor?.name || 'BS').charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <select
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    className="w-full font-extrabold text-slate-900 bg-transparent focus:outline-none cursor-pointer text-xs"
+                  >
+                    {doctorsList.map((doc) => {
+                      const isCurrent = doc.name === room.doctorName;
+                      return (
+                        <option key={doc.id} value={doc.id}>
+                          {doc.name} - {doc.specialty} {isCurrent ? '(Hiện tại)' : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                    {newDoctor?.specialty || 'Chuyên khoa Răng Hàm Mặt'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 text-amber-800 rounded-2xl border border-amber-200 text-[11px] font-semibold">
+                Chi nhánh này hiện chưa có bác sĩ nào khác được phân bổ.
+              </div>
+            )}
           </div>
 
-          {/* Xử lý ca hẹn */}
-          <div className="space-y-2 pt-1">
-            <label className="block font-bold text-slate-700">Xử lý ca hẹn</label>
-
-            <label className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoTransferAppointments}
-                onChange={(e) => setAutoTransferAppointments(e.target.checked)}
-                className="rounded text-sky-600 focus:ring-0 w-4 h-4"
-              />
-              <span className="font-bold text-slate-800">
-                Tự động chuyển 3 ca hẹn của bệnh nhân hôm nay sang cho {newDoctor.name} tiếp nhận
-              </span>
-            </label>
-
-            <label className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sendZaloNotice}
-                onChange={(e) => setSendZaloNotice(e.target.checked)}
-                className="rounded text-sky-600 focus:ring-0 w-4 h-4"
-              />
-              <span className="font-bold text-slate-800">
-                Gửi tin nhắn Zalo thông báo thay đổi bác sĩ cho bệnh nhân
-              </span>
-            </label>
-          </div>
-
-          {/* Ghi chú bàn giao */}
+          {/* Ghi chú bàn giao (Tùy chọn) */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Ghi chú bàn giao</label>
+            <label className="block font-bold text-slate-700 mb-1">
+              Ghi chú phân công / bàn giao (Tùy chọn)
+            </label>
             <textarea
               rows={2}
               value={handoverNote}
               onChange={(e) => setHandoverNote(e.target.value)}
-              placeholder="Nhập lý do đổi bác sĩ (ví dụ: BS. Cường công tác đột xuất, đổi ca tăng cường...)"
+              placeholder="Nhập lý do đổi bác sĩ (ví dụ: Thay ca trực, tăng cường chuyên môn cấy ghép, đổi lịch khám...)"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:outline-none focus:border-sky-500 text-xs"
             />
           </div>
 
           {/* Footer Actions */}
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-center"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-center cursor-pointer disabled:opacity-50"
             >
               Hủy bỏ
             </button>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Xem lại lịch trực
-              </button>
-
-              <button
-                type="submit"
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors text-center"
-              >
-                XÁC NHẬN ĐỔI BÁC SĨ
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting || !selectedDoctorId || doctorsList.length === 0}
+              className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Đang cập nhật...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>XÁC NHẬN ĐỔI BÁC SĨ</span>
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>

@@ -306,5 +306,119 @@
     ],
     "workHours": "08:00 - 17:30",
     "lunchBreak": "12:00 - 13:30"
+  },
+  "6ef90807-ee5a-4b8f-97be-0cedcde74610": {
+    "commissionRate": 15,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Mặt dán Veneer Emax",
+      "All on 6 Trụ Osstem SA (Hàn Quốc)",
+      "All on 4 Trụ Straumann Active (Thụy Sỹ)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV015": {
+    "commissionRate": 15,
+    "services": [
+      "Sứ toàn phần Cercon (Đức)",
+      "Mặt dán Veneer Emax",
+      "All on 6 Trụ Osstem SA (Hàn Quốc)",
+      "All on 4 Trụ Straumann Active (Thụy Sỹ)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "3fde9c59-311d-44a7-ad73-c39e4039ff18": {
+    "commissionRate": 10,
+    "services": [
+      "Điều trị tủy răng công nghệ vi phẫu Reciproc",
+      "Nâng xoang hàm trên kín / hở (1 răng)",
+      "Cắm Minivis neo chặn chỉnh nha (1 vít)",
+      "Ghép xương nhân tạo (1 cc)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV016": {
+    "commissionRate": 10,
+    "services": [
+      "Điều trị tủy răng công nghệ vi phẫu Reciproc",
+      "Nâng xoang hàm trên kín / hở (1 răng)",
+      "Cắm Minivis neo chặn chỉnh nha (1 vít)",
+      "Ghép xương nhân tạo (1 cc)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "96236006-532f-48ed-bbef-917343e88e92": {
+    "commissionRate": 15,
+    "services": [
+      "Trụ Hiossen (Mỹ) - Phục hình Răng Lava",
+      "Trụ Osstem No mount (Hàn Quốc)",
+      "Chỉnh nha Invisalign Moderate (26 Khay, Mỹ)",
+      "Chỉnh nha Invisalign Comprehensive (Không giới hạn khay, BH 5 năm)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
+  },
+  "NV017": {
+    "commissionRate": 15,
+    "services": [
+      "Trụ Hiossen (Mỹ) - Phục hình Răng Lava",
+      "Trụ Osstem No mount (Hàn Quốc)",
+      "Chỉnh nha Invisalign Moderate (26 Khay, Mỹ)",
+      "Chỉnh nha Invisalign Comprehensive (Không giới hạn khay, BH 5 năm)"
+    ],
+    "workDays": [
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7"
+    ],
+    "workHours": "08:00 - 17:30",
+    "lunchBreak": "12:00 - 13:30"
   }
 }

@@ -58,11 +58,16 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string>(patient.avatarUrl || '');
 
+  const sanitizeDob = (d?: string) => {
+    if (!d || d === 'Chưa cập nhật' || d === '1990-01-01' || d.startsWith('0000')) return '';
+    return d;
+  };
+
   const [form, setForm] = useState({
     name: patient.name,
     phone: patient.phone,
     email: patient.email,
-    dob: patient.dob && patient.dob !== 'Chưa cập nhật' ? patient.dob : '',
+    dob: sanitizeDob(patient.dob),
     gender: patient.gender === 'Nam' || patient.gender === 'male' ? 'male' : 'female',
     address: patient.address !== 'TP. Hồ Chí Minh' ? patient.address : '',
     memberTier: 'Khách hàng VIP (1.250 đ',
@@ -81,7 +86,7 @@ export const PatientEditModal: React.FC<PatientEditModalProps> = ({
       name: patient.name,
       phone: patient.phone,
       email: patient.email,
-      dob: patient.dob && patient.dob !== 'Chưa cập nhật' ? patient.dob : '',
+      dob: sanitizeDob(patient.dob),
       gender: patient.gender === 'Nam' || patient.gender === 'male' ? 'male' : 'female',
       address: patient.address !== 'TP. Hồ Chí Minh' ? patient.address : '',
       memberTier: 'Khách hàng VIP (1.250 đ',

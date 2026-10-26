@@ -189,6 +189,7 @@ export class BranchesService {
       assignedDoctorId?: string;
       doctorName?: string;
       equipments?: string[];
+      equipmentIds?: string[];
     },
     operatorUserId?: string,
   ) {
@@ -259,23 +260,20 @@ export class BranchesService {
       },
     });
 
-    // If equipments provided, link them to the chair
-    if (Array.isArray(data.equipments) && data.equipments.length > 0) {
-      for (let i = 0; i < data.equipments.length; i++) {
-        const eqName = data.equipments[i];
-        const eqCode = `TB-${branch.code}-${nextIndex}-${i + 1}`;
-        await this.prisma.equipment.create({
-          data: {
-            branchId: branch.id,
-            chairId: chair.id,
-            code: eqCode,
-            name: eqName,
-            serialNumber: `SN-${branch.code}-${Date.now()}-${i + 1}`,
-            status: 'OPERATIONAL',
-            category: 'dental_chair',
-          },
-        }).catch((err) => console.warn('Could not auto-create equipment:', err.message));
-      }
+    // Link existing equipments to chair
+    if (Array.isArray(data.equipmentIds) && data.equipmentIds.length > 0) {
+      await this.prisma.equipment.updateMany({
+        where: { id: { in: data.equipmentIds } },
+        data: { chairId: chair.id },
+      });
+    } else if (Array.isArray(data.equipments) && data.equipments.length > 0) {
+      await this.prisma.equipment.updateMany({
+        where: {
+          name: { in: data.equipments },
+          branchId: branch.id,
+        },
+        data: { chairId: chair.id },
+      });
     }
 
     await this.auditLogsService.log({

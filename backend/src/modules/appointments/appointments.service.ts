@@ -158,7 +158,7 @@ export class AppointmentsService {
 
         const calculatedBirthYear = data.birthYear
           ? Number(data.birthYear)
-          : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
+          : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 0);
         const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
 
         if (!patient) {

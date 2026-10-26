@@ -130,7 +130,7 @@ export class PatientsService {
     const patientCode = await generatePatientCode(this.prisma);
     const calculatedBirthYear = data.birthYear
       ? Number(data.birthYear)
-      : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 1990);
+      : (data.dateOfBirth ? parseInt(data.dateOfBirth.split('-')[0], 10) : 0);
     const dobAlert = data.dateOfBirth ? `DOB:${data.dateOfBirth}` : '';
     let alerts = data.medicalAlerts || '';
     if (dobAlert) {

@@ -46,7 +46,7 @@ export const PatientsPage: React.FC = () => {
       const match = p.medicalAlerts.match(/DOB:(\d{4}-\d{2}-\d{2})/);
       if (match) return match[1];
     }
-    return p.birthYear ? `${p.birthYear}-01-01` : '1990-01-01';
+    return p.birthYear && p.birthYear > 1900 && p.birthYear !== 1990 ? `${p.birthYear}-01-01` : '';
   };
 
   const loadPatients = useCallback(async (targetPage = page, query = searchTerm) => {
@@ -137,7 +137,6 @@ export const PatientsPage: React.FC = () => {
         </div>
       ),
     },
-    { header: 'NGÀY SINH', accessorKey: 'dob' },
     {
       header: 'BÁC SĨ ĐÃ KHÁM',
       cell: (row) => (
