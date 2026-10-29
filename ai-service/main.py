@@ -32,12 +32,17 @@ app.add_middleware(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
-VISION_MODEL_PATH = os.path.join(MODELS_DIR, "vision_dental_mobilenet.pth")
+# Vision model path: prioritize 30-epochs checkpoint if available
+VISION_MODEL_PATH = os.path.join(MODELS_DIR, "vision_dental_mobilenet_30epochs.pth")
+if not os.path.exists(VISION_MODEL_PATH):
+    VISION_MODEL_PATH = os.path.join(MODELS_DIR, "vision_dental_mobilenet.pth")
+
 NLP_MODEL_DIR = os.path.join(MODELS_DIR, "nlp_dental")
 
 # Global model containers
 vision_model = None
 vision_classes = []
+vision_model_meta = {}
 nlp_model = None
 nlp_tokenizer = None
 
@@ -52,13 +57,12 @@ image_transform = transforms.Compose([
 VISION_DISEASE_INFO = {
     "Data caries": {
         "vn_name": "Sâu răng (Caries)",
-        "risk_level": "Trung Bình",
+        "risk_level": "Cao",
         "specialty": "Nha Khoa Tổng Quát & Trám Răng Thẩm Mỹ",
         "default_steps": [
-            "Khám lâm sàng & Chụp X-Quang chóp răng đánh giá độ sâu tổn thương",
-            "Nạo sạch ngà mủn vô trùng & sát khuẩn xoang sâu",
-            "Trám phục hồi ngà răng bằng Composite kỹ thuật số chuẩn màu răng",
-            "Hướng dẫn vệ sinh răng miệng & tái khám định kỳ sau 6 tháng"
+            "Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.",
+            "Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.",
+            "Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa."
         ],
         "service_code": "DV-POR-01",
         "service_name": "Trám Răng & Bọc Sứ Điều Trị Sâu Răng"
@@ -104,7 +108,7 @@ VISION_DISEASE_INFO = {
     },
     "Mouth Ulcer": {
         "vn_name": "Nhiệt miệng / Loét niêm mạc miệng",
-        "risk_level": "Thấp",
+        "risk_level": "Cao",
         "specialty": "Nha Khoa Tổng Quát & Bệnh Học Miệng",
         "default_steps": [
             "Kiểm tra vị trí và kích thước vết loét niêm mạc",
@@ -330,7 +334,7 @@ NLP_PROCEDURE_INFO = {
 }
 
 def load_models():
-    global vision_model, vision_classes, nlp_model, nlp_tokenizer
+    global vision_model, vision_classes, vision_model_meta, nlp_model, nlp_tokenizer
     try:
         # Load Vision Model
         if os.path.exists(VISION_MODEL_PATH):
@@ -342,7 +346,23 @@ def load_models():
             m_vis.load_state_dict(ckpt["model_state_dict"])
             m_vis.eval()
             vision_model = m_vis
-            logger.info("Vision Model loaded successfully! Classes: %s", vision_classes)
+
+            # Extract model training metadata if present
+            epochs = ckpt.get("epochs")
+            best_val_acc = ckpt.get("best_val_acc")
+            vision_model_meta = {
+                "checkpoint": os.path.basename(VISION_MODEL_PATH),
+                "epochs": epochs,
+                "best_val_acc": round(float(best_val_acc), 2) if isinstance(best_val_acc, (int, float)) else None,
+                "classes_count": len(vision_classes),
+            }
+            logger.info(
+                "Vision Model loaded successfully! File: %s, Classes: %s, Epochs: %s, Best Acc: %s%%",
+                os.path.basename(VISION_MODEL_PATH),
+                vision_classes,
+                epochs if epochs else "N/A",
+                f"{best_val_acc:.2f}" if isinstance(best_val_acc, (int, float)) else "N/A"
+            )
         else:
             logger.warning("Vision model file not found at %s", VISION_MODEL_PATH)
 
@@ -368,6 +388,7 @@ def read_root():
         "service": "SmartSchedule AI Service",
         "status": "online",
         "vision_model_loaded": vision_model is not None,
+        "vision_model_info": vision_model_meta,
         "nlp_model_loaded": nlp_model is not None,
         "vision_classes": vision_classes,
     }
@@ -378,12 +399,16 @@ def health_check():
         "status": "healthy",
         "models": {
             "vision": vision_model is not None,
+            "vision_checkpoint": vision_model_meta.get("checkpoint"),
             "nlp": nlp_model is not None,
         }
     }
 
 def analyze_vision_image(pil_img: Image.Image) -> Dict[str, Any]:
-    """Classifies oral disease from dental image using MobileNetV3"""
+    """
+    Classifies oral disease from dental image using MobileNetV3.
+    Applies Top-K multi-finding thresholding (prob >= 15% or Top 2) and rule-based risk assessment.
+    """
     if vision_model is None:
         return {"error": "Vision model not loaded"}
 
@@ -392,21 +417,84 @@ def analyze_vision_image(pil_img: Image.Image) -> Dict[str, Any]:
     with torch.no_grad():
         out = vision_model(tensor)
         probs = torch.softmax(out, dim=1)[0]
-        top_idx = torch.argmax(probs).item()
-        confidence = float(probs[top_idx])
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
 
-    pred_class = vision_classes[top_idx] if top_idx < len(vision_classes) else "Data caries"
-    info = VISION_DISEASE_INFO.get(pred_class, VISION_DISEASE_INFO["Data caries"])
+    all_findings = []
+    for prob_tensor, idx_tensor in zip(sorted_probs, sorted_indices):
+        prob = float(prob_tensor)
+        c_idx = int(idx_tensor)
+        c_name = vision_classes[c_idx] if c_idx < len(vision_classes) else "Data caries"
+        info = VISION_DISEASE_INFO.get(c_name, VISION_DISEASE_INFO.get("Data caries", {}))
+        all_findings.append({
+            "class": c_name,
+            "vn_name": info.get("vn_name", c_name),
+            "confidence": round(prob * 100, 1),
+            "risk_level": info.get("risk_level", "Trung Bình"),
+            "specialty": info.get("specialty", "Nha Khoa Tổng Quát"),
+            "service_code": info.get("service_code", "DV-POR-01"),
+            "service_name": info.get("service_name", "Khám & Điều Trị Nha Khoa"),
+            "default_steps": info.get("default_steps", [])
+        })
+
+    # Logic: Lấy tất cả nhãn có xác suất >= 15% hoặc tối thiểu lấy Top 2 nhãn có điểm cao nhất
+    selected_findings = [f for f in all_findings if f["confidence"] >= 15.0]
+    if len(selected_findings) < 2 and len(all_findings) >= 2:
+        selected_findings = all_findings[:2]
+    elif not selected_findings:
+        selected_findings = all_findings[:1]
+
+    top_finding = selected_findings[0]
+    detected_classes = [f["class"] for f in selected_findings]
+
+    # Rule-based gán Mức độ rủi ro:
+    # - Nếu có Sâu răng (Data caries), Mất răng (hypodontia), Tổn thương mô / Loét niêm mạc (Mouth Ulcer): Rủi ro Cao
+    # - Nếu có Viêm nướu (Gingivitis): Rủi ro Trung Bình
+    # - Nếu chỉ có Cao răng (Calculus) hoặc Đổi màu răng (Tooth Discoloration): Rủi ro Thấp
+    if any(c in ["Data caries", "hypodontia", "Mouth Ulcer"] for c in detected_classes):
+        calculated_risk = "Cao"
+    elif any(c in ["Gingivitis"] for c in detected_classes):
+        calculated_risk = "Trung Bình"
+    else:
+        calculated_risk = "Thấp"
+
+    top_confidence = top_finding["confidence"]
+    # Độ tin cậy thuật toán: Cao (>= 75%), Trung Bình (>= 45%), Tiêu chuẩn (< 45%)
+    if top_confidence >= 75.0:
+        confidence_level = "Cao"
+    elif top_confidence >= 45.0:
+        confidence_level = "Trung Bình"
+    else:
+        confidence_level = "Tiêu chuẩn"
+
+    # Chuẩn hóa tên các bệnh phát hiện (Ví dụ: "Viêm nướu & Sâu răng")
+    short_names = []
+    for f in selected_findings:
+        raw = f["vn_name"]
+        clean = raw.split(" /")[0].split(" (")[0].strip()
+        if clean not in short_names:
+            short_names.append(clean)
+    combined_vn_name = " & ".join(short_names)
+
+    # Khuyến nghị các bước kiểm tra tiếp theo chuẩn y khoa
+    recommended_steps = [
+        "Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.",
+        "Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.",
+        "Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa."
+    ]
 
     return {
-        "class": pred_class,
-        "vn_name": info["vn_name"],
-        "confidence": round(confidence * 100, 1),
-        "risk_level": info["risk_level"],
-        "specialty": info["specialty"],
-        "default_steps": info["default_steps"],
-        "service_code": info["service_code"],
-        "service_name": info["service_name"]
+        "class": top_finding["class"],
+        "vn_name": combined_vn_name,
+        "primary_vn_name": top_finding["vn_name"],
+        "confidence": top_confidence,
+        "confidence_level": confidence_level,
+        "risk_level": calculated_risk,
+        "specialty": top_finding["specialty"],
+        "default_steps": recommended_steps,
+        "service_code": top_finding["service_code"],
+        "service_name": top_finding["service_name"],
+        "selected_findings": selected_findings,
+        "all_findings": all_findings
     }
 
 def analyze_nlp_symptoms(symptoms: str) -> Dict[str, Any]:
@@ -501,35 +589,39 @@ async def api_consultation(
     # Combine Results intelligently
     if vision_result and nlp_result:
         # Multimodal combination
-        diagnosis = f"Phát hiện dấu hiệu {vision_result['vn_name']} qua ảnh; Triệu chứng lâm sàng phù hợp với {nlp_result['name']}."
+        diagnosis = f"Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: {vision_result['vn_name']}; Triệu chứng mô tả phù hợp với {nlp_result['name']}."
         risk_level = "Cao" if "Cao" in [vision_result["risk_level"], nlp_result["risk_level"]] else vision_result["risk_level"]
         confidence = round(max(vision_result["confidence"], nlp_result["confidence"]), 1)
-        # Ensure confidence looks realistic and professional (>= 92%)
-        if confidence < 80.0:
-            confidence = round(88.5 + (confidence % 10), 1)
-
+        confidence_level = vision_result.get("confidence_level", "Cao")
         specialty = nlp_result.get("specialty") or vision_result.get("specialty")
-        regimen = vision_result.get("default_steps", [])[:2] + nlp_result.get("steps", [])[:2]
+        regimen = [
+            "Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.",
+            "Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.",
+            "Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa.",
+            f"Tham khảo hướng can thiệp chuyên sâu: {nlp_result['name']}."
+        ]
         suggested_service_code = nlp_result.get("service_code") or vision_result.get("service_code")
         suggested_service_name = nlp_result.get("service_name") or vision_result.get("service_name")
     elif vision_result:
-        diagnosis = f"Kết quả nhận diện ảnh: Có dấu hiệu {vision_result['vn_name']}"
+        diagnosis = f"Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: {vision_result['vn_name']}"
         risk_level = vision_result["risk_level"]
         confidence = vision_result["confidence"]
-        if confidence < 80.0:
-            confidence = round(91.2 + (confidence % 7), 1)
+        confidence_level = vision_result.get("confidence_level", "Cao")
         specialty = vision_result["specialty"]
         regimen = vision_result["default_steps"]
         suggested_service_code = vision_result["service_code"]
         suggested_service_name = vision_result["service_name"]
     else:
-        diagnosis = f"Đề xuất phác đồ dựa trên triệu chứng: {nlp_result['name']}"
+        diagnosis = f"Đề xuất bước kiểm tra dựa trên triệu chứng: {nlp_result['name']}"
         risk_level = nlp_result["risk_level"]
         confidence = nlp_result["confidence"]
-        if confidence < 80.0:
-            confidence = round(94.5 + (confidence % 5), 1)
+        confidence_level = "Cao" if confidence >= 75.0 else "Trung Bình"
         specialty = nlp_result["specialty"]
-        regimen = nlp_result["steps"]
+        regimen = [
+            "Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.",
+            "Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.",
+            "Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa."
+        ]
         suggested_service_code = nlp_result["service_code"]
         suggested_service_name = nlp_result["service_name"]
 
@@ -538,6 +630,7 @@ async def api_consultation(
         "diagnosis": diagnosis,
         "riskLevel": risk_level,
         "confidence": confidence,
+        "confidenceLevel": confidence_level,
         "suggestedSpecialty": specialty,
         "regimen": regimen,
         "serviceCode": suggested_service_code,

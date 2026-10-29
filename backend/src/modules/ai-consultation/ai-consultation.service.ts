@@ -48,11 +48,17 @@ export class AiConsultationService implements OnModuleInit, OnModuleDestroy {
    * Tư vấn y khoa qua Gemini 2.5 Flash khi ai-service (FastAPI local) không chạy
    * Đảm bảo tính năng AI Tư Vấn trên Web hoạt động 24/7 trên Cloud ngay cả khi tắt máy tính
    */
-  async consultWithGemini(symptoms?: string, file?: MulterFile): Promise<any> {
+  /**
+   * Tư vấn y khoa qua Gemini 2.5 Flash khi ai-service (FastAPI local) không chạy
+   * Đảm bảo tính năng AI Tư Vấn trên Web hoạt động 24/7 trên Cloud ngay cả khi tắt máy tính
+   */
+  async consultWithGemini(symptoms?: string, file?: MulterFile, channel?: string): Promise<any> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;
 
     try {
+      const isWeb = channel !== 'ZALO_BOT';
+
       let serviceListPrompt = '';
       try {
         const activeServices = await this.prisma.service.findMany({
@@ -70,24 +76,39 @@ BẮT BUỘC bạn phải trả về đúng serviceCode và serviceName từ dan
         this.logger.debug('Could not load service list for Gemini prompt');
       }
 
+      const webInstruction = `
+YÊU CẦU ĐẶC BIỆT CHO GIAO DIỆN WEB (CỰC KỲ QUAN TRỌNG: NGẮN GỌN, SÚC TÍCH ĐỂ KHÔNG VỠ BỐ CỤC UI):
+1. "diagnosis": Đúng 1 CÂU DUY NHẤT cực ngắn gọn (dưới 15 từ). Bắt đầu: "Các dấu hiệu nghi ngờ ghi nhận sơ bộ: ...". Tuyệt đối KHÔNG viết thêm câu thứ 2 giải thích dài dòng ở tiêu đề.
+2. "regimen": ĐÚNG 3 BƯỚC HÀNH ĐỘNG CÔ ĐỌNG (Mỗi bước CHỈ 1 CÂU, dưới 14 từ). Tuyệt đối KHÔNG viết đoạn văn giải thích dài dòng.
+3. "homeCareAdvice": Đúng 1 câu dặn dò ngắn gọn (dưới 15 từ).`;
+
+      const zaloInstruction = `
+YÊU CẦU CHO TIN NHẮN ZALO BOT (CHI TIẾT, ĐẦY ĐỦ, ÂN CẦN NHƯ BÁC SĨ TƯ VẤN TRỰC TIẾP):
+1. "diagnosis": Câu nhận định chi tiết, giải thích rõ nguyên nhân và mức độ ảnh hưởng của bệnh lý để bệnh nhân hiểu rõ tình trạng.
+2. "regimen": Danh sách 3-4 bước kiểm tra và can thiệp chi tiết, giải thích cặn kẽ tại sao cần làm từng bước.
+3. "homeCareAdvice": Lời dặn dò chi tiết các bước vệ sinh, ăn uống và giảm ê buốt tạm thời tại nhà trong thời gian chờ khám.`;
+
       const prompt = `
-Bạn là "Hệ thống AI Phân Tích & Chẩn Đoán Nha Khoa Thông Minh - SmartSchedule AI".
+Bạn là "Hệ thống Bác Sĩ Cố Vấn Y Khoa Răng Hàm Mặt - SmartSchedule AI".
 Bệnh nhân đang yêu cầu tư vấn chuyên môn:
 - Triệu chứng bệnh nhân mô tả: "${symptoms || 'Bệnh nhân gửi ảnh chụp tình trạng răng miệng'}"
 ${file ? '- Bệnh nhân có đính kèm hình ảnh răng miệng.' : ''}
 ${serviceListPrompt}
+${isWeb ? webInstruction : zaloInstruction}
 
 HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json) với cấu trúc:
 {
-  "diagnosis": "Câu chẩn đoán sơ bộ y khoa súc tích, chuyên nghiệp (2-3 câu)",
+  "diagnosis": "Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: ...",
   "riskLevel": "Thấp" | "Trung Bình" | "Cao",
-  "confidence": 95.5,
+  "confidence": 95.0,
+  "confidenceLevel": "Cao",
   "suggestedSpecialty": "Nha Khoa Tổng Quát" | "Phục hình Răng Sứ" | "Cấy ghép Implant" | "Chỉnh Nha Niềng Răng" | "Tiểu phẫu Răng Khôn",
   "regimen": [
-    "Bước 1: Khám lâm sàng và kiểm tra khoang miệng...",
-    "Bước 2: Chụp phim X-Quang / can thiệp điều trị...",
-    "Bước 3: Chăm sóc phục hồi và hướng dẫn tái khám..."
+    "Bước 1...",
+    "Bước 2...",
+    "Bước 3..."
   ],
+  "homeCareAdvice": "Lời dặn ngắn gọn...",
   "serviceCode": "Mã_dịch_vụ_từ_danh_mục",
   "serviceName": "Tên_dịch_vụ_từ_danh_mục"
 }
@@ -134,6 +155,100 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
     }
   }
 
+  /**
+   * HYBRID COMPOUND AI:
+   * Kết hợp kết quả từ MobileNetV3 / PhoBERT với Gemini 2.5 Flash để sinh các bước khuyến nghị động & cá nhân hóa.
+   * Phân biệt rõ kênh WEB (ngắn gọn, tránh vỡ bố cục) và kênh ZALO BOT (chi tiết, ân cần, dài).
+   */
+  async enhanceWithGemini(aiResponse: any, symptoms?: string, file?: MulterFile, channel?: string): Promise<any> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+      const isWeb = channel !== 'ZALO_BOT';
+      const detectedSigns = aiResponse.diagnosis || 'Không xác định';
+      const riskLevel = aiResponse.riskLevel || 'Trung Bình';
+      const findingsList = aiResponse.visionDetails?.selected_findings
+        ? aiResponse.visionDetails.selected_findings.map((f: any) => `${f.vn_name} (Xác suất thuật toán: ${f.confidence}%)`).join(', ')
+        : detectedSigns;
+
+      const webInstruction = `
+YÊU CẦU ĐẶC BIỆT CHO GIAO DIỆN WEB (CỰC KỲ QUAN TRỌNG: NGẮN GỌN, SÚC TÍCH ĐỂ KHÔNG VỠ BỐ CỤC UI):
+1. "refinedDiagnosis": Đúng 1 CÂU DUY NHẤT cực ngắn gọn (dưới 15 từ). Định dạng chuẩn: "Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: [Dấu hiệu 1] & [Dấu hiệu 2]". TUYỆT ĐỐI KHÔNG viết thêm câu thứ 2 giải thích lý thuyết hay dông dài ở tiêu đề.
+2. "regimen": ĐÚNG 3 BƯỚC HÀNH ĐỘNG CÔ ĐỌNG (Mỗi bước CHỈ 1 CÂU HÀNH ĐỘNG, dưới 14 từ).
+   - Tuyệt đối KHÔNG viết đoạn văn giải thích dài 3-4 dòng.
+   - Ví dụ mẫu:
+     "Thăm khám lâm sàng kiểm tra mức độ mảng bám và nướu."
+     "Chụp phim kiểm tra vôi răng dưới nướu và mô quanh chân răng."
+     "Lấy cao răng siêu âm vô trùng và đánh bóng men răng."
+3. "homeCareAdvice": Đúng 1 câu dặn dò ngắn gọn (dưới 15 từ, ví dụ: "Duy trì chải răng 2 lần/ngày và dùng chỉ nha khoa nhẹ nhàng.").`;
+
+      const zaloInstruction = `
+YÊU CẦU CHO TIN NHẮN ZALO BOT (CHI TIẾT, ĐẦY ĐỦ, ÂN CẦN NHƯ BÁC SĨ TƯ VẤN TRỰC TIẾP):
+1. "refinedDiagnosis": Câu nhận định chi tiết, giải thích rõ nguyên nhân và mức độ ảnh hưởng của bệnh lý để bệnh nhân hiểu rõ tình trạng.
+2. "regimen": Danh sách 3-4 bước kiểm tra và can thiệp chi tiết, giải thích cặn kẽ tại sao cần làm từng bước.
+3. "homeCareAdvice": Lời dặn dò chi tiết các bước vệ sinh, ăn uống và giảm ê buốt tạm thời tại nhà trong thời gian chờ khám.`;
+
+      const prompt = `
+Bạn là "Hệ thống Bác Sĩ Cố Vấn Y Khoa Răng Hàm Mặt - SmartSchedule AI".
+Mô hình Trí Tuệ Nhân Tạo thị giác MobileNetV3 (30 Epochs) và phân loại triệu chứng lâm sàng cục bộ vừa hoàn tất phân tích cho bệnh nhân:
+- Dấu hiệu bệnh lý phát hiện: "${detectedSigns}"
+- Chi tiết tổn thương ghi nhận: ${findingsList}
+- Mức độ rủi ro đánh giá: "${riskLevel}"
+- Mô tả triệu chứng của bệnh nhân: "${symptoms || 'Bệnh nhân gửi ảnh chụp tình trạng răng miệng'}"
+
+${isWeb ? webInstruction : zaloInstruction}
+
+TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
+{
+  "refinedDiagnosis": "Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: ...",
+  "regimen": [
+    "Bước 1...",
+    "Bước 2...",
+    "Bước 3..."
+  ],
+  "homeCareAdvice": "Lời dặn ngắn gọn..."
+}
+`;
+
+      const parts: any[] = [{ text: prompt }];
+      if (file && file.buffer) {
+        parts.push({
+          inline_data: {
+            mime_type: file.mimetype || 'image/jpeg',
+            data: file.buffer.toString('base64'),
+          },
+        });
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1024,
+            thinkingConfig: { thinkingBudget: 0 },
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!res.ok) return null;
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return null;
+
+      const parsed = JSON.parse(text);
+      return parsed;
+    } catch (e: any) {
+      this.logger.warn(`enhanceWithGemini error: ${e.message}`);
+      return null;
+    }
+  }
+
   async consult(dto: ConsultationDto, file?: MulterFile) {
     let uploadedImageUrl: string | undefined = undefined;
 
@@ -166,6 +281,27 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
 
       if (res.ok) {
         aiResponse = await res.json();
+
+        // 🌟 HYBRID COMPOUND AI: Kết hợp MobileNetV3 / PhoBERT với Gemini 2.5 Flash
+        if (aiResponse && aiResponse.success) {
+          try {
+            const enhancement = await this.enhanceWithGemini(aiResponse, dto.symptoms, file, dto.channel);
+            if (enhancement) {
+              if (enhancement.regimen && Array.isArray(enhancement.regimen) && enhancement.regimen.length > 0) {
+                aiResponse.regimen = enhancement.regimen;
+              }
+              if (enhancement.refinedDiagnosis) {
+                aiResponse.diagnosis = enhancement.refinedDiagnosis;
+              }
+              if (enhancement.homeCareAdvice) {
+                aiResponse.homeCareAdvice = enhancement.homeCareAdvice;
+              }
+              this.logger.log('🌟 [Hybrid AI] Enhanced MobileNetV3/PhoBERT findings with Gemini 2.5 Flash recommendations!');
+            }
+          } catch (enhancementErr: any) {
+            this.logger.warn(`[Hybrid AI] Skipped Gemini enhancement: ${enhancementErr.message}`);
+          }
+        }
       } else {
         this.logger.debug(`AI Service returned status ${res.status}: ${await res.text()}`);
       }
@@ -176,7 +312,7 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
     // 3. Tự động chuyển sang Gemini 2.5 Flash Cloud nếu AI Service cục bộ không chạy
     if (!aiResponse || !aiResponse.success) {
       try {
-        const geminiRes = await this.consultWithGemini(dto.symptoms, file);
+        const geminiRes = await this.consultWithGemini(dto.symptoms, file, dto.channel);
         if (geminiRes && geminiRes.success) {
           aiResponse = geminiRes;
         }
@@ -189,15 +325,16 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
     if (!aiResponse || !aiResponse.success) {
       aiResponse = {
         diagnosis: dto.symptoms
-          ? `Phân tích sơ bộ: Triệu chứng "${dto.symptoms}" cần thăm khám lâm sàng & chụp X-quang chuyên sâu.`
-          : 'Phân tích sơ bộ: Hình ảnh ghi nhận tổn thương răng miệng cần kiểm tra trực tiếp tại nha khoa.',
+          ? `Các dấu hiệu ghi nhận sơ bộ từ triệu chứng: "${dto.symptoms}". Cần thăm khám lâm sàng & chụp X-quang chuyên sâu.`
+          : 'Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: Cần chụp phim X-quang và kiểm tra trực tiếp tại nha khoa.',
         riskLevel: 'Trung Bình',
         confidence: 93.5,
+        confidenceLevel: 'Cao',
         suggestedSpecialty: 'Răng Hàm Mặt - Nha Khoa Tổng Quát',
         regimen: [
-          'Thăm khám lâm sàng và kiểm tra khoang miệng tổng quát',
-          'Chụp phim X-Quang Panorama xác định tổn thương cấu trúc',
-          'Điều trị vệ sinh chuyên sâu & phục hồi thẩm mỹ theo chỉ định',
+          'Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.',
+          'Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.',
+          'Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa.',
         ],
         serviceCode: 'DV-POR-01',
         serviceName: 'Khám & Điều Trị Nha Khoa Tổng Quát',
@@ -315,8 +452,11 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
       diagnosis: aiResponse.diagnosis,
       riskLevel: aiResponse.riskLevel,
       confidence: aiResponse.confidence,
+      confidenceLevel: aiResponse.confidenceLevel || (aiResponse.confidence >= 75 ? 'Cao' : 'Trung Bình'),
       suggestedSpecialty: aiResponse.suggestedSpecialty,
       regimen: aiResponse.regimen,
+      homeCareAdvice: aiResponse.homeCareAdvice || null,
+      isHybrid: !!(aiResponse.visionDetails && aiResponse.homeCareAdvice),
       suggestedDoctor: doctorName,
       suggestedDoctorId: doctorId,
       serviceId: matchedService?.id || null,
@@ -628,13 +768,34 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
    */
   async lookupAppointmentByMessage(text: string) {
     try {
-      // 1. Tìm số điện thoại (ví dụ: 0912345678, +84912345678)
-      const phoneMatch = text.match(/(?:(?:\+84)|0)(?:3|5|7|8|9)\d{8}\b/);
-      const cleanPhone = phoneMatch ? phoneMatch[0].replace(/^\+84/, '0') : null;
+      // 1. Tìm mã lịch hẹn trước (Ưu tiên cao nhất vì là định danh duy nhất của ca khám)
+      // Chấp nhận: ##LH-20261029-140739, #LH-20261029-140739, LH-20261029-140739, LH-2026-1234
+      const codeMatch = text.match(/#*(LH-[\w-]+)/i);
+      const cleanCode = codeMatch ? codeMatch[1].trim() : null;
 
-      // 2. Tìm mã lịch hẹn (ví dụ: LH-2026-8821, #LH-2026)
-      const codeMatch = text.match(/(?:#?LH-\d{4}-\d+|#?LH-\d+)/i);
-      const cleanCode = codeMatch ? codeMatch[0].replace(/^#/, '') : null;
+      if (cleanCode) {
+        const appointment = await this.prisma.appointment.findFirst({
+          where: {
+            OR: [
+              { appointmentCode: { equals: cleanCode, mode: 'insensitive' } },
+              { appointmentCode: { equals: `#${cleanCode}`, mode: 'insensitive' } },
+              { appointmentCode: { contains: cleanCode, mode: 'insensitive' } },
+            ],
+          },
+          include: {
+            patient: true,
+            branch: true,
+            doctor: true,
+            services: { include: { service: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (appointment) return appointment;
+      }
+
+      // 2. Tìm số điện thoại (ví dụ: 09673455765, 0912345678, +84912345678 - độ dài 9-11 số)
+      const phoneMatch = text.match(/(?:(?:\+84)|0)[1-9]\d{7,10}\b/);
+      const cleanPhone = phoneMatch ? phoneMatch[0].replace(/^\+84/, '0').trim() : null;
 
       if (cleanPhone) {
         const appointment = await this.prisma.appointment.findFirst({
@@ -650,21 +811,6 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
             services: { include: { service: true } },
           },
           orderBy: { createdAt: 'desc' },
-        });
-        if (appointment) return appointment;
-      }
-
-      if (cleanCode) {
-        const appointment = await this.prisma.appointment.findFirst({
-          where: {
-            appointmentCode: { contains: cleanCode, mode: 'insensitive' },
-          },
-          include: {
-            patient: true,
-            branch: true,
-            doctor: true,
-            services: { include: { service: true } },
-          },
         });
         if (appointment) return appointment;
       }
@@ -694,6 +840,9 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
       let appointmentDetails = '';
       if (context?.appointmentInfo) {
         const app = context.appointmentInfo;
+        const appCodeDisplay = app.appointmentCode?.startsWith('#')
+          ? app.appointmentCode
+          : `#${app.appointmentCode || 'LH-2026'}`;
         const startTimeStr = new Date(app.startTime).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
           dateStyle: 'full',
@@ -705,7 +854,7 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
 
         appointmentDetails = `
 THÔNG TIN LỊCH HẸN TÌM THẤY TRONG HỆ THỐNG:
-- Mã lịch hẹn: #${app.appointmentCode}
+- Mã lịch hẹn: ${appCodeDisplay}
 - Tên bệnh nhân: ${app.patient?.fullName || context?.senderName} (SĐT: ${app.patient?.phone})
 - Thời gian khám: ${startTimeStr}
 - Bác sĩ phụ trách: ${app.doctor?.fullName || 'Bác sĩ chuyên khoa'}
@@ -1053,7 +1202,7 @@ Hoặc bạn có thể gửi **Số điện thoại** để em hỗ trợ đặt
 
       // Tra cứu lịch hẹn nếu tin nhắn có chứa SĐT hoặc mã lịch hẹn
       const matchedAppointment = await this.lookupAppointmentByMessage(text);
-      const phoneInMsg = text.match(/(?:(?:\+84)|0)(?:3|5|7|8|9)\d{8}\b/)?.[0] || null;
+      const phoneInMsg = text.match(/(?:(?:\+84)|0)[1-9]\d{7,10}\b/)?.[0] || null;
       const patientPhone = matchedAppointment?.patient?.phone || (phoneInMsg ? phoneInMsg.replace(/^\+84/, '0') : null);
 
       // Lưu liên kết Zalo ChatId với bệnh nhân để phục vụ nhắc lịch tự động
@@ -1101,6 +1250,9 @@ Hoặc bạn có thể gửi **Số điện thoại** để em hỗ trợ đặt
       // 3.2 Fallback nếu Gemini không khả dụng
       if (!replyMsg) {
         if (matchedAppointment) {
+          const appCodeDisplay = matchedAppointment.appointmentCode?.startsWith('#')
+            ? matchedAppointment.appointmentCode
+            : `#${matchedAppointment.appointmentCode || 'LH-2026'}`;
           const startTimeStr = new Date(matchedAppointment.startTime).toLocaleString('vi-VN', {
             timeZone: 'Asia/Ho_Chi_Minh',
             dateStyle: 'full',
@@ -1111,7 +1263,7 @@ Hoặc bạn có thể gửi **Số điện thoại** để em hỗ trợ đặt
 
 Dạ em chào **${matchedAppointment.patient?.fullName || senderName}**!
 Hệ thống Nha Khoa Fruit đã ghi nhận lịch hẹn của bạn:
-• **Mã lịch hẹn:** #${matchedAppointment.appointmentCode}
+• **Mã lịch hẹn:** ${appCodeDisplay}
 • **Thời gian khám:** ${startTimeStr}
 • **Bác sĩ phụ trách:** ${matchedAppointment.doctor?.fullName || 'Bác sĩ chuyên khoa'}
 • **Cơ sở:** ${matchedAppointment.branch?.name} (${matchedAppointment.branch?.address})
@@ -1336,7 +1488,7 @@ Nha Khoa Fruit xin phép nhắc bạn về lịch hẹn khám vào ngày mai:
 • 👨‍⚕️ **Bác sĩ phụ trách:** ${app.doctor?.fullName || 'Bác sĩ chuyên khoa'}
 • 🏥 **Cơ sở:** ${app.branch?.name} (${app.branch?.address})
 • 🦷 **Dịch vụ:** ${serviceNames}
-• 🎫 **Mã lịch hẹn:** #${app.appointmentCode}
+• 🎫 **Mã lịch hẹn:** ${app.appointmentCode?.startsWith('#') ? app.appointmentCode : `#${app.appointmentCode}`}
 
 💡 **Lưu ý nhỏ giúp buổi khám thuận lợi:**
 • Bạn vui lòng ăn nhẹ trước giờ khám (tránh để bụng quá đói).

@@ -29,7 +29,10 @@ interface AiReportState {
   riskLevel: 'Thấp' | 'Trung Bình' | 'Cao' | string;
   suggestedSpecialty: string;
   confidence: number;
+  confidenceLevel?: string;
   regimen: string[];
+  homeCareAdvice?: string;
+  isHybrid?: boolean;
   suggestedDoctor: string;
   suggestedDoctorId?: string;
   serviceId?: string;
@@ -114,7 +117,10 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           riskLevel: res.riskLevel || 'Trung Bình',
           suggestedSpecialty: res.suggestedSpecialty || 'Răng Hàm Mặt',
           confidence: res.confidence || 95.0,
+          confidenceLevel: res.confidenceLevel || (res.confidence >= 75 ? 'Cao' : 'Trung Bình'),
           regimen: res.regimen || [],
+          homeCareAdvice: res.homeCareAdvice,
+          isHybrid: res.isHybrid,
           suggestedDoctor: res.suggestedDoctor || 'Bác sĩ chuyên khoa',
           suggestedDoctorId: res.suggestedDoctorId,
           serviceId: res.serviceId,
@@ -126,23 +132,24 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           nlpDetails: res.nlpDetails,
         });
 
-        toast('AI đã phân tích dữ liệu lâm sàng và đề xuất phác đồ thành công!', 'success');
+        toast('AI đã phân tích dữ liệu lâm sàng và khuyến nghị các bước thành công!', 'success');
       } else {
         toast('Không thể nhận kết quả từ AI, vui lòng thử lại sau!', 'error');
       }
     } catch (err: any) {
       console.error('Error analyzing with AI:', err);
-      toast('Lỗi kết nối AI Service. Hệ thống chuyển sang phác đồ dự phòng chuẩn y khoa.', 'error');
+      toast('Lỗi kết nối AI Service. Hệ thống chuyển sang khuyến nghị dự phòng chuẩn y khoa.', 'error');
       // Fallback
       setAiReport({
-        diagnosis: `Đề xuất chẩn đoán dựa trên triệu chứng: "${symptomInput || 'Hình ảnh lâm sàng'}"`,
+        diagnosis: `Các dấu hiệu nghi ngờ ghi nhận sơ bộ từ triệu chứng: "${symptomInput || 'Hình ảnh lâm sàng'}"`,
         riskLevel: 'Trung Bình',
         suggestedSpecialty: 'Chuyên Khoa Răng Hàm Mặt Kỹ Thuật Cao',
         confidence: 94.8,
+        confidenceLevel: 'Cao',
         regimen: [
-          'Chụp phim X-Quang chẩn đoán độ sâu thương tổn',
-          'Khám tư vấn trực tiếp cùng Bác sĩ Chuyên khoa',
-          'Lập phác đồ điều trị vô trùng chuẩn quốc tế',
+          'Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.',
+          'Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.',
+          'Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa.',
         ],
         suggestedDoctor: 'TS.BS. Nguyễn Minh Anh',
         serviceName: 'Khám & Điều Trị Nha Khoa Tổng Quát',
@@ -170,14 +177,14 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
   };
 
   const getRiskBadgeColor = (level: string) => {
-    switch (level) {
-      case 'Thấp':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Cao':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
-      default:
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (!level) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (level.includes('Cao')) {
+      return 'bg-rose-50 text-rose-700 border-rose-200';
     }
+    if (level.includes('Thấp')) {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+    return 'bg-amber-50 text-amber-700 border-amber-200';
   };
 
   return (
@@ -384,11 +391,16 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
-                    ĐỘ CHÍNH XÁC AI: {aiReport.confidence}%
+                    ĐỘ TIN CẬY THUẬT TOÁN: {aiReport.confidenceLevel ? aiReport.confidenceLevel.toUpperCase() : (aiReport.confidence >= 75 ? 'CAO' : 'TRUNG BÌNH')}
                   </span>
                   {aiReport.imageUrl && (
                     <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
                       📸 Đã phân tích ảnh
+                    </span>
+                  )}
+                  {aiReport.isHybrid && (
+                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                      ⚡ Mô hình lai: MobileNet + Gemini
                     </span>
                   )}
                   {aiReport.consultationId && (
@@ -400,40 +412,70 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-1">
                   {aiReport.diagnosis}
                 </h3>
+                {aiReport.visionDetails?.selected_findings && aiReport.visionDetails.selected_findings.length > 1 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Dấu hiệu phát hiện đồng thời:
+                    </span>
+                    {aiReport.visionDetails.selected_findings.map((f: any, idx: number) => (
+                      <span
+                        key={idx}
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200"
+                      >
+                        {f.vn_name.split(' /')[0]} ({f.confidence}%)
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs text-slate-500 font-medium">Mức độ rủi ro:</span>
               <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${getRiskBadgeColor(aiReport.riskLevel)}`}>
-                {aiReport.riskLevel}
+                {aiReport.riskLevel.includes('Cao')
+                  ? 'Cao / Cần khám sớm'
+                  : aiReport.riskLevel.includes('Thấp')
+                  ? 'Thấp / Định kỳ'
+                  : 'Trung Bình / Cần theo dõi'}
               </span>
             </div>
           </div>
 
           {/* Grid: 2 Columns (Regimen & Matched Doctor) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm">
-            {/* Column 1: Regimen Steps */}
-            <div className="space-y-3.5">
-              <h4 className="font-bold text-slate-800 flex items-center gap-2 text-xs sm:text-sm">
-                <Stethoscope className="w-4 h-4 text-sky-600" /> Đề Xuất Phác Đồ Điều Trị Ban Đầu:
-              </h4>
-
+            {/* Column 1: Recommended Next Steps */}
+            <div className="space-y-3 flex flex-col justify-between">
               <div className="space-y-2.5">
-                {aiReport.regimen && aiReport.regimen.length > 0 ? (
-                  aiReport.regimen.map((step, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2.5 bg-slate-50/80 hover:bg-sky-50/40 p-3 rounded-2xl border border-slate-200/80 transition-colors"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                        {idx + 1}
-                      </span>
-                      <span className="text-slate-700 font-medium leading-relaxed">{step}</span>
+                <h4 className="font-bold text-slate-800 flex items-center gap-2 text-xs sm:text-sm">
+                  <Stethoscope className="w-4 h-4 text-sky-600" /> Khuyến nghị các bước kiểm tra tiếp theo:
+                </h4>
+
+                <div className="space-y-2">
+                  {aiReport.regimen && aiReport.regimen.length > 0 ? (
+                    aiReport.regimen.slice(0, 3).map((step, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 bg-slate-50/80 hover:bg-sky-50/40 p-2.5 rounded-xl border border-slate-200/80 transition-colors"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                          {idx + 1}
+                        </span>
+                        <span className="text-slate-700 font-medium leading-relaxed text-xs sm:text-sm">{step}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400">Không có dữ liệu khuyến nghị.</p>
+                  )}
+                </div>
+
+                {aiReport.homeCareAdvice && (
+                  <div className="p-2.5 bg-gradient-to-r from-amber-50/90 to-orange-50/80 border border-amber-200/90 rounded-xl text-xs flex items-start gap-2 shadow-2xs text-amber-900">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed font-medium">
+                      <strong className="text-amber-950 font-bold">Lời dặn:</strong> {aiReport.homeCareAdvice}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400">Không có dữ liệu phác đồ.</p>
+                  </div>
                 )}
               </div>
 
@@ -476,7 +518,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                   </div>
                   <p className="text-xs text-teal-800 font-semibold">{aiReport.suggestedSpecialty}</p>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Bác sĩ chuyên khoa đầu ngành có lịch trống trong tuần này • Khuyến nghị khám theo phác đồ AI.
+                    Bác sĩ chuyên khoa đầu ngành có lịch trống trong tuần này • Sẵn sàng thăm khám và hội chẩn chuyên sâu.
                   </p>
                 </div>
               </div>
@@ -490,13 +532,13 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                     className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-600 via-teal-500 to-emerald-500 hover:from-sky-700 hover:to-emerald-600 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer group"
                   >
                     <Calendar className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    <span>Đặt Lịch Khám Theo Phác Đồ AI Này</span>
+                    <span>Đặt Lịch Khám &amp; Tư Vấn Trực Tiếp</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
                 ) : (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
                     <p className="text-xs text-slate-600 font-medium">
-                      Phác đồ này cần thăm khám lâm sàng trực tiếp với bác sĩ để chỉ định can thiệp chi tiết.
+                      Khuyến nghị này cần được bác sĩ chuyên khoa thăm khám lâm sàng trực tiếp để chẩn đoán xác định.
                     </p>
                     <button
                       type="button"
@@ -509,7 +551,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                   </div>
                 )}
                 <p className="text-[10px] text-center text-slate-400">
-                  Hệ thống tự động đồng bộ phác đồ và lưu hồ sơ bệnh nhân khi bạn xác nhận đặt lịch.
+                  Hệ thống tự động đồng bộ kết quả sàng lọc sơ bộ vào hồ sơ bệnh nhân khi bạn xác nhận đặt lịch.
                 </p>
               </div>
             </div>

@@ -125,8 +125,13 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
     }
   };
 
+  const formatAppCode = (code?: string) => {
+    if (!code) return '#LH-2026';
+    return code.startsWith('#') ? code : `#${code}`;
+  };
+
   const handleOpenZalo = () => {
-    const msg = `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`;
+    const msg = `Xác nhận lịch hẹn ${formatAppCode(createdAppointment?.appointmentCode)} - SĐT: ${patientPhone}`;
     navigator.clipboard.writeText(msg).catch(() => {});
     setCopiedZaloMsg(true);
     toast('Đã sao chép tin nhắn mẫu! Đang mở Zalo để kết nối...', 'success');
@@ -990,7 +995,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                     type="button"
                     onClick={() =>
                       handleCopyZaloMsg(
-                        `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`,
+                        `Xác nhận lịch hẹn ${formatAppCode(createdAppointment?.appointmentCode)} - SĐT: ${patientPhone}`,
                       )
                     }
                     className="inline-flex items-center gap-1 text-[#0068FF] hover:text-blue-800 font-bold cursor-pointer"
@@ -1009,7 +1014,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                   </button>
                 </div>
                 <div className="font-mono text-[10px] font-bold text-slate-800 bg-slate-50 p-1.5 rounded-lg border border-slate-200 select-all">
-                  Xác nhận lịch hẹn #{createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: {patientPhone}
+                  Xác nhận lịch hẹn {formatAppCode(createdAppointment?.appointmentCode)} - SĐT: {patientPhone}
                 </div>
               </div>
 
@@ -1205,7 +1210,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                   type="button"
                   onClick={() =>
                     handleCopyZaloMsg(
-                      `Xác nhận lịch hẹn #${createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: ${patientPhone}`,
+                      `Xác nhận lịch hẹn ${formatAppCode(createdAppointment?.appointmentCode)} - SĐT: ${patientPhone}`,
                     )
                   }
                   className="inline-flex items-center gap-1 text-[#0068FF] hover:text-blue-800 font-bold cursor-pointer"
@@ -1224,7 +1229,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                 </button>
               </div>
               <div className="font-mono text-[10.5px] font-bold text-slate-800 bg-slate-50 p-2 rounded-lg border border-slate-200 select-all">
-                Xác nhận lịch hẹn #{createdAppointment?.appointmentCode || 'LH-2026'} - SĐT: {patientPhone}
+                Xác nhận lịch hẹn {formatAppCode(createdAppointment?.appointmentCode)} - SĐT: {patientPhone}
               </div>
             </div>
 
