@@ -121,9 +121,22 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    // Phục hồi tức thì từ Client Cache (0ms latency khi quay lại trang)
+    let hasCache = false;
+    try {
+      const cachedServices = sessionStorage.getItem('smartschedule_cached_home_services');
+      const cachedDoctors = sessionStorage.getItem('smartschedule_cached_home_doctors');
+      if (cachedServices && cachedDoctors) {
+        setServices(JSON.parse(cachedServices));
+        setDoctors(JSON.parse(cachedDoctors));
+        setIsLoading(false);
+        hasCache = true;
+      }
+    } catch (e) {}
+
+    const fetchData = async (isBackground = false) => {
       try {
-        setIsLoading(true);
+        if (!isBackground) setIsLoading(true);
         const [servicesData, doctorsData] = await Promise.all([
           servicesApi.getAll({ isActive: true }),
           staffApi.getDoctors(),
@@ -133,18 +146,23 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           : [];
         setServices(activeOnly);
         setDoctors(doctorsData || []);
+
+        try {
+          sessionStorage.setItem('smartschedule_cached_home_services', JSON.stringify(activeOnly));
+          sessionStorage.setItem('smartschedule_cached_home_doctors', JSON.stringify(doctorsData || []));
+        } catch (e) {}
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu trang chủ:', err);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
+    fetchData(hasCache);
     loadPublicReviews();
 
     // Listen to real-time service update events
     const handleSync = () => {
-      fetchData();
+      fetchData(true);
       loadPublicReviews();
     };
     window.addEventListener('services_updated', handleSync);
@@ -378,38 +396,59 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-extrabold text-slate-900">Đội Ngũ Bác Sĩ Chuyên Khoa</h2>
-              <p className="text-xs text-slate-500 mt-1">Các chuyên gia hàng đầu với trên 10 năm kinh nghiệm điều trị</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Top 10 chuyên gia hàng đầu với trên 10 năm kinh nghiệm điều trị
+              </p>
             </div>
 
             <button
               type="button"
               onClick={() => navigate('/doctors')}
-              className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-sky-50 border border-slate-200 shadow-2xs transition-all cursor-pointer"
             >
-              Xem tất cả bác sĩ <ArrowRight className="w-4 h-4" />
+              <span>Xem tất cả ({doctors.length}) bác sĩ</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {doctors.map((d) => (
-              <div key={d.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-center space-y-3">
-                <div className="w-24 h-24 rounded-full overflow-hidden mx-auto border-2 border-sky-400 p-0.5 shadow-sm bg-slate-100 flex items-center justify-center">
-                  {d.avatar ? (
-                    <img src={d.avatar} alt={d.name} className="w-full h-full object-cover rounded-full" />
-                  ) : (
-                    <Stethoscope className="w-8 h-8 text-slate-400" />
-                  )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
+            {doctors.slice(0, 10).map((d) => (
+              <div key={d.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-sky-300 transition-all text-center space-y-3 flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-full overflow-hidden mx-auto border-2 border-sky-400 p-0.5 shadow-sm bg-slate-100 flex items-center justify-center">
+                    {d.avatar ? (
+                      <img src={d.avatar} alt={d.name} className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <Stethoscope className="w-8 h-8 text-slate-400" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{d.name}</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{d.specialty}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">{d.name}</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{d.specialty}</p>
-                </div>
-                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
-                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {d.rating} ({d.totalAppointments || 0} ca)
+                <div className="pt-1">
+                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[11px] font-bold border border-amber-200">
+                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {d.rating} ({d.totalAppointments || 0} ca)
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Bottom Callout to Full Doctors Page */}
+          {doctors.length > 10 && (
+            <div className="text-center pt-8">
+              <button
+                type="button"
+                onClick={() => navigate('/doctors')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-sky-50 text-sky-700 font-extrabold text-xs rounded-xl border border-sky-200 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+              >
+                <span>Xem thêm {doctors.length - 10} bác sĩ khác trong Đội Ngũ Chuyên Khoa</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

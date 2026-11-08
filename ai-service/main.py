@@ -108,16 +108,16 @@ VISION_DISEASE_INFO = {
     },
     "Mouth Ulcer": {
         "vn_name": "Nhiệt miệng / Loét niêm mạc miệng",
-        "risk_level": "Cao",
+        "risk_level": "Thấp",
         "specialty": "Nha Khoa Tổng Quát & Bệnh Học Miệng",
         "default_steps": [
-            "Kiểm tra vị trí và kích thước vết loét niêm mạc",
-            "Sát trùng nhẹ nhàng và chấm gel giảm đau sinh học",
-            "Kê đơn thuốc bôi tạo màng bảo vệ kích thích liền sẹo nhanh",
-            "Tư vấn bổ sung vi chất và vitamin C, kẽm"
+            "Súc miệng bằng nước muối sinh lý 0.9% hoặc dung dịch sát khuẩn dịu nhẹ 2-3 lần/ngày.",
+            "Sử dụng gel bôi nhiệt miệng chuyên dụng để tạo màng bảo vệ giảm đau rát.",
+            "Bổ sung vitamin nhóm B, vitamin C, kẽm và uống đủ nước (tránh đồ cay nóng, chua mặn).",
+            "Theo dõi: Nếu vết loét không lành sau 10-14 ngày hoặc lan rộng, cần đến nha khoa thăm khám lâm sàng."
         ],
-        "service_code": "DV-WHT-01",
-        "service_name": "Điều Trị Nhiệt Miệng & Bệnh Học Niêm Mạc"
+        "service_code": None,
+        "service_name": None
     },
     "hypodontia": {
         "vn_name": "Mất răng / Thiếu răng (Răng khuyết thiếu)",
@@ -436,23 +436,22 @@ def analyze_vision_image(pil_img: Image.Image) -> Dict[str, Any]:
             "default_steps": info.get("default_steps", [])
         })
 
-    # Logic: Lấy tất cả nhãn có xác suất >= 15% hoặc tối thiểu lấy Top 2 nhãn có điểm cao nhất
+    # Logic Top-K thông minh:
+    # Chỉ giữ các bệnh có xác suất thực tế >= 15%. Không ép lấy Top 2 nếu bệnh thứ 2 không đáng kể (0% hoặc dưới ngưỡng)
     selected_findings = [f for f in all_findings if f["confidence"] >= 15.0]
-    if len(selected_findings) < 2 and len(all_findings) >= 2:
-        selected_findings = all_findings[:2]
-    elif not selected_findings:
+    if not selected_findings:
         selected_findings = all_findings[:1]
 
     top_finding = selected_findings[0]
-    detected_classes = [f["class"] for f in selected_findings]
+    significant_classes = [f["class"] for f in selected_findings]
 
-    # Rule-based gán Mức độ rủi ro:
-    # - Nếu có Sâu răng (Data caries), Mất răng (hypodontia), Tổn thương mô / Loét niêm mạc (Mouth Ulcer): Rủi ro Cao
-    # - Nếu có Viêm nướu (Gingivitis): Rủi ro Trung Bình
-    # - Nếu chỉ có Cao răng (Calculus) hoặc Đổi màu răng (Tooth Discoloration): Rủi ro Thấp
-    if any(c in ["Data caries", "hypodontia", "Mouth Ulcer"] for c in detected_classes):
+    # Rule-based phân tầng Mức độ rủi ro y khoa chính xác:
+    # - Rủi ro Cao: Sâu răng nặng (Data caries), Mất răng nhiều/tiêu xương (hypodontia)
+    # - Rủi ro Trung Bình: Viêm nướu / Viêm lợi cấp (Gingivitis)
+    # - Rủi ro Thấp: Nhiệt miệng lành tính (Mouth Ulcer), Vôi răng mảng bám (Calculus), Ố vàng men răng (Tooth Discoloration)
+    if any(c in ["Data caries", "hypodontia"] for c in significant_classes):
         calculated_risk = "Cao"
-    elif any(c in ["Gingivitis"] for c in detected_classes):
+    elif any(c in ["Gingivitis"] for c in significant_classes):
         calculated_risk = "Trung Bình"
     else:
         calculated_risk = "Thấp"
@@ -466,7 +465,7 @@ def analyze_vision_image(pil_img: Image.Image) -> Dict[str, Any]:
     else:
         confidence_level = "Tiêu chuẩn"
 
-    # Chuẩn hóa tên các bệnh phát hiện (Ví dụ: "Viêm nướu & Sâu răng")
+    # Chuẩn hóa tên các bệnh phát hiện (Chỉ ghép khi thực sự phát hiện từ 2 bệnh trở lên cùng có confidence >= 15%)
     short_names = []
     for f in selected_findings:
         raw = f["vn_name"]
@@ -475,11 +474,11 @@ def analyze_vision_image(pil_img: Image.Image) -> Dict[str, Any]:
             short_names.append(clean)
     combined_vn_name = " & ".join(short_names)
 
-    # Khuyến nghị các bước kiểm tra tiếp theo chuẩn y khoa
-    recommended_steps = [
-        "Đến cơ sở nha khoa chụp phim X-quang kiểm tra chân răng và mô nâng đỡ.",
-        "Thăm khám lâm sàng để làm sạch ổ viêm và kiểm tra tủy răng.",
-        "Lắng nghe tư vấn phác đồ bảo tồn răng từ bác sĩ chuyên khoa."
+    # Khuyến nghị các bước kiểm tra tiếp theo bám sát theo đúng từng bệnh lý cụ thể
+    recommended_steps = top_finding.get("default_steps") or [
+        "Thăm khám lâm sàng và trao đổi tình trạng với bác sĩ chuyên khoa.",
+        "Tuân thủ các bước vệ sinh răng miệng và dùng thuốc/gel theo hướng dẫn.",
+        "Tái khám hoặc theo dõi tiến triển sau 7-10 ngày."
     ]
 
     return {

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { UploadService, MulterFile } from '../upload/upload.service.js';
 
@@ -174,14 +175,13 @@ HÃY PHÂN TÍCH CHUYÊN NGHIỆP VÀ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JS
 
       const webInstruction = `
 YÊU CẦU ĐẶC BIỆT CHO GIAO DIỆN WEB (CỰC KỲ QUAN TRỌNG: NGẮN GỌN, SÚC TÍCH ĐỂ KHÔNG VỠ BỐ CỤC UI):
-1. "refinedDiagnosis": Đúng 1 CÂU DUY NHẤT cực ngắn gọn (dưới 15 từ). Định dạng chuẩn: "Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: [Dấu hiệu 1] & [Dấu hiệu 2]". TUYỆT ĐỐI KHÔNG viết thêm câu thứ 2 giải thích lý thuyết hay dông dài ở tiêu đề.
+1. "refinedDiagnosis": Đúng 1 CÂU DUY NHẤT cực ngắn gọn (dưới 15 từ). Định dạng chuẩn: "Các dấu hiệu nghi ngờ ghi nhận qua ảnh sơ bộ: [Tên bệnh]". Nếu chỉ có 1 bệnh lý thì CHỈ ghi đúng 1 bệnh đó, TUYỆT ĐỐI KHÔNG tự bịa hoặc ghép thêm bệnh khác khi xác suất bằng 0%.
 2. "regimen": ĐÚNG 3 BƯỚC HÀNH ĐỘNG CÔ ĐỌNG (Mỗi bước CHỈ 1 CÂU HÀNH ĐỘNG, dưới 14 từ).
-   - Tuyệt đối KHÔNG viết đoạn văn giải thích dài 3-4 dòng.
-   - Ví dụ mẫu:
-     "Thăm khám lâm sàng kiểm tra mức độ mảng bám và nướu."
-     "Chụp phim kiểm tra vôi răng dưới nướu và mô quanh chân răng."
-     "Lấy cao răng siêu âm vô trùng và đánh bóng men răng."
-3. "homeCareAdvice": Đúng 1 câu dặn dò ngắn gọn (dưới 15 từ, ví dụ: "Duy trì chải răng 2 lần/ngày và dùng chỉ nha khoa nhẹ nhàng.").`;
+   - YÊU CẦU CHUẨN XÁC THEO TỪNG BỆNH LÝ:
+     + Nếu là Nhiệt miệng / Loét niêm mạc miệng: Hướng dẫn súc nước muối sinh lý dịu nhẹ, dùng gel bôi bảo vệ giảm đau, kiêng cay nóng và theo dõi sau 10-14 ngày. TUYỆT ĐỐI KHÔNG bắt chụp phim X-quang xương hàm!
+     + Nếu là Sâu răng: Khám lâm sàng kiểm tra mức độ sâu, chụp X-quang ổ tủy và trám bảo tồn.
+     + Nếu là Viêm nướu / Cao răng: Khám viền nướu, lấy cao răng siêu âm và rửa túi lợi.
+3. "homeCareAdvice": Đúng 1 câu dặn dò ngắn gọn (dưới 15 từ, ví dụ: "Duy trì vệ sinh răng miệng kỹ lưỡng, tránh thức ăn cay nóng và đồ chua.").`;
 
       const zaloInstruction = `
 YÊU CẦU CHO TIN NHẮN ZALO BOT (CHI TIẾT, ĐẦY ĐỦ, ÂN CẦN NHƯ BÁC SĨ TƯ VẤN TRỰC TIẾP):
@@ -251,6 +251,98 @@ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
 
   async consult(dto: ConsultationDto, file?: MulterFile) {
     let uploadedImageUrl: string | undefined = undefined;
+    const cleanSymptoms = dto.symptoms ? dto.symptoms.trim() : '';
+    const imageHash = file && file.buffer ? crypto.createHash('md5').update(file.buffer).digest('hex') : null;
+
+    // ⚡ SMART AI DEDUPLICATION CACHE: Tái sử dụng kết quả đã phân tích gần đây nếu cùng ảnh hoặc cùng mô tả triệu chứng
+    let cachedLog: any = null;
+    try {
+      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      if (imageHash) {
+        cachedLog = await this.prisma.aiConsultationLog.findFirst({
+          where: {
+            createdAt: { gte: fourteenDaysAgo },
+            metadata: {
+              path: ['imageHash'],
+              equals: imageHash,
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      if (!cachedLog && cleanSymptoms.length >= 10 && !file) {
+        cachedLog = await this.prisma.aiConsultationLog.findFirst({
+          where: {
+            symptoms: { equals: cleanSymptoms, mode: 'insensitive' },
+            createdAt: { gte: fourteenDaysAgo },
+            diagnosis: { not: '' },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+    } catch (cacheErr: any) {
+      this.logger.debug(`AI Cache check skipped: ${cacheErr.message}`);
+    }
+
+    if (cachedLog && cachedLog.diagnosis) {
+      this.logger.log(`⚡ [AI Cache Hit] Tái sử dụng kết quả AI đã phân tích trước đó (Phản hồi ~15ms)`);
+
+      let logRecord: any = null;
+      try {
+        logRecord = await this.prisma.aiConsultationLog.create({
+          data: {
+            channel: dto.channel || 'WEB_CONSULTATION',
+            patientName: dto.patientName || null,
+            patientPhone: dto.patientPhone || null,
+            symptoms: cleanSymptoms || null,
+            imageUrl: uploadedImageUrl || cachedLog.imageUrl || null,
+            diagnosis: cachedLog.diagnosis,
+            riskLevel: cachedLog.riskLevel || 'Trung Bình',
+            confidence: cachedLog.confidence || 95.0,
+            suggestedSpecialty: cachedLog.suggestedSpecialty || 'Răng Hàm Mặt',
+            regimen: cachedLog.regimen || [],
+            serviceCode: cachedLog.serviceCode || null,
+            serviceName: cachedLog.serviceName || null,
+            suggestedDoctorId: cachedLog.suggestedDoctorId || null,
+            suggestedDoctorName: cachedLog.suggestedDoctorName || null,
+            isAccepted: false,
+            metadata: {
+              imageHash,
+              isFromCache: true,
+              originalLogId: cachedLog.id,
+            },
+          },
+        });
+      } catch (err: any) {
+        this.logger.warn(`Could not save cached consultation log: ${err.message}`);
+      }
+
+      const cachedMeta = (cachedLog.metadata as any) || {};
+
+      return {
+        success: true,
+        consultationId: logRecord?.id || cachedLog.id,
+        diagnosis: cachedLog.diagnosis,
+        riskLevel: cachedLog.riskLevel,
+        confidence: cachedLog.confidence,
+        confidenceLevel: cachedLog.confidence >= 75 ? 'Cao' : 'Trung Bình',
+        suggestedSpecialty: cachedLog.suggestedSpecialty,
+        regimen: cachedLog.regimen,
+        homeCareAdvice: cachedMeta.homeCareAdvice || null,
+        isHybrid: true,
+        isCached: true,
+        suggestedDoctor: cachedLog.suggestedDoctorName || 'TS.BS. Nguyễn Minh Anh',
+        suggestedDoctorId: cachedLog.suggestedDoctorId,
+        serviceId: null,
+        serviceCode: cachedLog.serviceCode,
+        serviceName: cachedLog.serviceName,
+        isServiceAvailable: !!(cachedLog.serviceName && cachedLog.serviceCode),
+        imageUrl: uploadedImageUrl || cachedLog.imageUrl,
+        visionDetails: cachedMeta.visionDetails,
+        nlpDetails: cachedMeta.nlpDetails,
+      };
+    }
 
     // 1. Upload image to Cloudinary if file exists
     if (file && file.buffer) {
@@ -370,51 +462,57 @@ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
     // 3.5. Đối soát thông minh với bảng Service trong Database
     let matchedService: any = null;
     try {
-      if (aiResponse.serviceCode) {
-        matchedService = await this.prisma.service.findFirst({
-          where: { code: aiResponse.serviceCode, isActive: true },
-        });
-      }
-      if (!matchedService && aiResponse.serviceName) {
-        matchedService = await this.prisma.service.findFirst({
-          where: {
-            name: { contains: aiResponse.serviceName.split(' ')[0], mode: 'insensitive' },
-            isActive: true,
-          },
-        });
-      }
-      if (!matchedService) {
-        const combinedText = `${aiResponse.diagnosis || ''} ${aiResponse.suggestedSpecialty || ''} ${dto.symptoms || ''}`.toLowerCase();
-        let keyword = '';
-        if (combinedText.includes('niềng') || combinedText.includes('chỉnh nha') || combinedText.includes('ortho')) keyword = 'niềng';
-        else if (combinedText.includes('implant') || combinedText.includes('cấy ghép')) keyword = 'implant';
-        else if (combinedText.includes('sứ') || combinedText.includes('bọc')) keyword = 'sứ';
-        else if (combinedText.includes('trắng') || combinedText.includes('tẩy')) keyword = 'trắng';
-        else if (combinedText.includes('tủy') || combinedText.includes('nội nha')) keyword = 'tủy';
-        else if (combinedText.includes('nhổ') || combinedText.includes('răng khôn')) keyword = 'nhổ';
-        else if (combinedText.includes('vôi') || combinedText.includes('cao răng')) keyword = 'vôi';
+      const combinedText = `${aiResponse.diagnosis || ''} ${aiResponse.suggestedSpecialty || ''} ${dto.symptoms || ''}`.toLowerCase();
+      const isMouthUlcerOnly =
+        (aiResponse.visionDetails?.class === 'Mouth Ulcer' || combinedText.includes('nhiệt miệng')) &&
+        !combinedText.includes('sâu răng') &&
+        !combinedText.includes('implant') &&
+        !combinedText.includes('mất răng');
 
-        if (keyword) {
-          matchedService = await this.prisma.service.findFirst({
-            where: {
-              name: { contains: keyword, mode: 'insensitive' },
-              isActive: true,
-            },
-          });
-        }
-      }
-      // Fallback dịch vụ khám tổng quát nếu không có dịch vụ chuyên biệt
-      if (!matchedService) {
+      // Nếu là nhiệt miệng đơn thuần: Không gán các dịch vụ thẩm mỹ / tiểu phẫu không liên quan (như Tẩy trắng, Bọc sứ)
+      if (isMouthUlcerOnly) {
         matchedService = await this.prisma.service.findFirst({
           where: {
             isActive: true,
             OR: [
-              { code: 'DV-POR-01' },
-              { name: { contains: 'Khám', mode: 'insensitive' } },
-              { name: { contains: 'Tổng quát', mode: 'insensitive' } },
+              { name: { contains: 'Nhiệt miệng', mode: 'insensitive' } },
+              { name: { contains: 'Bệnh Học Miệng', mode: 'insensitive' } },
             ],
           },
         });
+      } else {
+        if (aiResponse.serviceCode) {
+          matchedService = await this.prisma.service.findFirst({
+            where: { code: aiResponse.serviceCode, isActive: true },
+          });
+        }
+        if (!matchedService && aiResponse.serviceName) {
+          matchedService = await this.prisma.service.findFirst({
+            where: {
+              name: { contains: aiResponse.serviceName.split(' ')[0], mode: 'insensitive' },
+              isActive: true,
+            },
+          });
+        }
+        if (!matchedService) {
+          let keyword = '';
+          if (combinedText.includes('niềng') || combinedText.includes('chỉnh nha') || combinedText.includes('ortho')) keyword = 'niềng';
+          else if (combinedText.includes('implant') || combinedText.includes('cấy ghép')) keyword = 'implant';
+          else if (combinedText.includes('sứ') || combinedText.includes('bọc')) keyword = 'sứ';
+          else if (combinedText.includes('trắng') || combinedText.includes('tẩy')) keyword = 'trắng';
+          else if (combinedText.includes('tủy') || combinedText.includes('nội nha')) keyword = 'tủy';
+          else if (combinedText.includes('nhổ') || combinedText.includes('răng khôn')) keyword = 'nhổ';
+          else if (combinedText.includes('vôi') || combinedText.includes('cao răng')) keyword = 'vôi';
+
+          if (keyword) {
+            matchedService = await this.prisma.service.findFirst({
+              where: {
+                name: { contains: keyword, mode: 'insensitive' },
+                isActive: true,
+              },
+            });
+          }
+        }
       }
     } catch (e: any) {
       this.logger.warn(`Could not match service from DB: ${e.message}`);
@@ -440,6 +538,12 @@ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
           suggestedDoctorId: doctorId || null,
           suggestedDoctorName: doctorName,
           isAccepted: false,
+          metadata: {
+            imageHash: imageHash || null,
+            homeCareAdvice: aiResponse.homeCareAdvice || null,
+            visionDetails: aiResponse.visionDetails || null,
+            nlpDetails: aiResponse.nlpDetails || null,
+          },
         },
       });
     } catch (err: any) {

@@ -33,6 +33,7 @@ interface AiReportState {
   regimen: string[];
   homeCareAdvice?: string;
   isHybrid?: boolean;
+  isCached?: boolean;
   suggestedDoctor: string;
   suggestedDoctorId?: string;
   serviceId?: string;
@@ -121,18 +122,23 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
           regimen: res.regimen || [],
           homeCareAdvice: res.homeCareAdvice,
           isHybrid: res.isHybrid,
+          isCached: res.isCached,
           suggestedDoctor: res.suggestedDoctor || 'Bác sĩ chuyên khoa',
           suggestedDoctorId: res.suggestedDoctorId,
           serviceId: res.serviceId,
           serviceCode: res.serviceCode,
           serviceName: res.serviceName,
-          isServiceAvailable: res.isServiceAvailable !== false,
+          isServiceAvailable: res.isServiceAvailable === true && !!res.serviceName && !!res.serviceCode,
           imageUrl: res.imageUrl,
           visionDetails: res.visionDetails,
           nlpDetails: res.nlpDetails,
         });
 
-        toast('AI đã phân tích dữ liệu lâm sàng và khuyến nghị các bước thành công!', 'success');
+        if (res.isCached) {
+          toast('⚡ Đã đối soát & tải kết quả tư vấn lâm sàng tức thì từ bộ nhớ đệm!', 'success');
+        } else {
+          toast('AI đã phân tích dữ liệu lâm sàng và khuyến nghị các bước thành công!', 'success');
+        }
       } else {
         toast('Không thể nhận kết quả từ AI, vui lòng thử lại sau!', 'error');
       }
@@ -403,6 +409,11 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                       ⚡ Mô hình lai: MobileNet + Gemini
                     </span>
                   )}
+                  {aiReport.isCached && (
+                    <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 animate-pulse">
+                      ⚡ Phản Hồi Từ dữ liệu
+                    </span>
+                  )}
                   {aiReport.consultationId && (
                     <span className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                       ID: #{aiReport.consultationId.slice(0, 8)}
@@ -412,21 +423,27 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mt-1">
                   {aiReport.diagnosis}
                 </h3>
-                {aiReport.visionDetails?.selected_findings && aiReport.visionDetails.selected_findings.length > 1 && (
-                  <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      Dấu hiệu phát hiện đồng thời:
-                    </span>
-                    {aiReport.visionDetails.selected_findings.map((f: any, idx: number) => (
-                      <span
-                        key={idx}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200"
-                      >
-                        {f.vn_name.split(' /')[0]} ({f.confidence}%)
+                {(() => {
+                  const validFindings = (aiReport.visionDetails?.selected_findings || []).filter(
+                    (f: any) => f.confidence && Number(f.confidence) >= 15.0
+                  );
+                  if (validFindings.length <= 1) return null;
+                  return (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Dấu hiệu phát hiện đồng thời:
                       </span>
-                    ))}
-                  </div>
-                )}
+                      {validFindings.map((f: any, idx: number) => (
+                        <span
+                          key={idx}
+                          className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200"
+                        >
+                          {f.vn_name.split(' /')[0]} ({f.confidence}%)
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -436,7 +453,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                 {aiReport.riskLevel.includes('Cao')
                   ? 'Cao / Cần khám sớm'
                   : aiReport.riskLevel.includes('Thấp')
-                  ? 'Thấp / Định kỳ'
+                  ? 'Thấp / Theo dõi tại nhà'
                   : 'Trung Bình / Cần theo dõi'}
               </span>
             </div>
@@ -461,7 +478,7 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                         <span className="w-5 h-5 rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                           {idx + 1}
                         </span>
-                        <span className="text-slate-700 font-medium leading-relaxed text-xs sm:text-sm">{step}</span>
+                          <span className="text-slate-700 font-medium leading-relaxed text-xs sm:text-sm">{step}</span>
                       </div>
                     ))
                   ) : (
@@ -479,25 +496,12 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
                 )}
               </div>
 
-              {aiReport.serviceName && (
-                <div
-                  className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
-                    aiReport.isServiceAvailable !== false
-                      ? 'bg-amber-50/80 border-amber-200 text-amber-800'
-                      : 'bg-slate-50 border-slate-200 text-slate-600'
-                  }`}
-                >
-                  <CheckCircle2
-                    className={`w-4 h-4 shrink-0 ${
-                      aiReport.isServiceAvailable !== false ? 'text-amber-600' : 'text-slate-400'
-                    }`}
-                  />
+              {aiReport.serviceName && aiReport.isServiceAvailable && (
+                <div className="p-3 rounded-xl border text-xs font-medium flex items-center gap-2 bg-amber-50/80 border-amber-200 text-amber-800">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-600" />
                   <span>
                     Dịch vụ liên kết: <strong>{aiReport.serviceName}</strong>
                   </span>
-                  {aiReport.isServiceAvailable === false && (
-                    <span className="text-[10px] text-slate-400 ml-auto">(Khám lâm sàng)</span>
-                  )}
                 </div>
               )}
             </div>

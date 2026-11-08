@@ -299,15 +299,15 @@ export const UserLayout: React.FC<UserLayoutProps> = ({ onOpenBookingWizard }) =
             <ul className="space-y-2 text-[11px]">
               <li className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-                <span>CN1: 123 Nguyễn Huệ, Phường Bến Nghé, Quận 1</span>
+                <span>CN1: Chi nhánh Biên Hòa (Trụ sở chính)</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-                <span>CN2: 456 Nguyễn Lương Bằng, Phú Mỹ Hưng, Q7</span>
+                <span>CN2: Chi nhánh Quận 1 (Trung tâm)</span>
               </li>
               <li className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-                <span>CN3: 789 Võ Văn Ngân, TP. Thủ Đức</span>
+                <span>CN3: Chi nhánh TP. Thủ Đức</span>
               </li>
             </ul>
           </div>
