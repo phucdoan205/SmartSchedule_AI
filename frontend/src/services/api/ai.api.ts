@@ -51,4 +51,16 @@ export const overviewApi = {
     const res = await apiClient.get('/overview', { params });
     return res.data;
   },
+  getSummary: async (branchId?: string) => {
+    const params: any = {};
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/overview/summary', { params });
+    return res.data;
+  },
+  getSection: async (section: string, branchId?: string) => {
+    const params: any = { section };
+    if (branchId && branchId !== 'ALL') params.branchId = branchId;
+    const res = await apiClient.get('/overview/section', { params });
+    return res.data;
+  },
 };

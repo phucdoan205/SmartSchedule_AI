@@ -46,7 +46,52 @@ const ROLE_LABEL: Record<string, { label: string; color: string; bg: string }> =
   NURSE:          { label: 'Điều dưỡng viên',       color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
   TECHNICIAN:     { label: 'Kỹ thuật viên',         color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
   BRANCH_MANAGER: { label: 'Quản lý chi nhánh',     color: 'text-indigo-700',  bg: 'bg-indigo-50 border-indigo-200' },
+  'Kế Toán':      { label: 'Kế toán trưởng',        color: 'text-purple-700',  bg: 'bg-purple-50 border-purple-200' },
+  ACCOUNTANT:     { label: 'Kế toán trưởng',        color: 'text-purple-700',  bg: 'bg-purple-50 border-purple-200' },
   STAFF:          { label: 'Nhân viên',             color: 'text-slate-600',   bg: 'bg-slate-100 border-slate-300' },
+};
+
+const ROLE_RESPONSIBILITIES: Record<string, string[]> = {
+  SUPER_ADMIN: [
+    'Quản trị toàn hệ thống & Phân quyền nhân sự',
+    'Giám sát báo cáo tài chính & Doanh thu đa chi nhánh',
+    'Phê duyệt cấu hình bảng giá, dịch vụ & AI Schedule',
+    'Quản lý chi nhánh, thiết bị & Nhật ký hệ thống',
+  ],
+  ADMIN: [
+    'Quản trị hệ thống & Phân công nhân sự',
+    'Theo dõi vận hành lịch khám & Phê duyệt nghỉ phép',
+    'Cập nhật bảng giá dịch vụ & Báo cáo tổng hợp',
+  ],
+  BRANCH_MANAGER: [
+    'Điều hành hoạt động tại chi nhánh phụ trách',
+    'Phân ca trực, duyệt nghỉ phép & Quản lý thiết bị',
+    'Theo dõi hiệu suất lịch khám & Doanh thu chi nhánh',
+  ],
+  RECEPTIONIST: [
+    'Tiếp đón bệnh nhân & Điều phối lịch hẹn khám',
+    'Check-in khách hàng, tạo hồ sơ bệnh nhân mới',
+    'Thu ngân, xuất hóa đơn thanh toán tại quầy',
+  ],
+  'Kế Toán': [
+    'Quản lý bảng lương, phụ cấp & Hoa hồng ca điều trị',
+    'Đối soát hóa đơn thu chi & Báo cáo tài chính định kỳ',
+    'Kiểm tra công nợ & Thống kê doanh thu theo dịch vụ',
+  ],
+  ACCOUNTANT: [
+    'Quản lý bảng lương, phụ cấp & Hoa hồng ca điều trị',
+    'Đối soát hóa đơn thu chi & Báo cáo tài chính định kỳ',
+  ],
+  NURSE: [
+    'Chuẩn bị dụng cụ, ghế nha & Hỗ trợ bác sĩ thủ thuật',
+    'Hướng dẫn bệnh nhân chăm sóc hậu phẫu & Tái khám',
+    'Cập nhật hồ sơ theo dõi sinh hiệu & Vô trùng',
+  ],
+  TECHNICIAN: [
+    'Vận hành máy chụp X-Quang, CT Cone Beam & Thiết bị Labo',
+    'Kiểm tra, bảo trì định kỳ trang thiết bị nha khoa',
+    'Đảm bảo quy trình tiệt khuẩn vô trùng dụng cụ',
+  ],
 };
 
 const AVATAR_GRADIENTS = [
@@ -142,17 +187,24 @@ export const AdminProfilePage: React.FC = () => {
       console.warn('Lỗi khi tải thông tin chi tiết nhân sự:', e);
     }
 
-    // LocalStorage fallbacks
-    const savedServices =
-      localStorage.getItem(`staff_services_${userKey}`) ||
-      localStorage.getItem(`staff_services_${user?.employeeCode}`);
-    if (savedServices) {
-      try {
-        const parsed = JSON.parse(savedServices);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setAssignedServices(parsed);
-        }
-      } catch {}
+    const rolesList = user.roles || [];
+    const isDoctorAccount = rolesList.some((r) => r === 'DOCTOR' || r.toLowerCase().includes('bác sĩ'));
+
+    // LocalStorage fallbacks (Chỉ áp dụng dịch vụ chuyên môn cho Bác sĩ)
+    if (isDoctorAccount) {
+      const savedServices =
+        localStorage.getItem(`staff_services_${userKey}`) ||
+        localStorage.getItem(`staff_services_${user?.employeeCode}`);
+      if (savedServices) {
+        try {
+          const parsed = JSON.parse(savedServices);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAssignedServices(parsed);
+          }
+        } catch {}
+      }
+    } else {
+      setAssignedServices([]);
     }
     const savedHours =
       localStorage.getItem(`staff_workhours_${userKey}`) ||
@@ -197,6 +249,8 @@ export const AdminProfilePage: React.FC = () => {
 
   const roleKey   = user.roles?.[0] || 'STAFF';
   const roleMeta  = ROLE_LABEL[roleKey] || { label: roleKey, color: 'text-slate-600', bg: 'bg-slate-100 border-slate-300' };
+  const isDoctorRole = (user.roles || []).some((r) => r === 'DOCTOR' || r.toLowerCase().includes('bác sĩ'));
+  const roleResponsibilities = ROLE_RESPONSIBILITIES[roleKey] || [];
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -579,14 +633,15 @@ export const AdminProfilePage: React.FC = () => {
               </div>
             )}
 
-            {/* Chuyên môn / Chuyên khoa — readonly */}
+            {/* Chuyên môn / Lĩnh vực phụ trách — readonly */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                <Stethoscope className="w-3.5 h-3.5 text-slate-400" /> Chuyên môn / Chuyên khoa
+                <Stethoscope className="w-3.5 h-3.5 text-slate-400" />
+                {isDoctorRole ? 'Chuyên môn / Chuyên khoa' : 'Lĩnh vực phụ trách'}
               </label>
               <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                 <span className="text-sm font-bold text-slate-800">
-                  {doctorProfile?.specialty || (user as any)?.specialty || 'Bác sĩ chuyên khoa'}
+                  {doctorProfile?.specialty || (user as any)?.specialty || roleMeta.label}
                 </span>
                 <span className="text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
                   Đồng bộ chuẩn
@@ -600,7 +655,7 @@ export const AdminProfilePage: React.FC = () => {
                 <Building2 className="w-3.5 h-3.5 text-slate-400" /> Khoa / Bộ phận
               </label>
               <p className="px-3.5 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-800 border border-slate-100">
-                {doctorProfile?.department || 'Nha khoa chuyên sâu'}
+                {doctorProfile?.department || (isDoctorRole ? 'Nha khoa chuyên sâu' : 'Khối Quản trị & Vận hành')}
               </p>
             </div>
 
@@ -666,8 +721,8 @@ export const AdminProfilePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Dịch vụ phụ trách (nếu có) */}
-          {assignedServices.length > 0 && (
+          {/* Dịch vụ chuyên môn phụ trách (Dành riêng cho Bác sĩ) */}
+          {isDoctorRole && assignedServices.length > 0 && (
             <div className="pt-4 border-t border-slate-100 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -689,6 +744,34 @@ export const AdminProfilePage: React.FC = () => {
                     <span>🦷</span>
                     <span>{srv}</span>
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Phạm vi nhiệm vụ & Nghiệp vụ theo Vai trò (Hiển thị cho các vai trò khác ngoài Bác sĩ, hoặc khi chưa gán dịch vụ) */}
+          {(!isDoctorRole && roleResponsibilities.length > 0) && (
+            <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-sky-600" />
+                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Phạm vi phụ trách &amp; Nghiệp vụ vai trò ({roleMeta.label})
+                  </h4>
+                </div>
+                <span className="text-[10px] text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full font-semibold">
+                  Phân quyền RBAC
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {roleResponsibilities.map((task, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-slate-50 text-slate-700 border border-slate-200/70"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>{task}</span>
+                  </div>
                 ))}
               </div>
             </div>

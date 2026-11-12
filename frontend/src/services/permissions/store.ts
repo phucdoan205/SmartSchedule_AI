@@ -299,6 +299,8 @@ export const rolePermissionStore = {
     localStorage.setItem(STORAGE_KEY_MATRIX, JSON.stringify(newMatrix));
 
     // Convert to flat codes map for backend sync
+    const roles = this.getRoles();
+    const defaultRoleKeys = new Set(['owner', 'doctor', 'receptionist', 'nurse', 'technician', 'ke_toan', 'manager']);
     const backendPayload: Record<string, string[]> = {};
     Object.entries(newMatrix).forEach(([roleCode, moduleMap]) => {
       const codes: string[] = [];
@@ -310,7 +312,12 @@ export const rolePermissionStore = {
           });
         }
       });
-      backendPayload[roleCode] = codes;
+      const matchedRole = roles.find((r) => r.code === roleCode);
+      const targetKey =
+        !defaultRoleKeys.has(roleCode) && matchedRole
+          ? (matchedRole.id && !matchedRole.id.startsWith('role_') ? matchedRole.id : matchedRole.name)
+          : roleCode;
+      backendPayload[targetKey] = codes;
     });
 
     try {
@@ -721,16 +728,8 @@ export const rolePermissionStore = {
     if (!roleNameOrCode) return false;
     const lower = roleNameOrCode.toLowerCase();
     if (lower === 'owner' || lower === 'super_admin' || lower === 'admin' || lower === 'chủ phòng khám') return true;
-    // Check if role has AI view/configure permissions, or is doctor/branch manager
-    return (
-      this.hasSubPermission(roleNameOrCode, 'ai_view', user) ||
-      this.hasSubPermission(roleNameOrCode, 'ai_configure', user) ||
-      this.hasSubPermission(roleNameOrCode, 'ai_export', user) ||
-      lower.includes('doctor') ||
-      lower.includes('bác sĩ') ||
-      lower.includes('branch_manager') ||
-      lower.includes('quản lý')
-    );
+    // Strictly respect whether Module: AI Insights & Schedule is enabled in RBAC Matrix
+    return this.isModuleAllowedForRole(roleNameOrCode, '/admin/ai-insights', user);
   },
 
   canExportAi(roleNameOrCode?: string, user?: any): boolean {

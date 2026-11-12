@@ -48,8 +48,8 @@ export const buildDefaultMatrix = (roles: SystemRoleItem[]): MatrixState => {
           });
         }
       } else if (r.code === 'nurse') {
-        // Nurse: appointments, patients, schedule, maintenance
-        const nurseModules = ['appointments', 'patients', 'staff_schedule', 'maintenance'];
+        // Nurse: overview, appointments, patients, schedule, maintenance
+        const nurseModules = ['overview', 'appointments', 'patients', 'staff_schedule', 'maintenance'];
         if (nurseModules.includes(mod.code)) {
           isEnabled = true;
           mod.subPermissions.forEach((sp) => {
@@ -61,8 +61,8 @@ export const buildDefaultMatrix = (roles: SystemRoleItem[]): MatrixState => {
           });
         }
       } else if (r.code === 'technician') {
-        // Technician: patients, maintenance
-        const techModules = ['patients', 'maintenance', 'maintenance_notifications'];
+        // Technician: overview, patients, maintenance
+        const techModules = ['overview', 'patients', 'maintenance', 'maintenance_notifications'];
         if (techModules.includes(mod.code)) {
           isEnabled = true;
           mod.subPermissions.forEach((sp) => {

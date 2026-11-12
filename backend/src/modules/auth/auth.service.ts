@@ -75,41 +75,61 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const patientCode = await generatePatientCode(this.prisma);
     const finalEmail = cleanEmail || `${cleanPhone}@smartschedule.ai`;
 
-    // Create user in database
-    const newUser = await this.prisma.user.create({
-      data: {
-        employeeCode: patientCode,
-        fullName: fullName.trim(),
-        email: finalEmail,
-        phone: cleanPhone,
-        passwordHash,
-        branchId: defaultBranch.id,
-        isActive: true,
-        userRoles: {
-          create: {
-            roleId: patientRole.id,
-          },
-        },
-      },
-    });
-
-    // Also ensure Patient record exists
-    const existingPatient = await this.prisma.patient.findUnique({ where: { phone: cleanPhone } });
-    if (!existingPatient) {
-      await this.prisma.patient.create({
-        data: {
-          patientCode,
-          fullName: fullName.trim(),
-          phone: cleanPhone,
-          email: cleanEmail || null,
-          birthYear: new Date().getFullYear() - 25,
-          gender: 'Nam',
+    // Đồng bộ ngay lập tức User & Patient trong cùng 1 transaction khi đăng ký
+    const newUser = await this.prisma.$transaction(async (tx) => {
+      const existingPatient = await tx.patient.findFirst({
+        where: {
+          OR: [
+            { phone: cleanPhone },
+            ...(cleanEmail ? [{ email: { equals: cleanEmail, mode: 'insensitive' as const } }] : []),
+          ],
         },
       });
-    }
+
+      const patientCode = existingPatient?.patientCode || (await generatePatientCode(tx as any));
+
+      const createdUser = await tx.user.create({
+        data: {
+          employeeCode: patientCode,
+          fullName: fullName.trim(),
+          email: finalEmail,
+          phone: cleanPhone,
+          passwordHash,
+          branchId: defaultBranch.id,
+          isActive: true,
+          userRoles: {
+            create: {
+              roleId: patientRole.id,
+            },
+          },
+        },
+      });
+
+      if (existingPatient) {
+        await tx.patient.update({
+          where: { id: existingPatient.id },
+          data: {
+            fullName: fullName.trim(),
+            ...(cleanEmail && !existingPatient.email ? { email: cleanEmail } : {}),
+          },
+        });
+      } else {
+        await tx.patient.create({
+          data: {
+            patientCode,
+            fullName: fullName.trim(),
+            phone: cleanPhone,
+            email: cleanEmail || null,
+            birthYear: new Date().getFullYear() - 25,
+            gender: 'Nam',
+          },
+        });
+      }
+
+      return createdUser;
+    });
 
     return {
       success: true,
