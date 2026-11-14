@@ -79,7 +79,12 @@ export const BranchesPage: React.FC = () => {
       roomsToMap = dbRoomsList.map((r: any, idx: number) => {
         const chair = r.chairs?.[0];
 
-        // 1. Kiểm tra nếu phòng này đã được đổi bác sĩ trong phiên làm việc (localStorage)
+        // 1. Nguồn dữ liệu chuẩn xác từ cơ sở dữ liệu (Source of Truth)
+        const dbDocName =
+          chair?.assignedDoctor?.user?.fullName ||
+          r.assignedDoctorName;
+
+        // 2. Kiểm tra nếu phòng này đã được đổi bác sĩ tạm trong phiên làm việc (localStorage)
         let savedDocName: string | undefined;
         try {
           const cached = JSON.parse(localStorage.getItem(`smartschedule_branch_rooms_${branchId}`) || '[]');
@@ -87,10 +92,8 @@ export const BranchesPage: React.FC = () => {
           if (match?.doctorName) savedDocName = match.doctorName;
         } catch (e) {}
 
-        // 2. Bác sĩ phân công trong cơ sở dữ liệu
-        let docName = savedDocName ||
-          chair?.assignedDoctor?.user?.fullName ||
-          r.assignedDoctorName;
+        // Ưu tiên cao nhất là dữ liệu thật từ cơ sở dữ liệu; chỉ dùng savedDocName nếu DB chưa gán bác sĩ
+        let docName = dbDocName || savedDocName;
 
         // 3. Nếu chưa gán, lấy từ danh sách bác sĩ thuộc phân bổ nhân sự của CHI NHÁNH ĐÓ
         if (!docName && Array.isArray(branchDoctorsList) && branchDoctorsList.length > 0) {
@@ -143,7 +146,13 @@ export const BranchesPage: React.FC = () => {
           if (match?.doctorName) savedDocName = match.doctorName;
         } catch (e) {}
 
-        let docName = savedDocName;
+        const isDocStillActive =
+          !savedDocName ||
+          !Array.isArray(branchDoctorsList) ||
+          branchDoctorsList.length === 0 ||
+          branchDoctorsList.some((d: any) => (d?.name || d?.fullName || d?.user?.fullName) === savedDocName);
+
+        let docName = isDocStillActive ? savedDocName : undefined;
         if (!docName && Array.isArray(branchDoctorsList) && branchDoctorsList.length > 0) {
           const doc = branchDoctorsList[idx % branchDoctorsList.length];
           docName = doc?.name || doc?.fullName || doc?.user?.fullName;
@@ -260,6 +269,7 @@ export const BranchesPage: React.FC = () => {
         statusLabel,
         currentPatient,
         nextAppointment,
+        chairId: (baseRoom as any).chairId,
       };
     });
   };
@@ -369,16 +379,28 @@ export const BranchesPage: React.FC = () => {
 
   const currentBranch = branches.find((b) => b.id === selectedBranchId) || branches[0] || defaultBranch;
 
-  // Sync with Kanban drag-and-drop status changes in real-time
+  // Sync with Kanban drag-and-drop status changes and staff profile updates in real-time
   React.useEffect(() => {
     if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
     const ch = new BroadcastChannel('smartschedule_sync');
     ch.onmessage = async (e) => {
-      if (e.data?.type === 'APPOINTMENT_STATUS_UPDATED' || e.data?.type === 'BRANCH_ROOMS_UPDATED') {
-        const [freshAppts, freshBranches, freshDbRooms] = await Promise.all([
+      if (
+        e.data?.type === 'APPOINTMENT_STATUS_UPDATED' ||
+        e.data?.type === 'BRANCH_ROOMS_UPDATED' ||
+        e.data?.type === 'STAFF_UPDATED' ||
+        e.data?.type === 'PROFILE_UPDATED' ||
+        e.data?.type === 'DOCTOR_UPDATED'
+      ) {
+        // Clear stale local room cache to allow live DB names to reflect immediately
+        try {
+          localStorage.removeItem(`smartschedule_branch_rooms_${selectedBranchId}`);
+        } catch {}
+
+        const [freshAppts, freshBranches, freshDbRooms, branchDocs] = await Promise.all([
           appointmentApi.getAppointments().catch(() => []),
           branchesApi.getAll().catch(() => []),
           operatoriesApi.getByBranch(selectedBranchId).catch(() => []),
+          staffApi.getDoctors({ branchId: selectedBranchId }).catch(() => []),
         ]);
         const apptsArray = Array.isArray(freshAppts) ? freshAppts : freshAppts?.data || [];
         setAppointments(apptsArray);
@@ -414,7 +436,7 @@ export const BranchesPage: React.FC = () => {
             }),
           );
         }
-        setRooms(getBranchRooms(selectedBranchId, apptsArray, freshDbRooms));
+        setRooms(getBranchRooms(selectedBranchId, apptsArray, freshDbRooms, branchDocs));
       }
     };
     return () => ch.close();
@@ -896,18 +918,29 @@ export const BranchesPage: React.FC = () => {
         branchName={currentBranch?.name || ''}
         onConfirmChange={async (newDoc, doctorId) => {
           if (selectedRoom) {
-            setRooms((prev) => {
-              const next = prev.map((r) => (r.id === selectedRoom.id ? { ...r, doctorName: newDoc } : r));
-              const key = `smartschedule_branch_rooms_${selectedBranchId || 'default'}`;
-              try {
-                localStorage.setItem(key, JSON.stringify(next));
-              } catch (e) {}
-              return next;
-            });
+            setRooms((prev) => prev.map((r) => (r.id === selectedRoom.id ? { ...r, doctorName: newDoc } : r)));
 
-            if ((selectedRoom as any).chairId && doctorId) {
+            const chairIdToUpdate = (selectedRoom as any).chairId || selectedRoom.id;
+            const targetBranchId = currentBranch?.id || selectedBranchId;
+
+            // 1. Lưu dự phòng ngay vào cache local để tránh mất dữ liệu khi chuyển trang
+            try {
+              const cached = JSON.parse(localStorage.getItem(`smartschedule_branch_rooms_${targetBranchId}`) || '[]');
+              const updated = cached.filter((c: any) => c.id !== selectedRoom.id && c.name !== selectedRoom.name);
+              updated.push({ id: selectedRoom.id, name: selectedRoom.name, doctorName: newDoc, chairId: chairIdToUpdate });
+              localStorage.setItem(`smartschedule_branch_rooms_${targetBranchId}`, JSON.stringify(updated));
+            } catch {}
+
+            // 2. Ghi trực tiếp vào cơ sở dữ liệu thật qua API backend
+            if (chairIdToUpdate && doctorId) {
               try {
-                await operatoriesApi.updateChairStatus((selectedRoom as any).chairId, 'AVAILABLE', doctorId);
+                await operatoriesApi.updateChairStatus(chairIdToUpdate, 'AVAILABLE', doctorId);
+                await loadRoomsForBranch(targetBranchId);
+                if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+                  const ch = new BroadcastChannel('smartschedule_sync');
+                  ch.postMessage({ type: 'BRANCH_ROOMS_UPDATED', branchId: targetBranchId });
+                  ch.close();
+                }
               } catch (err) {
                 console.warn('Không thể cập nhật bác sĩ vào DB chair:', err);
               }

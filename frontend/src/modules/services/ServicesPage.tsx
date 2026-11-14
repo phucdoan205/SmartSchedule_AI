@@ -52,7 +52,7 @@ export const ServicesPage: React.FC = () => {
           deposit: item.deposit ? Number(item.deposit) : undefined,
           warranty: item.warranty || undefined,
           durationMinutes: item.durationMinutes || 60,
-          doctors: ['BS. Nguyễn Thị An', 'TS.BS. Nguyễn Minh Anh'],
+          doctors: ['BS. Đoàn Văn Phúc', 'TS.BS. Nguyễn Minh Anh'],
           isActive: item.isActive !== false,
           aiRecommended: Boolean(item.isAiRecommended),
           imageUrl: item.imageUrl,

@@ -325,7 +325,7 @@ export const BranchFinanceDetailView: React.FC<BranchFinanceDetailViewProps> = (
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between font-bold text-xs">
-                <span className="text-slate-800">BS. Nguyễn Thị An (Răng sứ)</span>
+                <span className="text-slate-800">BS. Đoàn Văn Phúc (Răng sứ)</span>
                 <span className="font-black text-slate-900">36%</span>
               </div>
               <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">

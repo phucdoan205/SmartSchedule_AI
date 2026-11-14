@@ -270,7 +270,7 @@ export const TransferStaffModal: React.FC<TransferStaffModalProps> = ({
               <h5 className="font-extrabold text-amber-900 text-xs">Bàn giao lịch khám tại {fromBranchName.split('(')[0]}</h5>
               <p className="text-[11px] text-amber-800 font-medium mt-0.5 leading-relaxed">
                 Có 2 lịch hẹn tái khám tại cơ sở trong thời gian này. Hệ thống đề xuất chuyển sang{' '}
-                <strong>BS. Nguyễn Thị An</strong> phụ trách thay.
+                <strong>BS. Đoàn Văn Phúc</strong> phụ trách thay.
               </p>
             </div>
           </div>

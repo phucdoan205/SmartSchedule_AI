@@ -613,10 +613,50 @@ export class AppointmentsService {
 
         if (doctorDirectConflict) {
           isAvailable = false;
-          conflictReason = `Bác sĩ ${selectedDoctor?.fullName || ''} đã có lịch hẹn ở khung giờ này`;
+          const apptStartStr = new Date(doctorDirectConflict.startTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          const apptEndStr = new Date(doctorDirectConflict.endTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          const slotEndStr = slotEnd.toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          conflictReason = `Ca khám (${durationMinutes}p) kéo dài đến ${slotEndStr}, bị trùng với lịch hẹn ${apptStartStr} - ${apptEndStr} của ${selectedDoctor?.fullName || 'bác sĩ'}`;
         } else if (doctorBufferConflict) {
           isAvailable = false;
-          conflictReason = `Bác sĩ ${selectedDoctor?.fullName || ''} đang trong 15 phút đệm khử trùng vô trùng`;
+          const apptStartStr = new Date(doctorBufferConflict.startTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          const apptEndStr = new Date(doctorBufferConflict.endTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          const bufferEndStr = new Date(doctorBufferConflict.bufferEndTime).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+          const slotEndStr = slotEnd.toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Ho_Chi_Minh',
+          });
+
+          if (slotStart >= doctorBufferConflict.endTime) {
+            conflictReason = `Bác sĩ và ghế khám đang trong 15 phút đệm khử trùng vô trùng (đến ${bufferEndStr}) sau ca hẹn ${apptStartStr} - ${apptEndStr} của ${selectedDoctor?.fullName || 'bác sĩ'}`;
+          } else {
+            conflictReason = `Ca khám (${durationMinutes}p) kết thúc lúc ${slotEndStr}, không đủ 15 phút đệm khử trùng vô trùng trước ca hẹn ${apptStartStr} của ${selectedDoctor?.fullName || 'bác sĩ'}`;
+          }
         } else {
           // C. Find an available chair
           const freeChair = chairs.find((c) => {

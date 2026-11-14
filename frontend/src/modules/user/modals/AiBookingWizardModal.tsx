@@ -659,6 +659,44 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
         {/* Step 2: Bác sĩ & Khung giờ */}
         {step === 2 && (
           <div className="space-y-4 text-xs">
+            {/* Banner hiển thị dịch vụ đã chọn & thời lượng thực tế */}
+            {selectedServiceObj && (
+              <div className="p-3 bg-teal-50/80 rounded-2xl border border-teal-200 flex items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 font-bold text-xs shadow-2xs">
+                    🦷
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-extrabold text-xs text-slate-900 truncate">
+                        {selectedServiceObj.name}
+                      </p>
+                      {selectedServiceObj.code && (
+                        <span className="text-[10px] font-mono font-bold text-teal-700 bg-teal-100/70 px-1.5 py-0.2 rounded border border-teal-300">
+                          {selectedServiceObj.code}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-teal-800 font-semibold mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span>⏱️ Thời lượng: <strong>{selectedServiceObj.durationMinutes || 45} phút</strong></span>
+                      <span>•</span>
+                      <span>🛡️ Đệm vô trùng: <strong>15 phút</strong></span>
+                      <span>•</span>
+                      <span>Chiếm dụng ghế: <strong>{(selectedServiceObj.durationMinutes || 45) + 15} phút/ca</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-2.5 py-1 text-[11px] font-bold text-teal-700 bg-white hover:bg-teal-100/60 rounded-xl border border-teal-200 transition-all shrink-0 cursor-pointer shadow-2xs"
+                >
+                  Đổi dịch vụ
+                </button>
+              </div>
+            )}
+
             {/* 1. Chọn Bác Sĩ */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
@@ -774,6 +812,7 @@ export const AiBookingWizardModal: React.FC<AiBookingWizardModalProps> = ({
                         <button
                           key={t.time}
                           type="button"
+                          title={isBlocked ? t.conflictReason || 'Khung giờ đã kín lịch hẹn hoặc đệm vô trùng' : undefined}
                           onClick={() => {
                             if (isBlocked) {
                               const msg =

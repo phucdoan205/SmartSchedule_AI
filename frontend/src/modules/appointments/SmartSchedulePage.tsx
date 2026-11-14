@@ -116,11 +116,10 @@ export const SmartSchedulePage: React.FC = () => {
           timeRaw,
           notes: item.notes || '',
           status:
-            item.status === 'CONFIRMED' ? 'Confirmed'
-            : item.status === 'IN_PROGRESS' ? 'InProgress'
+            item.status === 'IN_PROGRESS' ? 'InProgress'
             : item.status === 'COMPLETED' ? 'Completed'
             : item.status === 'CANCELLED' ? 'Cancelled'
-            : 'Pending',
+            : 'Confirmed',
           aiScore: item.isAiRecommended ? 98 : 92,
           aiNote: 'Xep lich kiem soat dem vo trung 15 phut',
           rawItem: item,
@@ -222,7 +221,6 @@ export const SmartSchedulePage: React.FC = () => {
       header: 'TRẠNG THÁI',
       cell: (row) => {
         const cfg: Record<string, { label: string; bg: string; dot: string }> = {
-          Pending: { label: 'Chờ Khám', bg: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
           Confirmed: { label: 'Đã Xác Nhận', bg: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
           InProgress: { label: 'Đang Điều Trị', bg: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
           Completed: { label: 'Hoàn Thành', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
@@ -252,7 +250,6 @@ export const SmartSchedulePage: React.FC = () => {
   ];
 
   const kanbanColumns = [
-    { id: 'Pending' as const, title: 'Chờ Khám', titleFull: 'Chờ Khám & Check-in', containerBg: 'bg-amber-50/70', borderTop: 'border-t-amber-500', borderBase: 'border-amber-200/80', headerText: 'text-amber-900', badgeClass: 'bg-amber-100 text-amber-800 border-amber-300', dotColor: 'bg-amber-500' },
     { id: 'Confirmed' as const, title: 'Đã Xác Nhận', titleFull: 'Đã Xác Nhận Lịch', containerBg: 'bg-sky-50/70', borderTop: 'border-t-sky-500', borderBase: 'border-sky-200/80', headerText: 'text-sky-900', badgeClass: 'bg-sky-100 text-sky-800 border-sky-300', dotColor: 'bg-sky-500' },
     { id: 'InProgress' as const, title: 'Đang Điều Trị', titleFull: 'Đang Thực Hiện Điều Trị', containerBg: 'bg-purple-50/70', borderTop: 'border-t-purple-500', borderBase: 'border-purple-200/80', headerText: 'text-purple-900', badgeClass: 'bg-purple-100 text-purple-800 border-purple-300', dotColor: 'bg-purple-500' },
     { id: 'Completed' as const, title: 'Hoàn Thành', titleFull: 'Hoàn Thành & Thanh Toán', containerBg: 'bg-emerald-50/70', borderTop: 'border-t-emerald-500', borderBase: 'border-emerald-200/80', headerText: 'text-emerald-900', badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300', dotColor: 'bg-emerald-500' },
@@ -270,8 +267,8 @@ export const SmartSchedulePage: React.FC = () => {
     if (!draggedId) return;
     const prev = appointments;
     setAppointments((a) => a.map((apt) => (apt.id === draggedId ? { ...apt, status: targetStatus } : apt)));
-    const map: Record<Appointment['status'], string> = { Pending: 'PENDING', Confirmed: 'CONFIRMED', InProgress: 'IN_PROGRESS', Completed: 'COMPLETED', Cancelled: 'CANCELLED' };
-    const newStatus = map[targetStatus] || 'PENDING';
+    const map: Record<Appointment['status'], string> = { Confirmed: 'CONFIRMED', InProgress: 'IN_PROGRESS', Completed: 'COMPLETED', Cancelled: 'CANCELLED', Pending: 'CONFIRMED' };
+    const newStatus = map[targetStatus] || 'CONFIRMED';
     const id = draggedId;
     setDraggedId(null);
     try {
@@ -292,7 +289,6 @@ export const SmartSchedulePage: React.FC = () => {
   const handleExportExcel = () => {
     const headers = ['Mã lịch hẹn', 'Bệnh nhân', 'Điện thoại', 'Bác sĩ', 'Dịch vụ', 'Chi nhánh', 'Ngày', 'Giờ', 'Trạng thái'];
     const statusLabel: Record<string, string> = {
-      Pending: 'Chờ khám',
       Confirmed: 'Đã xác nhận',
       InProgress: 'Đang điều trị',
       Completed: 'Hoàn thành',
@@ -409,7 +405,7 @@ export const SmartSchedulePage: React.FC = () => {
           </p>
         </div>
       ) : viewMode === 'kanban' ? (
-        <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:overflow-x-visible sm:snap-none lg:grid-cols-5" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory sm:grid sm:grid-cols-2 sm:overflow-x-visible sm:snap-none lg:grid-cols-4" style={{ WebkitOverflowScrolling: 'touch' }}>
           {kanbanColumns.map((col) => {
             const allItems = filteredAppointments.filter((a) => a.status === col.id);
             const isCollapsed = collapsedColumns.has(col.id);

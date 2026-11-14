@@ -47,10 +47,10 @@ export const UserHomePage: React.FC<UserHomePageProps> = ({ onOpenBookingWizard 
           date: '25/09/2026',
           rating: 5,
           service: 'Tẩy Trắng Răng Chuyên Sâu Công Nghệ Laser Whitening',
-          comment: 'Bác sĩ BS. Nguyễn Thị An làm rất nhẹ nhàng, không hề bị ê buốt. Form răng thiết kế tự nhiên và khớp cắn ăn nhai rất thoải mái. Cảm ơn bác sĩ nhiều!',
+          comment: 'Bác sĩ BS. Đoàn Văn Phúc làm rất nhẹ nhàng, không hề bị ê buốt. Form răng thiết kế tự nhiên và khớp cắn ăn nhai rất thoải mái. Cảm ơn bác sĩ nhiều!',
           verified: true,
           branch: 'Chi nhánh Biên Hòa (Trụ sở chính)',
-          doctorName: 'BS. Nguyễn Thị An',
+          doctorName: 'BS. Đoàn Văn Phúc',
           doctorSpecialty: 'Phục hình Răng sứ & Thẩm mỹ',
         },
         {

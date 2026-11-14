@@ -82,11 +82,11 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>(doctor?.avatar || doctor?.avatarUrl);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [code, setCode] = useState(doctor?.code || doctor?.employeeCode || 'NV001');
-  const [name, setName] = useState(doctor?.name || doctor?.fullName || 'BS. Nguyễn Thị An');
+  const [name, setName] = useState(doctor?.name || doctor?.fullName || 'BS. Đoàn Văn Phúc');
   const [title, setTitle] = useState(doctor?.title || 'Bác sĩ Chuyên khoa - Răng Hàm Mặt');
   const [phone, setPhone] = useState(doctor?.phone || '090 123 4567');
   const [joinedDate, setJoinedDate] = useState(doctor?.joinedDate || '12/05/2021');
-  const [email, setEmail] = useState(doctor?.email || 'bs.an@vietanhduc.vn');
+  const [email, setEmail] = useState(doctor?.email || 'phucvandoan123@gmail.com');
   const [status, setStatus] = useState<'active' | 'leave' | 'resigned'>('active');
 
   const [branch, setBranch] = useState(doctor?.branch || 'Chi nhánh Biên Hòa (Trụ sở chính)');
@@ -424,6 +424,15 @@ export const DoctorEditModal: React.FC<DoctorEditModalProps> = ({
     } catch (err) {
       console.warn('Backend updateStaff notice:', err);
     }
+
+    // Clear any stale branch rooms doctor cache in localStorage
+    try {
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith('smartschedule_branch_rooms_')) {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch {}
 
     // Broadcast sync event to all open tabs / admin view
     try {

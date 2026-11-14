@@ -699,7 +699,7 @@ export const DoctorDetailPage: React.FC = () => {
 
   // Tab 4 reviews: Seed and synchronize to public reviews for homepage
   const displayedReviews = useMemo(() => {
-    const docName = doctor?.name || doctor?.fullName || 'BS. Nguyễn Thị An';
+    const docName = doctor?.name || doctor?.fullName || 'BS. Đoàn Văn Phúc';
     const branchName = typeof doctor?.branch === 'string' ? doctor.branch : doctor?.branch?.name || 'Chi nhánh Biên Hòa';
     const docKey = doctor?.id || doctor?.code || 'NV001';
 

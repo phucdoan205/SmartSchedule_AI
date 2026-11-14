@@ -173,7 +173,7 @@ export const RoomHistoryModal: React.FC<RoomHistoryModalProps> = ({
                     <span className="text-[10px] text-slate-400">#BN26-0002</span>
                   </td>
                   <td className="py-3.5 px-3">Khám tổng quát &amp; Lấy dấu sứ</td>
-                  <td className="py-3.5 px-3 font-bold text-slate-900">BS. Nguyễn Thị An</td>
+                  <td className="py-3.5 px-3 font-bold text-slate-900">BS. Đoàn Văn Phúc</td>
                   <td className="py-3.5 px-3 text-slate-600">60 phút</td>
                   <td className="py-3.5 px-3 text-right">
                     <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-full border border-emerald-200 text-[10px] inline-flex items-center gap-1">

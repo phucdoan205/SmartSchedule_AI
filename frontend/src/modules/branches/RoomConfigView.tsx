@@ -27,6 +27,7 @@ export interface RoomItem {
   nextAppointment?: { time: string; service: string };
   equipment?: string;
   webBookingEnabled: boolean;
+  chairId?: string;
 }
 
 interface RoomConfigViewProps {

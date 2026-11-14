@@ -31,7 +31,6 @@ interface EditAppointmentModalProps {
 
 // Status badge config
 const STATUS_BADGE: Record<string, { label: string; bg: string; dot: string }> = {
-  PENDING:     { label: 'Chờ Khám & Check-in',       bg: 'bg-amber-50 text-amber-700 border-amber-200',   dot: 'bg-amber-500' },
   CONFIRMED:   { label: 'Đã Xác Nhận Lịch',           bg: 'bg-sky-50 text-sky-700 border-sky-200',         dot: 'bg-sky-500' },
   IN_PROGRESS: { label: 'Đang Thực Hiện Điều Trị',    bg: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
   COMPLETED:   { label: 'Hoàn Thành & Thanh Toán',    bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
@@ -98,7 +97,7 @@ export const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
       // Map status
       const statusMap: Record<string, string> = {
-        Pending: 'PENDING',
+        Pending: 'CONFIRMED',
         Confirmed: 'CONFIRMED',
         InProgress: 'IN_PROGRESS',
         Completed: 'COMPLETED',

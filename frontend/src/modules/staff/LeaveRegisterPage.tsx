@@ -58,10 +58,10 @@ const STORAGE_KEY_LEAVES = 'smartschedule_real_leave_requests';
 // Initial realistic clinic leave requests
 const SEED_LEAVE_HISTORY: LeaveHistoryItem[] = [
   {
-    id: 'l-an',
+    id: 'l-phuc',
     code: '#NP-2026-001',
-    requesterName: 'BS. Nguyễn Thị An',
-    requesterEmail: 'nguyenthian@smartschedule.ai',
+    requesterName: 'BS. Đoàn Văn Phúc',
+    requesterEmail: 'phucvandoan123@gmail.com',
     requesterRole: 'Bác sĩ chuyên khoa',
     requesterAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&auto=format&fit=crop&q=80',
     type: 'Nghỉ phép năm',
