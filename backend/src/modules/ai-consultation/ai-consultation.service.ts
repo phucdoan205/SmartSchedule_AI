@@ -320,6 +320,30 @@ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
 
       const cachedMeta = (cachedLog.metadata as any) || {};
 
+      let cachedService: any = null;
+      try {
+        if (cachedLog.serviceCode) {
+          cachedService = await this.prisma.service.findFirst({
+            where: { code: cachedLog.serviceCode, isActive: true },
+          });
+        }
+        if (!cachedService && cachedLog.serviceName) {
+          cachedService = await this.prisma.service.findFirst({
+            where: { name: cachedLog.serviceName, isActive: true },
+          });
+        }
+        if (!cachedService && cachedLog.serviceName) {
+          cachedService = await this.prisma.service.findFirst({
+            where: {
+              name: { contains: cachedLog.serviceName.split(' ')[0], mode: 'insensitive' },
+              isActive: true,
+            },
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not lookup cached service: ${err.message}`);
+      }
+
       return {
         success: true,
         consultationId: logRecord?.id || cachedLog.id,
@@ -334,10 +358,10 @@ TRẢ VỀ DUY NHẤT 1 ĐỐI TƯỢNG JSON (không kèm markdown \`\`\`json):
         isCached: true,
         suggestedDoctor: cachedLog.suggestedDoctorName || 'TS.BS. Nguyễn Minh Anh',
         suggestedDoctorId: cachedLog.suggestedDoctorId,
-        serviceId: null,
-        serviceCode: cachedLog.serviceCode,
-        serviceName: cachedLog.serviceName,
-        isServiceAvailable: !!(cachedLog.serviceName && cachedLog.serviceCode),
+        serviceId: cachedService?.id || null,
+        serviceCode: cachedService?.code || cachedLog.serviceCode,
+        serviceName: cachedService?.name || cachedLog.serviceName,
+        isServiceAvailable: !!(cachedService || (cachedLog.serviceName && cachedLog.serviceCode)),
         imageUrl: uploadedImageUrl || cachedLog.imageUrl,
         visionDetails: cachedMeta.visionDetails,
         nlpDetails: cachedMeta.nlpDetails,

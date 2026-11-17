@@ -176,7 +176,10 @@ export const UserAiConsultationPage: React.FC<UserAiConsultationPageProps> = ({ 
     }
 
     if (onOpenBookingWizard) {
-      onOpenBookingWizard(aiReport?.suggestedDoctorId, aiReport?.serviceId);
+      onOpenBookingWizard(
+        aiReport?.suggestedDoctorId,
+        aiReport?.serviceId || aiReport?.serviceCode || aiReport?.serviceName,
+      );
     } else {
       toast('Đang chuyển hướng đến cổng đặt lịch hẹn...', 'success');
     }
